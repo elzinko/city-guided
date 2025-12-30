@@ -1,0 +1,26 @@
+{
+  "name": "services-api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "fastify": "^4.23.0",
+    "@fastify/cors": "^8.0.0",
+    "pino": "^8.0.0",
+    "uuid": "^9.0.0",
+    "@city-guided/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^18.0.0",
+    "@types/uuid": "^9.0.0",
+    "vitest": "^1.0.0"
+  }
+}

@@ -1,0 +1,49 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Pre-commit hook: quick local CI
+# Steps: if node_modules seems missing, run `pnpm -w install` once, then run build and tests and finally lint.
+# Stop the commit if any step fails.
+
+# quick check: is pnpm available?
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "pnpm not found. Please install pnpm or enable corepack (corepack enable; corepack prepare pnpm@8 --activate)."
+  exit 1
+fi
+
+# If top-level node_modules missing, run install (this keeps the hook idempotent and avoids forcing network installs every commit)
+if [ ! -d "node_modules" ]; then
+  echo "node_modules missing: running 'pnpm -w install'..."
+  pnpm -w install
+  RC=$?
+  if [ $RC -ne 0 ]; then
+    echo "pnpm install failed (exit $RC). Aborting commit."
+    exit $RC
+  fi
+fi
+
+echo "Running build (quick check)..."
+pnpm -w build
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Build failed (exit $RC). Aborting commit."
+  exit $RC
+fi
+
+echo "Running tests..."
+pnpm -w test
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Tests failed (exit $RC). Aborting commit."
+  exit $RC
+fi
+
+echo "Running lint..."
+pnpm -w lint
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Lint failed (exit $RC). Aborting commit."
+  exit $RC
+fi
+
+echo "Pre-commit quick CI checks passed."

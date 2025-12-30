@@ -1,0 +1,34 @@
+# Node
+node_modules/
+
+# Builds
+dist/
+.next/
+.out/
+.build/
+
+# Environment
+.env
+.env.*
+.env.local
+
+# pnpm store
+.pnpm-store/
+.pnpm-debug.log
+pnpm-lock.yaml
+
+# Turbo / cache
+.turbo/
+.cache/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Coverage
+coverage/
+
+# Misc
+npm-debug.log
+yarn-error.log

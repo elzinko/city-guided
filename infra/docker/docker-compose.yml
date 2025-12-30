@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: ../../services/api
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+  web:
+    build:
+      context: ../../apps/web-frontend
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - api

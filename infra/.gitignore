@@ -1,0 +1,12 @@
+# Terraform / Infra
+.terraform/
+
+# Docker
+docker-compose.override.yml
+
+# Environment
+.env
+.env.*
+
+# Editor/OS
+.DS_Store

@@ -1,0 +1,18 @@
+# Node
+node_modules/
+
+# Build
+dist/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Logs
+npm-debug.log
+pnpm-debug.log
+
+# Editor/OS
+.DS_Store
+.vscode/

@@ -16,3 +16,65 @@ services:
       - NODE_ENV=development
     depends_on:
       - api
+
+  # Téléchargement du PBF (one-shot)
+  osrm-download:
+    image: curlimages/curl:latest
+    platform: linux/amd64
+    profiles: ['osrm']
+    volumes:
+      - ./osrm-data:/data
+    environment:
+      - OSRM_REGION_BASE=ile-de-france-latest
+      - OSRM_PBF_URL=https://download.geofabrik.de/europe/france/ile-de-france-latest.osm.pbf
+    entrypoint: >
+      /bin/sh -c "PBF_NAME=$${OSRM_REGION_BASE:-ile-de-france-latest}.osm.pbf; \
+      if [ ! -f /data/$${PBF_NAME} ]; then \
+        echo '>> Téléchargement '$${OSRM_PBF_URL:-https://download.geofabrik.de/europe/france/ile-de-france-latest.osm.pbf}; \
+        curl -L $${OSRM_PBF_URL:-https://download.geofabrik.de/europe/france/ile-de-france-latest.osm.pbf} -o /data/$${PBF_NAME}; \
+      else \
+        echo '>> PBF déjà présent, skip'; \
+      fi"
+
+  # Préparation des données OSRM (extraction/partition/customize)
+  osrm-prep:
+    image: osrm/osrm-backend:latest
+    platform: linux/amd64
+    profiles: ['osrm']
+    depends_on:
+      - osrm-download
+    volumes:
+      - ./osrm-data:/data
+    environment:
+      - OSRM_REGION_BASE=ile-de-france-latest
+    entrypoint: >
+      /bin/sh -c "set -e; \
+      PBF_NAME=$${OSRM_REGION_BASE:-ile-de-france-latest}.osm.pbf; \
+      if [ ! -f /data/$${OSRM_REGION_BASE:-ile-de-france-latest}.osrm ]; then \
+        echo '>> Extraction OSRM'; \
+        osrm-extract -p /opt/car.lua /data/$${PBF_NAME}; \
+        echo '>> Partition OSRM'; \
+        osrm-partition /data/$${OSRM_REGION_BASE:-ile-de-france-latest}.osrm; \
+        echo '>> Customize OSRM'; \
+        osrm-customize /data/$${OSRM_REGION_BASE:-ile-de-france-latest}.osrm; \
+      else \
+        echo '>> Fichiers OSRM déjà présents, skip'; \
+      fi"
+
+  osrm:
+    image: osrm/osrm-backend:latest
+    platform: linux/amd64
+    profiles: ['osrm']
+    depends_on:
+      - osrm-prep
+    ports:
+      - '5001:5000'
+    volumes:
+      - ./osrm-data:/data
+    environment:
+      - OSRM_REGION_BASE=ile-de-france-latest
+    command: >
+      /bin/sh -c "osrm-routed --algorithm mld /data/$${OSRM_REGION_BASE:-ile-de-france-latest}.osrm"
+
+volumes:
+  osrm-data:

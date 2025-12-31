@@ -1,0 +1,124 @@
+import React from 'react'
+import { distanceMeters } from '../utils/distance'
+import { ghostButtonStyle } from './ui'
+
+type Props = {
+  level: 'hidden' | 'peek' | 'mid' | 'full'
+  setLevel: (v: 'hidden' | 'peek' | 'mid' | 'full') => void
+  query: string
+  items: any[]
+  speak: (text?: string) => void
+  pos: { lat: number; lng: number } | null
+}
+
+export function BottomSheet({ level, setLevel, query, items, speak, pos }: Props) {
+  if (level === 'hidden') return null
+  const heights: any = { peek: '12vh', mid: '65vh', full: '90vh' }
+  const height = heights[level] || '12vh'
+  const cycle = () => {
+    setLevel(level === 'peek' ? 'mid' : level === 'mid' ? 'full' : 'peek')
+  }
+  const sorted = items
+    .slice()
+    .map((p: any) => ({
+      ...p,
+      dist: pos ? Math.round(distanceMeters(pos.lat, pos.lng, p.lat, p.lng)) : null,
+    }))
+    .sort((a: any, b: any) => (a.dist || 0) - (b.dist || 0))
+  const featured = sorted.slice(0, 5)
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height,
+        background: '#0b1220',
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        border: '1px solid #1f2937',
+        boxShadow: '0 -10px 30px rgba(0,0,0,0.45)',
+        zIndex: 9998,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '8px 12px',
+          borderBottom: '1px solid #111827',
+        }}
+      >
+        <div
+          onClick={cycle}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ width: 60, height: 4, borderRadius: 999, background: '#1f2937', margin: '0 auto' }} />
+        </div>
+        <button style={ghostButtonStyle} onClick={() => setLevel('hidden')}>
+          ✕
+        </button>
+      </div>
+
+      <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden' }}>
+        <div style={{ fontWeight: 700 }}>{query}</div>
+        {level === 'peek' && (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+            {featured.map((p: any) => (
+              <button
+                key={p.id}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 12,
+                  border: '1px solid #1f2937',
+                  background: '#0f172a',
+                  color: '#e5e7eb',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {(level === 'mid' || level === 'full') && (
+          <div style={{ overflowY: 'auto', maxHeight: '100%', display: 'grid', gap: 10, paddingBottom: 20 }}>
+            {sorted.map((p: any) => (
+              <div
+                key={p.id}
+                style={{
+                  padding: 12,
+                  borderRadius: 12,
+                  border: '1px solid #1f2937',
+                  background: '#0f172a',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                <div style={{ fontWeight: 700 }}>{p.name}</div>
+                <div style={{ color: '#9ca3af' }}>{p.shortDescription}</div>
+                {p.dist !== null && <div style={{ fontSize: 12, color: '#6b7280' }}>{p.dist} m</div>}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button style={ghostButtonStyle} onClick={() => speak(p.ttsText)}>
+                    Lire (TTS)
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -10,3 +10,5 @@
 - Mode GPS avancé : vue carte inclinée type Google Maps, point bleu au centre, lieu courant clignotant, zoom auto pour voir la destination en cours.
 - Parcours taxi simulés : ajouter 1 simulation Fontainebleau, 1 Thomery, 2 Marseille (thèmes différents), sélectionnables dans le module admin (chargement sans démarrage automatique). Vitesses réalistes, durée ~30 min max pour Marseille.
 - Bouton feedback beta → création d’issue GitHub : popup plein écran avec titre, description, type (bug/feature/other), contexte auto (historique d’actions utilisateur) attaché en PJ ou dans le body; utilisation d’un token GitHub fourni.
+- Refactor front en composants dédiés (SearchOverlay, MapShell, FiltersBar, BottomSheet, StoryPanel, ResultsList, DevControls, HeroHeader) avec fichiers séparés et éventuellement stories/tests UI pour clarifier la structure.
+- Mode navigation audio (post-recherche) : interface type GPS avec POI suivant/temps-distance, zone texte/contrôles (lecture/pause/suivant), sortie du mode nav, et affichage superposé à la carte pendant la navigation.

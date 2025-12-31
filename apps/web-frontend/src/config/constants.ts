@@ -1,0 +1,2 @@
+export const DEFAULT_CENTER_RADIUS_METERS = 1500
+export const MAX_POIS_DISPLAYED = 30

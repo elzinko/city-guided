@@ -15,3 +15,4 @@
 - Implémenter « Enregistrés » (gestion des lieux favoris) dans la barre Ambiance locale.
 - Implémenter « Contribuer » (notation/signalement de lieux) dans la barre Ambiance locale.
 - Ajouter la notation/avis des lieux (étoiles + nombre d’avis) dans les cartes résultats.
+- Proposer par défaut une sélection de découvertes personnalisées sur la carte (POI suggérés) avant recherche.

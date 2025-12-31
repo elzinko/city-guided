@@ -66,7 +66,7 @@ export default function Home() {
   const [simStep, setSimStep] = useState(0)
   const simTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastPanRef = useRef<{ lat: number; lng: number } | null>(null)
-  const [simPath, setSimPath] = useState(DEFAULT_DRIVE_PATH)
+  const [simPath, setSimPath] = useState<any[]>([])
   const [routeStatus, setRouteStatus] = useState<string>('Trajet par défaut prêt')
   const [osrmError, setOsrmError] = useState<string | null>(null)
   const [speedFactor, setSpeedFactor] = useState(1)
@@ -79,14 +79,15 @@ export default function Home() {
   const [centerRadiusMeters, setCenterRadiusMeters] = useState(DEFAULT_CENTER_RADIUS_METERS)
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(fallbackPos)
   const [discoverMode, setDiscoverMode] = useState(false)
+  const [guideMode, setGuideMode] = useState(false)
   useEffect(() => {
     if (searchActive) return
-    if (searchReady || discoverMode) {
+    if (searchReady || discoverMode || guideMode) {
       setSheetLevel('mid')
     } else {
       setSheetLevel('peek')
     }
-  }, [searchReady, searchActive, discoverMode])
+  }, [searchReady, searchActive, discoverMode, guideMode])
   useEffect(() => {
     setSimStep(0)
   }, [simPath])
@@ -124,7 +125,14 @@ export default function Home() {
     const url = base ? `${base}/api/pois?${params.toString()}` : `/api/pois?${params.toString()}`
     fetch(url)
       .then((r) => r.json())
-      .then((data) => setPois(data))
+      .then((data) => {
+        const sorted = (data || []).map((p: any) => ({
+          ...p,
+          dist: basePos ? distanceMeters(basePos.lat, basePos.lng, p.lat, p.lng) : 0,
+        }))
+        sorted.sort((a: any, b: any) => a.dist - b.dist)
+        setPois(sorted)
+      })
       .catch(console.error)
   }, [query, mapCenter?.lat, mapCenter?.lng])
 
@@ -248,6 +256,28 @@ export default function Home() {
     setIsSimulating(false)
     if (simTimerRef.current) clearTimeout(simTimerRef.current)
     stopSpeech()
+  }
+
+  function prevSegment() {
+    setActiveStory((cur) => {
+      if (!cur) return cur
+      const poi = pois.find((p) => p.id === cur.poiId)
+      if (!poi) return cur
+      const segs = getStorySegments(poi)
+      const next = Math.max(0, cur.segmentIdx - 1)
+      return { ...cur, segmentIdx: next }
+    })
+  }
+
+  function nextSegment() {
+    setActiveStory((cur) => {
+      if (!cur) return cur
+      const poi = pois.find((p) => p.id === cur.poiId)
+      if (!poi) return cur
+      const segs = getStorySegments(poi)
+      const next = Math.min((segs.length || 1) - 1, cur.segmentIdx + 1)
+      return { ...cur, segmentIdx: next }
+    })
   }
 
   function recenterOnUser() {
@@ -459,7 +489,7 @@ export default function Home() {
         routeGroup = L.layerGroup().addTo(map)
         ;(mapEl as any).__route_group = routeGroup
       }
-      if (simPath.length > 1) {
+      if (simPath.length > 1 && isSimulating) {
         const latlngs = simPath.map((p: any) => [p.lat, p.lng])
         const poly = L.polyline(latlngs, { color: '#ef4444', weight: 5, opacity: 0.85 })
         routeGroup.addLayer(poly)
@@ -560,6 +590,33 @@ export default function Home() {
           speak={speak}
           pos={pos}
           mode={searchReady || discoverMode ? 'results' : 'ambience'}
+          guideMode={guideMode}
+          guideTitle={
+            guideMode && activeStory ? pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu en cours' : undefined
+          }
+          guideSubtitle={guideMode && activeStory ? 'Visite audio en cours' : undefined}
+          guideImage={
+            guideMode && activeStory ? `https://via.placeholder.com/640x320?text=${encodeURIComponent(
+              (pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu') + ' ' + ((activeStory.segmentIdx % 3) + 1)
+            )}` : undefined
+          }
+          guideText={
+            guideMode && activeStory ? getStorySegments(pois.find((p) => p.id === activeStory.poiId) as any)[activeStory.segmentIdx] : undefined
+          }
+          onPrev={guideMode ? prevSegment : undefined}
+          onNext={guideMode ? nextSegment : undefined}
+          onPlayPause={
+            guideMode
+              ? () => {
+                  setAudioPaused((p) => {
+                    const next = !p
+                    if (next) stopSpeech()
+                    return next
+                  })
+                }
+              : undefined
+          }
+          playing={!audioPaused && guideMode}
           actions={[
             {
               label: 'Découvrir',
@@ -605,6 +662,25 @@ export default function Home() {
               📍
             </button>
           )}
+          <button
+            onClick={() => {
+              setGuideMode((v) => !v)
+              if (!guideMode) setSheetLevel('mid')
+            }}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 999,
+              border: '1px solid #1f2937',
+              background: guideMode ? '#16a34a' : '#0b1220',
+              color: '#e5e7eb',
+              boxShadow: '0 14px 30px rgba(0,0,0,0.45)',
+              fontSize: 16,
+            }}
+            aria-label="Visite guidée"
+          >
+            {guideMode ? '⏹' : '▶️'}
+          </button>
           <button
             onClick={() => setAdminLevel(adminLevel === 'hidden' ? 'peek' : 'hidden')}
             style={{

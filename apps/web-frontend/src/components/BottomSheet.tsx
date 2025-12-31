@@ -14,9 +14,36 @@ type Props = {
   pos: { lat: number; lng: number } | null
   mode: 'ambience' | 'results'
   actions?: { label: string; icon?: string; onClick?: () => void }[]
+  guideMode?: boolean
+  guideTitle?: string
+  guideSubtitle?: string
+  guideImage?: string
+  guideText?: string
+  onPrev?: () => void
+  onNext?: () => void
+  onPlayPause?: () => void
+  playing?: boolean
 }
 
-export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, actions = [] }: Props) {
+export function BottomSheet({
+  level,
+  setLevel,
+  query,
+  items,
+  speak,
+  pos,
+  mode,
+  actions = [],
+  guideMode,
+  guideTitle,
+  guideSubtitle,
+  guideImage,
+  guideText,
+  onPrev,
+  onNext,
+  onPlayPause,
+  playing,
+}: Props) {
   if (level === 'hidden') return null
   const heights: any = {
     peek: `${SHEET_HEIGHTS.peek}vh`,
@@ -135,6 +162,57 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
 
       <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden' }}>
         <div style={{ fontWeight: 700 }}>{mode === 'results' ? query : 'Ambiance locale'}</div>
+
+        {guideMode && (
+          <div
+            style={{
+              border: '1px solid #e2e8f0',
+              borderRadius: 12,
+              padding: 10,
+              background: '#fdfefe',
+              display: 'grid',
+              gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div
+                style={{
+                  width: 80,
+                  height: 60,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  border: '1px solid #e2e8f0',
+                  background: '#eef2f7',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src={guideImage}
+                  alt={guideTitle || 'Visite'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ fontWeight: 700 }}>{guideTitle || 'Visite guidée'}</div>
+                <div style={{ color: '#475569', fontSize: 13 }}>{guideSubtitle || 'Audio guide en cours'}</div>
+              </div>
+            </div>
+            {guideText && (level === 'mid' || level === 'full') && (
+              <div style={{ color: '#0f172a', fontSize: 14 }}>{guideText}</div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+              <button style={ghostButtonStyle} onClick={onPrev} aria-label="Précédent">
+                ⏮
+              </button>
+              <button style={{ ...ghostButtonStyle, padding: '10px 14px', fontWeight: 700 }} onClick={onPlayPause} aria-label="Play/Pause">
+                {playing ? '⏸' : '▶️'}
+              </button>
+              <button style={ghostButtonStyle} onClick={onNext} aria-label="Suivant">
+                ⏭
+              </button>
+            </div>
+          </div>
+        )}
 
         {mode === 'ambience' && (
           <div

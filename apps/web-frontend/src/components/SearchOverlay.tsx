@@ -16,6 +16,34 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
   const markReady = () => {
     if (setSearchReady) setSearchReady(true)
   }
+  const startVoice = () => {
+    try {
+      if (typeof window === 'undefined') return
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      if (!SpeechRecognition) {
+        alert('La dictée vocale n’est pas disponible dans ce navigateur.')
+        return
+      }
+      const rec = new SpeechRecognition()
+      rec.lang = 'fr-FR'
+      rec.interimResults = false
+      rec.maxAlternatives = 1
+      rec.onresult = (event: any) => {
+        const text = event?.results?.[0]?.[0]?.transcript || ''
+        if (!text) return
+        setQuery(text)
+        markReady()
+        if (onQuickSelect) onQuickSelect(text)
+      }
+      rec.onerror = () => {
+        alert('Dictée vocale indisponible pour le moment.')
+      }
+      rec.start()
+      setSearchActive(true)
+    } catch (e) {
+      console.warn('Voice input error', e)
+    }
+  }
   const clearAll = () => {
     setQuery('')
     if (setSearchReady) setSearchReady(false)
@@ -76,7 +104,9 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               ✕
             </button>
           ) : (
-            <button style={ghostButtonStyle}>🎤</button>
+            <button style={ghostButtonStyle} onClick={startVoice} aria-label="Dictée vocale">
+              🎤
+            </button>
           )}
           </div>
         {!searchActive && (
@@ -159,7 +189,9 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
                 ✕
               </button>
             ) : (
-              <button style={ghostButtonStyle}>🎤</button>
+              <button style={ghostButtonStyle} onClick={startVoice} aria-label="Dictée vocale">
+                🎤
+              </button>
             )}
           </div>
 

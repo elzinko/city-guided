@@ -20,7 +20,6 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
     setQuery('')
     if (setSearchReady) setSearchReady(false)
     if (onClear) onClear()
-    setSearchActive(false)
   }
   return (
     <>
@@ -35,6 +34,7 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
           gap: 6,
           zIndex: 12005,
         }}
+        data-testid="search-bar"
       >
         <div
           style={{
@@ -45,10 +45,16 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
             border: '1px solid #1f2937',
             padding: '8px 10px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+            gap: 6,
           }}
         >
+          {searchActive && (
+            <button style={ghostButtonStyle} onClick={() => setSearchActive(false)} aria-label="Retour">
+              ←
+            </button>
+          )}
           <input
-            placeholder="Rechercher un lieu, une adresse…"
+            placeholder="Rechercher"
             value={query}
             onFocus={() => setSearchActive(true)}
             onChange={(e) => {
@@ -63,14 +69,16 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               outline: 'none',
               fontSize: 14,
             }}
+            data-testid="search-input-main"
           />
-          {query && (
+          {query ? (
             <button style={ghostButtonStyle} onClick={clearAll} aria-label="Effacer la recherche">
               ✕
             </button>
+          ) : (
+            <button style={ghostButtonStyle}>🎤</button>
           )}
-          <button style={ghostButtonStyle}>🎤</button>
-        </div>
+          </div>
         {!searchActive && (
           <div
             style={{
@@ -101,18 +109,18 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
 
       {searchActive && (
         <div
-          onClick={() => setSearchActive(false)}
           style={{
             position: 'fixed',
             inset: 0,
-          background: 'rgba(8, 13, 23, 0.96)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 12006,
-          display: 'flex',
-          flexDirection: 'column',
-          padding: 16,
-          gap: 12,
-        }}
+            background: 'rgba(8, 13, 23, 0.96)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 12006,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: 16,
+            gap: 12,
+          }}
+          data-testid="search-overlay"
         >
           <div
             style={{
@@ -122,12 +130,15 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               borderRadius: 12,
               border: '1px solid #1f2937',
               padding: '10px 12px',
+              gap: 6,
             }}
-            onClick={(e) => e.stopPropagation()}
           >
+            <button style={ghostButtonStyle} onClick={() => setSearchActive(false)} aria-label="Retour">
+              ←
+            </button>
             <input
               autoFocus
-              placeholder="Rechercher un lieu, une adresse…"
+              placeholder="Rechercher"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value)
@@ -141,16 +152,15 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
                 outline: 'none',
                 fontSize: 15,
               }}
+              data-testid="search-input-overlay"
             />
-            <button style={ghostButtonStyle}>🎤</button>
-            {query && (
+            {query ? (
               <button style={ghostButtonStyle} onClick={clearAll} aria-label="Effacer">
                 ✕
               </button>
+            ) : (
+              <button style={ghostButtonStyle}>🎤</button>
             )}
-            <button style={ghostButtonStyle} onClick={() => setSearchActive(false)}>
-              Fermer
-            </button>
           </div>
 
           <div style={{ color: '#9ca3af', fontSize: 13, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>

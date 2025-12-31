@@ -39,7 +39,7 @@ export function AdminSheet({ level, setLevel, title = 'Panneau développeur', ch
         borderTopRightRadius: 16,
         border: '1px solid #1f2937',
         boxShadow: '0 -12px 30px rgba(0,0,0,0.45)',
-        zIndex: 10000,
+        zIndex: 14000,
         display: 'flex',
         flexDirection: 'column',
       }}

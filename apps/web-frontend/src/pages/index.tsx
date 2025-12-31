@@ -6,7 +6,13 @@ import { GuideControls } from '../components/GuideControls'
 import { BottomSheet } from '../components/BottomSheet'
 import { AdminSheet } from '../components/AdminSheet'
 import { distanceMeters } from '../utils/distance'
-import { DEFAULT_CENTER_RADIUS_METERS, GPS_BUTTON_BOTTOM_VH, MAX_POIS_DISPLAYED } from '../config/constants'
+import {
+  DEFAULT_CENTER_RADIUS_METERS,
+  GPS_BUTTON_MARGIN_PX,
+  GPS_HIDE_THRESHOLD_PERCENT,
+  MAX_POIS_DISPLAYED,
+  SHEET_HEIGHTS,
+} from '../config/constants'
 
 const DEFAULT_RADIUS_METERS = 400
 const DEFAULT_DRIVE_PATH = [
@@ -496,6 +502,10 @@ export default function Home() {
     })
   }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath])
 
+  const sheetHeightPercent = SHEET_HEIGHTS[sheetLevel] || 0
+  const gpsHidden = adminLevel !== 'hidden' || sheetHeightPercent >= GPS_HIDE_THRESHOLD_PERCENT || searchActive
+  const gpsBottom = sheetLevel === 'hidden' ? 16 : `calc(${sheetHeightPercent}vh + ${GPS_BUTTON_MARGIN_PX}px)`
+
   return (
     <main
       style={{
@@ -523,7 +533,6 @@ export default function Home() {
             setSearchReady(false)
             setQuery('')
             setSheetLevel('peek')
-            setSearchActive(false)
             setDiscoverMode(false)
           }}
         />
@@ -571,25 +580,25 @@ export default function Home() {
           style={{
             position: 'fixed',
             right: 16,
-            bottom: `${GPS_BUTTON_BOTTOM_VH}vh`,
-            zIndex: 12000,
+            bottom: gpsBottom,
+            zIndex: 12020,
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
           }}
         >
-          {adminLevel === 'hidden' && (
+          {!gpsHidden && (
             <button
               onClick={recenterOnUser}
               style={{
-                width: 52,
-                height: 52,
+                width: 44,
+                height: 44,
                 borderRadius: 999,
                 border: '1px solid #1f2937',
                 background: '#0f172a',
                 color: '#e5e7eb',
                 boxShadow: '0 14px 30px rgba(0,0,0,0.45)',
-                fontSize: 20,
+                fontSize: 18,
               }}
               aria-label="Recentrer sur ma position"
             >
@@ -599,14 +608,14 @@ export default function Home() {
           <button
             onClick={() => setAdminLevel(adminLevel === 'hidden' ? 'peek' : 'hidden')}
             style={{
-              width: 52,
-              height: 52,
+              width: 44,
+              height: 44,
               borderRadius: 999,
               border: '1px solid #1f2937',
               background: '#0b1220',
               color: '#e5e7eb',
               boxShadow: '0 14px 30px rgba(0,0,0,0.45)',
-              fontSize: 20,
+              fontSize: 18,
             }}
             aria-label="Panneau développeur"
           >

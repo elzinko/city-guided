@@ -9,4 +9,5 @@ export const SHEET_HEIGHTS = {
 } as const
 
 // Floating GPS button distance from bottom of viewport (vh to stay au-dessus du peek)
-export const GPS_BUTTON_BOTTOM_VH = 28
+export const GPS_BUTTON_MARGIN_PX = 12
+export const GPS_HIDE_THRESHOLD_PERCENT = 50

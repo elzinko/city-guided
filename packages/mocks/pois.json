@@ -133,5 +133,306 @@
       "Les loges serrées gardent encore des miroirs biseautés d'origine.",
       "La rumeur veut que le rideau ait été tissé dans un atelier local, pas à Lyon."
     ]
+  },
+  {
+    "id": "poi_thomery_1",
+    "name": "Eglise Saint-Aignan de Thomery",
+    "lat": 48.4095,
+    "lng": 2.7590,
+    "radiusMeters": 420,
+    "category": "Monuments",
+    "shortDescription": "Eglise du XIIe siècle et clocher dominant la Seine.",
+    "ttsText": "L'église Saint-Aignan surveille la Seine depuis le XIIe siècle, repère des bateliers et des vignerons de Thomery.",
+    "storySegments": [
+      "Saint-Aignan : un clocher roman qui guidait les bateliers sur la Seine.",
+      "Les pierres portent les traces des vignerons de Thomery, réputés pour la vigne de Chasselas.",
+      "La place attenante accueillait les marchés aux raisins conservés en bouteilles."
+    ]
+  },
+  {
+    "id": "poi_thomery_2",
+    "name": "Murs à Vignes de Thomery",
+    "lat": 48.4122,
+    "lng": 2.7538,
+    "radiusMeters": 500,
+    "category": "Art",
+    "shortDescription": "Murs chauffés historiques pour le Chasselas de Thomery.",
+    "ttsText": "Les murs à vignes de Thomery, chauffés par le soleil, ont fait la réputation du Chasselas exporté jusqu'à Paris.",
+    "storySegments": [
+      "Murs à vignes : des kilomètres de murs chauffés pour mûrir le Chasselas.",
+      "On stockait les grappes dans des flacons d'eau pour les vendre jusqu'en hiver.",
+      "Certains murs portent encore les crochets des espaliers." 
+    ]
+  },
+  {
+    "id": "poi_thomery_3",
+    "name": "Berges de Seine à Thomery",
+    "lat": 48.4058,
+    "lng": 2.7485,
+    "radiusMeters": 450,
+    "category": "Insolite",
+    "shortDescription": "Promenade boisée en bord de Seine avec vues sur les péniches.",
+    "ttsText": "Les berges de Seine à Thomery mêlent villas 1900 et passages vers les vignobles; parfait en balade ou en taxi fenêtres ouvertes.",
+    "storySegments": [
+      "Berges de Seine : villas 1900 et petits ports alignés.",
+      "On aperçoit encore des anneaux d'amarrage des barges de sable.",
+      "L'été, les habitants descendent avec des paniers de raisin pour les pique-niques." 
+    ]
+  },
+  {
+    "id": "poi_thomery_4",
+    "name": "Maison Rosa Bonheur",
+    "lat": 48.4050,
+    "lng": 2.7565,
+    "radiusMeters": 420,
+    "category": "Art",
+    "shortDescription": "Demeure de la peintre animalière Rosa Bonheur.",
+    "ttsText": "La maison de Rosa Bonheur, artiste animalière, accueille encore son atelier intact et ses curiosités animales.",
+    "storySegments": [
+      "Rosa Bonheur vécut ici, peignant boeufs et chevaux grandeur nature.",
+      "L'atelier conserve ses pigments et quelques animaux naturalisés.",
+      "Elle recevait les notables de Paris qui descendaient en bateau pour la visiter." 
+    ]
+  },
+  {
+    "id": "poi_thomery_5",
+    "name": "Port de Thomery",
+    "lat": 48.4018,
+    "lng": 2.7415,
+    "radiusMeters": 430,
+    "category": "Insolite",
+    "shortDescription": "Ancien embarcadère pour le transport du vin et du sable.",
+    "ttsText": "Le port de Thomery voyait passer les péniches de sable et les tonneaux de vin; les rails de chargement sont encore visibles.",
+    "storySegments": [
+      "Port de Thomery : embarcadère des péniches de sable.",
+      "Les vignerons chargeaient leurs tonneaux sur les quais, juste sous les murs à vignes.",
+      "Quelques rails de transbordement subsistent dans les herbes." 
+    ]
+  },
+  {
+    "id": "poi_thomery_6",
+    "name": "Sentier des Impressionnistes (Thomery)",
+    "lat": 48.4108,
+    "lng": 2.7630,
+    "radiusMeters": 500,
+    "category": "Art",
+    "shortDescription": "Chemin boisé apprécié des peintres et des promeneurs.",
+    "ttsText": "Le sentier des impressionnistes longe la Seine et traverse les vignes; Monet et Sisley posaient leurs chevalets non loin d'ici.",
+    "storySegments": [
+      "Sentier des impressionnistes : lumière rasante sur la Seine.",
+      "On y croise des vues encore présentes sur les toiles d'Alfred Sisley.",
+      "Idéal pour un passage taxi fenêtres ouvertes, ambiance bord de fleuve." 
+    ]
+  },
+  {
+    "id": "poi_thomery_7",
+    "name": "Forêt de Champagne (lisière Thomery)",
+    "lat": 48.4205,
+    "lng": 2.7705,
+    "radiusMeters": 520,
+    "category": "Insolite",
+    "shortDescription": "Entrée forestière calme avec sentiers doux.",
+    "ttsText": "La lisière de la forêt de Champagne offre un couloir d'arbres tout en douceur, parfait pour une transition vers les rochers de Fontainebleau.",
+    "storySegments": [
+      "Forêt de Champagne : pins et feuillus mélangés, ambiance feutrée.",
+      "Anciennes allées de chasse réaménagées en sentiers.",
+      "On entend souvent les trains de la ligne R passer au loin." 
+    ]
+  },
+  {
+    "id": "poi_thomery_8",
+    "name": "Gare de Thomery",
+    "lat": 48.4090,
+    "lng": 2.7430,
+    "radiusMeters": 380,
+    "category": "Monuments",
+    "shortDescription": "Petite gare sur la ligne Paris-Montereau, accès aux vignes.",
+    "ttsText": "La gare de Thomery déposait peintres et cueilleurs; un sentier mène directement aux murs à vignes depuis le quai.",
+    "storySegments": [
+      "Gare de Thomery : une halte village encore active.",
+      "Un chemin discret monte vers les murs à vignes derrière le quai.",
+      "Les voyageurs descendaient avec des paniers d'osier pour les vendanges." 
+    ]
+  },
+  {
+    "id": "poi_thomery_9",
+    "name": "Villas des Bords de Seine",
+    "lat": 48.4075,
+    "lng": 2.7462,
+    "radiusMeters": 360,
+    "category": "Art",
+    "shortDescription": "Alignement de villas 1900 et jardins en terrasses.",
+    "ttsText": "Les villas 1900 de Thomery alignent bow-windows sur la Seine; certaines abritaient des ateliers d'artistes en rez-de-jardin.",
+    "storySegments": [
+      "Villas 1900 : bow-windows sur la Seine, toits d'ardoise.",
+      "Plusieurs ateliers d'artistes étaient discrets en sous-sol, ouverts sur les jardins.",
+      "Des ferronneries Art nouveau ponctuent les portails." 
+    ]
+  },
+  {
+    "id": "poi_thomery_10",
+    "name": "Belvédère de la Seine (Thomery)",
+    "lat": 48.4140,
+    "lng": 2.7510,
+    "radiusMeters": 420,
+    "category": "Insolite",
+    "shortDescription": "Point de vue sur le fleuve et la rive boisée.",
+    "ttsText": "Le belvédère offre une vue dégagée sur la Seine et la rive boisée; par temps clair, on distingue les péniches à plusieurs kilomètres.",
+    "storySegments": [
+      "Belvédère de la Seine : vue dégagée sur le coude du fleuve.",
+      "Point photo favori des promeneurs de Thomery.",
+      "On voit parfois des hérons survoler les roselières." 
+    ]
+  },
+  {
+    "id": "poi_thomery_11",
+    "name": "Sentier des Vignes (boucle nord)",
+    "lat": 48.4170,
+    "lng": 2.7580,
+    "radiusMeters": 480,
+    "category": "Monuments",
+    "shortDescription": "Chemin reliant murs à vignes et vues sur la Seine.",
+    "ttsText": "Cette boucle relie plusieurs murs à vignes et offre des échappées sur la Seine; une façon de lire l'histoire du Chasselas en roulant.",
+    "storySegments": [
+      "Sentier des vignes : enchaînement de murs chauffés et d'escaliers discrets.",
+      "On longe des parcelles encore entretenues par quelques vignerons passionnés.",
+      "Des bornes en pierre portent les initiales des anciens propriétaires." 
+    ]
+  },
+  {
+    "id": "poi_thomery_12",
+    "name": "Place du Marché (Thomery)",
+    "lat": 48.4080,
+    "lng": 2.7555,
+    "radiusMeters": 380,
+    "category": "Monuments",
+    "shortDescription": "Petite place animée avec commerces et halle.",
+    "ttsText": "La place du Marché concentre boulangerie, halle et cafés; on y vendait le Chasselas en grappes fraîches, même en hiver.",
+    "storySegments": [
+      "Place du Marché : cœur vivant de Thomery.",
+      "La halle accueillait des ventes de raisin en bouteille.",
+      "Les cafés servaient un verre de blanc local aux bateliers de passage." 
+    ]
+  },
+  {
+    "id": "poi_thomery_13",
+    "name": "Passerelle vers les Vignes",
+    "lat": 48.4065,
+    "lng": 2.7520,
+    "radiusMeters": 360,
+    "category": "Insolite",
+    "shortDescription": "Petite passerelle reliant berge et coteau viticole.",
+    "ttsText": "Une passerelle discrète permettait aux vignerons de passer de la berge au coteau sans faire le détour par la route.",
+    "storySegments": [
+      "Passerelle des vignes : raccourci secret des vignerons.",
+      "Elle surplombe un ancien ruisseau aujourd'hui canalisé.",
+      "On devine l'usure des marches en pierre taillée." 
+    ]
+  },
+  {
+    "id": "poi_thomery_14",
+    "name": "Atelier de Verrerie (ancien)",
+    "lat": 48.4035,
+    "lng": 2.7585,
+    "radiusMeters": 340,
+    "category": "Art",
+    "shortDescription": "Lieu de fabrication des flacons pour le raisin de Thomery.",
+    "ttsText": "Les flacons qui conservaient le Chasselas étaient soufflés ici; certains modèles portaient l'estampille du village.",
+    "storySegments": [
+      "Atelier de verrerie : soufflage des flacons pour le raisin.",
+      "Les artisans soufflaient des bouteilles à goulot large.",
+      "On trouve encore des éclats de verre dans le sol des abords." 
+    ]
+  },
+  {
+    "id": "poi_thomery_15",
+    "name": "Square des Vignerons",
+    "lat": 48.4112,
+    "lng": 2.7490,
+    "radiusMeters": 320,
+    "category": "Insolite",
+    "shortDescription": "Petit square ombragé avec panneaux sur le Chasselas.",
+    "ttsText": "Le square des Vignerons raconte l'histoire du Chasselas de Thomery, entre murs chauffés et vente en bouteilles d'eau.",
+    "storySegments": [
+      "Square des Vignerons : panneaux pédagogiques sur le Chasselas.",
+      "On y voit des reproductions des espaliers et des crochets.",
+      "Parfait pour une halte courte en taxi, fenêtres ouvertes." 
+    ]
+  },
+  {
+    "id": "poi_thomery_16",
+    "name": "Lisière vers Champagne-sur-Seine",
+    "lat": 48.4160,
+    "lng": 2.7300,
+    "radiusMeters": 500,
+    "category": "Insolite",
+    "shortDescription": "Connexion forestière douce vers Champagne-sur-Seine.",
+    "ttsText": "Cette lisière relie Thomery à Champagne-sur-Seine par un chemin forestier; on passe des vignes à la pinède en quelques minutes.",
+    "storySegments": [
+      "Lisière vers Champagne : transition vignes-pins.",
+      "Chemin prisé des cyclistes et taxis-van pour une pause nature.",
+      "On entend le son des trains en contrebas, ambiance mixte ville/forêt." 
+    ]
+  },
+  {
+    "id": "poi_thomery_17",
+    "name": "Rue des Peintres (Thomery)",
+    "lat": 48.4085,
+    "lng": 2.7615,
+    "radiusMeters": 340,
+    "category": "Art",
+    "shortDescription": "Rue bordée d'ateliers d'artistes et de vignes.",
+    "ttsText": "La rue des Peintres regroupe ateliers et petites vignes; on devine encore les portes cochères des anciens ateliers.",
+    "storySegments": [
+      "Rue des Peintres : ateliers discrets dans les maisons de village.",
+      "Des fresques murales rappellent les impressionnistes.",
+      "On croise des treilles de Chasselas le long des façades." 
+    ]
+  },
+  {
+    "id": "poi_thomery_18",
+    "name": "Traversée de la Route des Vignes",
+    "lat": 48.4148,
+    "lng": 2.7405,
+    "radiusMeters": 360,
+    "category": "Insolite",
+    "shortDescription": "Point de passage emblématique entre berges et coteau.",
+    "ttsText": "La Route des Vignes coupe la descente vers la Seine; on y voit encore les anciennes bornes kilométriques gravées.",
+    "storySegments": [
+      "Route des Vignes : borne kilométrique en pierre.",
+      "Transition entre murs chauffés et berges arborées.",
+      "Une micro-place sert d'aire de retournement pour les taxis." 
+    ]
+  },
+  {
+    "id": "poi_thomery_19",
+    "name": "Ancien Lavoir de Thomery",
+    "lat": 48.4072,
+    "lng": 2.7580,
+    "radiusMeters": 320,
+    "category": "Monuments",
+    "shortDescription": "Petit lavoir alimenté par une source locale.",
+    "ttsText": "Le lavoir servait aux familles de vignerons; la source locale était réputée pour conserver la fraîcheur même l'été.",
+    "storySegments": [
+      "Ancien lavoir : bassin couvert, margelles usées.",
+      "On raconte que l'eau était meilleure pour le linge des cueilleurs de raisin.",
+      "La source alimente encore un mince filet sous la rue." 
+    ]
+  },
+  {
+    "id": "poi_thomery_20",
+    "name": "Fontaine des Vignes",
+    "lat": 48.4102,
+    "lng": 2.7570,
+    "radiusMeters": 300,
+    "category": "Insolite",
+    "shortDescription": "Petite fontaine décorée de grappes de raisin.",
+    "ttsText": "La fontaine des Vignes est ornée de grappes sculptées; elle servait de point d'eau aux vendangeurs.",
+    "storySegments": [
+      "Fontaine des Vignes : mascarons en forme de grappes.",
+      "Les vendangeurs remplissaient ici leurs gourdes.",
+      "Une plaque commémore le Chasselas exporté jusqu'à la cour de France." 
+    ]
+  }
   }
 ]

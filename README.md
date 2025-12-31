@@ -1,5 +1,7 @@
 # CityGuided — Monorepo MVP
 
+Fluid, segmented audio guide tailored for taxi passengers (and pedestrians) with mobile-first UX.
+
 Structure minimale : `apps/`, `services/`, `packages/`, `infra/`
 
 ## Quick start (très rapide)

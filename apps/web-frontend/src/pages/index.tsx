@@ -60,6 +60,7 @@ export default function Home() {
   const [activeStory, setActiveStory] = useState<{ poiId: string; segmentIdx: number } | null>(null)
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({})
   const [isSimulating, setIsSimulating] = useState(false)
+  const [simPaused, setSimPaused] = useState(false)
   const [simStep, setSimStep] = useState(0)
   const simTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastPanRef = useRef<{ lat: number; lng: number } | null>(null)
@@ -68,6 +69,9 @@ export default function Home() {
   const [osrmError, setOsrmError] = useState<string | null>(null)
   const [speedFactor, setSpeedFactor] = useState(1)
   const [zoomLevel, setZoomLevel] = useState(14)
+  const [audioPaused, setAudioPaused] = useState(false)
+  const [searchActive, setSearchActive] = useState(false)
+  const [sheetLevel, setSheetLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('peek')
   useEffect(() => {
     setSimStep(0)
   }, [simPath])
@@ -208,13 +212,13 @@ export default function Home() {
 
   // Auto TTS sur le segment actuel
   useEffect(() => {
-    if (!autoTts || !activeStory) return
+    if (!autoTts || audioPaused || !activeStory) return
     const poi = pois.find((p) => p.id === activeStory.poiId)
     if (!poi) return
     const segs = getStorySegments(poi)
     const seg = segs[activeStory.segmentIdx]
     if (seg) speak(seg)
-  }, [autoTts, activeStory?.poiId, activeStory?.segmentIdx, pois])
+  }, [autoTts, audioPaused, activeStory?.poiId, activeStory?.segmentIdx, pois])
 
   // Simulation de trajet en voiture
   function startSimulation() {
@@ -223,6 +227,7 @@ export default function Home() {
     lastPanRef.current = null
     setSimStep(0)
     setIsSimulating(true)
+    setSimPaused(false)
     setPos((simPath[0] as any) || DEFAULT_DRIVE_PATH[0])
   }
   function stopSimulation() {
@@ -232,7 +237,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!isSimulating) {
+    if (!isSimulating || simPaused) {
       if (simTimerRef.current) clearTimeout(simTimerRef.current)
       return
     }
@@ -462,135 +467,682 @@ export default function Home() {
   }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath])
 
   return (
-    <main style={{ padding: 20 }}>
-      <h1>CityGuided — MVP</h1>
-      <p>Position actuelle: {pos ? `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}` : '… récupération en cours (ou usage de la position de démo)'}</p>
+    <main
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0f172a 0%, #111827 45%, #0f172a 100%)',
+        color: '#e5e7eb',
+        padding: 16,
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gap: 12,
+        }}
+      >
+        <HeroHeader pos={pos} />
 
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <section style={{ flex: '1 1 320px' }}>
-          <h2>Points d'intérêt proches</h2>
-          <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <input placeholder="Je veux visiter..." value={query} onChange={(e) => setQuery(e.target.value)} style={{ padding: 6, maxWidth: 260 }} />
-            <div>
+        <Card style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+          <div id="map" style={{ height: '70vh', minHeight: 360, width: '100%' }} />
+          <SearchOverlay
+            query={query}
+            setQuery={setQuery}
+            category={category}
+            setCategory={setCategory}
+            autoTts={autoTts}
+            setAutoTts={setAutoTts}
+            audioPaused={audioPaused}
+            setAudioPaused={setAudioPaused}
+            stopSpeech={stopSpeech}
+            searchActive={searchActive}
+            setSearchActive={setSearchActive}
+          />
+         {!searchActive && (
+           <div
+             style={{
+               position: 'absolute',
+               top: 70,
+               left: 12,
+               right: 12,
+               display: 'flex',
+               gap: 8,
+               overflowX: 'auto',
+               padding: '6px 0',
+               zIndex: 9,
+             }}
+           >
               {['Monuments', 'Musees', 'Art', 'Insolite', 'Autre'].map((c) => (
-                <button key={c} onClick={() => setCategory(category === c ? null : c)} style={{ marginRight: 6, marginBottom: 6 }}>
-                  {category === c ? `✓ ${c}` : c}
+                <button
+                  key={c}
+                  onClick={() => {
+                    setCategory(category === c ? null : c)
+                    setQuery(c)
+                    setSheetLevel('mid')
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 999,
+                    border: category === c ? '1px solid #22c55e' : '1px solid #1f2937',
+                    background: category === c ? 'rgba(34,197,94,0.15)' : '#0b1220',
+                    color: '#e5e7eb',
+                    fontWeight: 600,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                  }}
+                >
+                  {c}
                 </button>
               ))}
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <label>
-                <input type="checkbox" checked={godMode} onChange={(e) => setGodMode(e.target.checked)} /> Mode god (cercles)
-              </label>
-              <label>
-                <input type="checkbox" checked={autoTts} onChange={(e) => setAutoTts(e.target.checked)} /> Lecture auto
-              </label>
-            </div>
-          </div>
+           </div>
+         )}
+       </Card>
 
-          <div style={{ padding: 10, border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: 12 }}>
-            <strong>Story en cours</strong>
-            {activeStory ? (
-              (() => {
-                const poi = pois.find((p) => p.id === activeStory.poiId)
-                const segs = poi ? getStorySegments(poi) : []
-                const seg = segs[activeStory.segmentIdx] || '...'
-                const remaining = segs.length ? `${activeStory.segmentIdx + 1}/${segs.length}` : ''
-                return (
-                  <div style={{ marginTop: 6 }}>
-                    <div>{poi ? poi.name : '...'}</div>
-                    <div style={{ fontStyle: 'italic', marginTop: 4 }}>{seg}</div>
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>Segment {remaining}</div>
-                    <button onClick={() => speak(seg)} style={{ marginTop: 6 }}>
-                      Réécouter ce passage
-                    </button>
-                  </div>
-                )
-              })()
-            ) : (
-              <p style={{ marginTop: 6 }}>Aucun POI actif pour l'instant (avance la carte ou lance la simulation)</p>
-            )}
-          </div>
+        <StoryPanel activeStory={activeStory} pois={pois} getStorySegments={getStorySegments} speak={speak} />
 
-          {visiblePois.length === 0 && <p>Aucun POI dans la zone affichée (vérifie que l’API tourne et déplace la carte si besoin)</p>}
-          <ul>
-            {visiblePois.map((p) => (
-              <li key={p.id} style={{ marginBottom: 12 }}>
-                <strong>{p.name}</strong> — {p.shortDescription} <br />
-                <button onClick={() => speak(p.ttsText)}>Lire (TTS navigateur)</button>
-              </li>
-            ))}
-          </ul>
+        <ResultsPanel visiblePois={visiblePois} speak={speak} />
 
-          <section style={{ marginTop: 20 }}>
-            <h3>Simuler position / trajet</h3>
-            <p>Déplacement taxi (Fontainebleau) pour tester la narration en roulant.</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <button onClick={loadOsrmRoute}>Calculer une route OSRM locale</button>
-              <span style={{ fontSize: 12, color: osrmError ? '#dc2626' : '#6b7280' }}>{osrmError ? osrmError : routeStatus}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-              <button onClick={startSimulation} disabled={isSimulating}>
-                Lancer la simulation taxi
-              </button>
-              <button onClick={stopSimulation} disabled={!isSimulating}>
-                Stop
-              </button>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>
-                Étape {Math.min(simStep + 1, simPath.length)}/{simPath.length || 1}
-              </span>
-              <label style={{ fontSize: 12, color: '#374151' }}>
-                Vitesse
-                <input
-                  type="range"
-                  min={0.25}
-                  max={10}
-                  step={0.25}
-                  value={speedFactor}
-                  onChange={(e) => setSpeedFactor(Math.max(0.25, Number(e.target.value) || 1))}
-                  style={{ marginLeft: 6, width: 140, verticalAlign: 'middle' }}
-                />
-                <span style={{ marginLeft: 6 }}>{speedFactor.toFixed(2)}×</span>
-              </label>
-              <label style={{ fontSize: 12, color: '#374151' }}>
-                Zoom suivi
-                <input
-                  type="range"
-                  min={11}
-                  max={18}
-                  step={0.5}
-                  value={zoomLevel}
-                  onChange={(e) => {
-                    const z = Number(e.target.value) || 14
-                    setZoomLevel(z)
-                    try {
-                      const map = (window as any)._le_map
-                      if (map && map.setZoom) map.setZoom(z)
-                    } catch (err) {
-                      // ignore
-                    }
-                  }}
-                  style={{ marginLeft: 6, width: 120, verticalAlign: 'middle' }}
-                />
-                <span style={{ marginLeft: 4 }}>{zoomLevel}</span>
-              </label>
-            </div>
-            <p style={{ marginTop: 8 }}>Ou bien se positionner directement :</p>
-            <button
-              onClick={() => {
-                setMapAlreadyCentered(false)
-                setPos({ lat: 48.4020, lng: 2.6998 })
-              }}
-            >
-              Se positionner sur Fontainebleau
-            </button>
-          </section>
-        </section>
-
-        <div style={{ flex: '0 0 420px', maxWidth: '100%', height: 620, borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-          <div id="map" style={{ height: '100%', width: '100%' }} />
-        </div>
+        <GuideControls
+          loadOsrmRoute={loadOsrmRoute}
+          routeStatus={routeStatus}
+          osrmError={osrmError}
+          startSimulation={startSimulation}
+          stopSimulation={stopSimulation}
+          isSimulating={isSimulating}
+          simStep={simStep}
+          simPath={simPath}
+          speedFactor={speedFactor}
+          setSpeedFactor={setSpeedFactor}
+          zoomLevel={zoomLevel}
+          setZoomLevel={setZoomLevel}
+          simPaused={simPaused}
+          setSimPaused={setSimPaused}
+          setMapAlreadyCentered={setMapAlreadyCentered}
+          setPos={setPos}
+          godMode={godMode}
+          setGodMode={setGodMode}
+          pos={pos}
+        />
+        <BottomSheet
+          level={sheetLevel}
+          setLevel={setSheetLevel}
+          query={query || category || 'Découvrir'}
+          items={visiblePois}
+          speak={speak}
+          pos={pos}
+        />
       </div>
     </main>
   )
+}
+
+function HeroHeader({ pos }: { pos: { lat: number; lng: number } | null }) {
+  return (
+    <Card
+      style={{
+        background: 'linear-gradient(120deg, #22c55e 0%, #16a34a 35%, #065f46 100%)',
+        color: '#ecfdf3',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: 0.2 }}>CityGuided — Taxi Edition</div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function SearchOverlay({
+  query,
+  setQuery,
+  category,
+  setCategory,
+  autoTts,
+  setAutoTts,
+  audioPaused,
+  setAudioPaused,
+  stopSpeech,
+  searchActive,
+  setSearchActive,
+}: any) {
+  const cats = ['Monuments', 'Musees', 'Art', 'Insolite', 'Autre']
+  const suggestions = ['Château', 'Musée', 'Forêt', 'Street Art', 'Patrimoine', 'Balade']
+  return (
+    <>
+      <div
+        style={{
+          position: 'fixed',
+          top: 12,
+          left: 12,
+          right: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          zIndex: 10,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: '#0b1220',
+            borderRadius: 12,
+            border: '1px solid #1f2937',
+            padding: '8px 10px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+          }}
+        >
+          <input
+            placeholder="Rechercher un lieu, une adresse…"
+            value={query}
+            onFocus={() => setSearchActive(true)}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              color: '#e5e7eb',
+              outline: 'none',
+              fontSize: 14,
+            }}
+          />
+          <button style={ghostButtonStyle}>🎤</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          {suggestions.map((s) => (
+            <Chip key={s} active={false} onClick={() => setQuery(s)}>
+              {s}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      {searchActive && (
+        <div
+          onClick={() => setSearchActive(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(8, 13, 23, 0.96)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: 16,
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: '#0b1220',
+              borderRadius: 12,
+              border: '1px solid #1f2937',
+              padding: '10px 12px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              autoFocus
+              placeholder="Rechercher un lieu, une adresse…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                color: '#e5e7eb',
+                outline: 'none',
+                fontSize: 15,
+              }}
+            />
+            <button style={ghostButtonStyle}>🎤</button>
+            <button style={ghostButtonStyle} onClick={() => setSearchActive(false)}>
+              ✕
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }} onClick={(e) => e.stopPropagation()}>
+            {cats.map((c) => (
+              <Chip key={c} active={category === c} onClick={() => setCategory(category === c ? null : c)}>
+                {category === c ? `✓ ${c}` : c}
+              </Chip>
+            ))}
+            <Chip active={false} onClick={() => setSearchActive(false)}>
+              Voir plus…
+            </Chip>
+          </div>
+
+          <div style={{ color: '#9ca3af', fontSize: 13, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>
+            Adresses enregistrées
+          </div>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }} onClick={(e) => e.stopPropagation()}>
+            {['Maison', 'Bureau', 'Gare', 'Taxi stand', 'Spot photo'].map((r, idx) => (
+              <div
+                key={r}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  background: '#0b1220',
+                  border: '1px solid #1f2937',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {r}
+              </div>
+            ))}
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 999,
+                background: '#111827',
+                border: '1px dashed #1f2937',
+                color: '#e5e7eb',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ••• plus
+            </div>
+          </div>
+
+          <div style={{ color: '#9ca3af', fontSize: 13, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>
+            Recherches récentes
+          </div>
+          <div style={{ display: 'grid', gap: 10, overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            {['Fontainebleau château', 'Rochers d’Apremont', 'Gare Thomery', 'Village des impressionnistes', 'Rue des peintres'].map((r) => (
+              <div key={r} style={{ padding: 10, borderRadius: 10, background: '#0b1220', border: '1px solid #1f2937' }}>
+                {r}
+              </div>
+            ))}
+            <div style={{ padding: 10, borderRadius: 10, background: 'transparent', border: '1px dashed #1f2937', color: '#9ca3af' }}>
+              Autres adresses récentes →
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
+            <Toggle checked={autoTts} onChange={(v: boolean) => setAutoTts(v)} label="Lecture auto" />
+            <Toggle
+              checked={!audioPaused}
+              onChange={(v: boolean) => {
+                setAudioPaused(!v)
+                if (!v) stopSpeech()
+              }}
+              label="Audio en cours"
+            />
+            <button
+              onClick={() => {
+                setAudioPaused(true)
+                stopSpeech()
+              }}
+              style={ghostButtonStyle}
+            >
+              Stop audio
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function StoryPanel({ activeStory, pois, getStorySegments, speak }: any) {
+  if (!activeStory) {
+    return (
+      <Card>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Story en cours</div>
+        <div style={{ color: '#9ca3af' }}>Aucun POI actif pour l'instant (déplace la carte ou lance la simulation).</div>
+      </Card>
+    )
+  }
+  const poi = pois.find((p: any) => p.id === activeStory.poiId)
+  const segs = poi ? getStorySegments(poi) : []
+  const seg = segs[activeStory.segmentIdx] || '...'
+  const remaining = segs.length ? `${activeStory.segmentIdx + 1}/${segs.length}` : ''
+
+  return (
+    <Card>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div style={{ fontWeight: 700 }}>Story en cours</div>
+        <Badge>{remaining ? `Segment ${remaining}` : ''}</Badge>
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 600 }}>{poi ? poi.name : '...'}</div>
+      <div style={{ fontStyle: 'italic', marginTop: 6, color: '#d1d5db' }}>{seg}</div>
+      <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button style={primaryButtonStyle} onClick={() => speak(seg)}>
+          Réécouter ce passage
+        </button>
+      </div>
+    </Card>
+  )
+}
+
+function ResultsPanel({ visiblePois, speak }: any) {
+  return (
+    <Card>
+      <div style={{ fontWeight: 700, marginBottom: 10 }}>Résultats sur la zone visible</div>
+      {visiblePois.length === 0 && <div style={{ color: '#9ca3af' }}>Aucun POI dans la zone affichée.</div>}
+      <div style={{ display: 'grid', gap: 10 }}>
+        {visiblePois.map((p: any) => (
+          <div
+            key={p.id}
+            style={{
+              padding: 10,
+              borderRadius: 10,
+              border: '1px solid #1f2937',
+              background: '#0b1220',
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>{p.name}</div>
+            <div style={{ color: '#9ca3af', marginTop: 4 }}>{p.shortDescription}</div>
+            <button style={ghostButtonStyle} onClick={() => speak(p.ttsText)} aria-label={`Lire ${p.name}`}>
+              Lire (TTS)
+            </button>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function GuideControls({
+  loadOsrmRoute,
+  routeStatus,
+  osrmError,
+  startSimulation,
+  stopSimulation,
+  isSimulating,
+  simStep,
+  simPath,
+  speedFactor,
+  setSpeedFactor,
+  zoomLevel,
+  setZoomLevel,
+  simPaused,
+  setSimPaused,
+  setMapAlreadyCentered,
+  setPos,
+  pos,
+  godMode,
+  setGodMode,
+}: any) {
+  return (
+    <Card>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontWeight: 700 }}>Panneau développeur / simulation</div>
+        <div style={{ color: osrmError ? '#fca5a5' : '#9ca3af', fontSize: 13 }}>{osrmError || routeStatus}</div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: '#9ca3af' }}>
+          <Badge>{pos ? `${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}` : 'Position en attente'}</Badge>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button style={primaryButtonStyle} onClick={loadOsrmRoute}>
+            Calculer une route OSRM
+          </button>
+          <button style={secondaryButtonStyle} onClick={startSimulation} disabled={isSimulating}>
+            Lancer la simulation
+          </button>
+          <button style={ghostButtonStyle} onClick={() => setSimPaused((v: boolean) => !v)} disabled={!isSimulating}>
+            {simPaused ? 'Reprendre' : 'Pause'} simulation
+          </button>
+          <button style={ghostButtonStyle} onClick={stopSimulation} disabled={!isSimulating}>
+            Stop
+          </button>
+          <Badge>{`Étape ${Math.min(simStep + 1, simPath.length)}/${simPath.length || 1}`}</Badge>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Toggle checked={godMode} onChange={(v: boolean) => setGodMode(v)} label="Mode god (cercles)" />
+          <label style={{ fontSize: 12, color: '#9ca3af' }}>
+            Vitesse
+            <input
+              type="range"
+              min={0.25}
+              max={10}
+              step={0.25}
+              value={speedFactor}
+              onChange={(e) => setSpeedFactor(Math.max(0.25, Number(e.target.value) || 1))}
+              style={{ marginLeft: 6, width: 140, verticalAlign: 'middle' }}
+            />
+            <span style={{ marginLeft: 6 }}>{speedFactor.toFixed(2)}×</span>
+          </label>
+          <label style={{ fontSize: 12, color: '#9ca3af' }}>
+            Zoom suivi
+            <input
+              type="range"
+              min={11}
+              max={18}
+              step={0.5}
+              value={zoomLevel}
+              onChange={(e) => {
+                const z = Number(e.target.value) || 14
+                setZoomLevel(z)
+                try {
+                  const map = (window as any)._le_map
+                  if (map && map.setZoom) map.setZoom(z)
+                } catch (err) {
+                  // ignore
+                }
+              }}
+              style={{ marginLeft: 6, width: 140, verticalAlign: 'middle' }}
+            />
+            <span style={{ marginLeft: 6 }}>{zoomLevel}</span>
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            style={ghostButtonStyle}
+            onClick={() => {
+              setMapAlreadyCentered(false)
+              setPos({ lat: 48.402, lng: 2.6998 })
+            }}
+          >
+            Recentrer sur Fontainebleau
+          </button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function Card({ children, style }: any) {
+  return (
+    <div
+      style={{
+        background: '#0f172a',
+        border: '1px solid #1f2937',
+        borderRadius: 16,
+        padding: 14,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function BottomSheet({ level, setLevel, query, items, speak, pos }: any) {
+  if (level === 'hidden') return null
+  const heights: any = { peek: '12vh', mid: '65vh', full: '90vh' }
+  const height = heights[level] || '12vh'
+  const cycle = () => {
+    setLevel(level === 'peek' ? 'mid' : level === 'mid' ? 'full' : 'peek')
+  }
+  const sorted = items
+    .slice()
+    .map((p: any) => ({
+      ...p,
+      dist: pos ? Math.round(distanceMeters(pos.lat, pos.lng, p.lat, p.lng)) : null,
+    }))
+    .sort((a: any, b: any) => (a.dist || 0) - (b.dist || 0))
+  const featured = sorted.slice(0, 5)
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height,
+        background: '#0b1220',
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        border: '1px solid #1f2937',
+        boxShadow: '0 -10px 30px rgba(0,0,0,0.45)',
+        zIndex: 9998,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '8px 12px',
+          borderBottom: '1px solid #111827',
+        }}
+      >
+        <div
+          onClick={cycle}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ width: 60, height: 4, borderRadius: 999, background: '#1f2937', margin: '0 auto' }} />
+        </div>
+        <button style={ghostButtonStyle} onClick={() => setLevel('hidden')}>
+          ✕
+        </button>
+      </div>
+
+      <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden' }}>
+        <div style={{ fontWeight: 700 }}>{query}</div>
+        {level === 'peek' && (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+            {featured.map((p: any) => (
+              <button
+                key={p.id}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 12,
+                  border: '1px solid #1f2937',
+                  background: '#0f172a',
+                  color: '#e5e7eb',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {(level === 'mid' || level === 'full') && (
+          <div style={{ overflowY: 'auto', maxHeight: '100%', display: 'grid', gap: 10, paddingBottom: 20 }}>
+            {sorted.map((p: any) => (
+              <div
+                key={p.id}
+                style={{
+                  padding: 12,
+                  borderRadius: 12,
+                  border: '1px solid #1f2937',
+                  background: '#0f172a',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                <div style={{ fontWeight: 700 }}>{p.name}</div>
+                <div style={{ color: '#9ca3af' }}>{p.shortDescription}</div>
+                {p.dist !== null && <div style={{ fontSize: 12, color: '#6b7280' }}>{p.dist} m</div>}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button style={ghostButtonStyle} onClick={() => speak(p.ttsText)}>
+                    Lire (TTS)
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+function Chip({ children, active, onClick }: any) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '8px 12px',
+        borderRadius: 999,
+        border: active ? '1px solid #22c55e' : '1px solid #1f2937',
+        background: active ? 'rgba(34,197,94,0.12)' : '#0b1220',
+        color: active ? '#bbf7d0' : '#e5e7eb',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Toggle({ checked, onChange, label }: any) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {label}
+    </label>
+  )
+}
+
+function Badge({ children }: any) {
+  return (
+    <span
+      style={{
+        padding: '6px 10px',
+        borderRadius: 999,
+        background: 'rgba(255,255,255,0.08)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        fontSize: 12,
+      }}
+    >
+      {children}
+    </span>
+  )
+}
+
+const primaryButtonStyle: React.CSSProperties = {
+  padding: '10px 14px',
+  borderRadius: 10,
+  border: '1px solid #22c55e',
+  background: 'linear-gradient(120deg, #22c55e, #16a34a)',
+  color: '#f8fafc',
+  fontWeight: 700,
+}
+
+const secondaryButtonStyle: React.CSSProperties = {
+  padding: '10px 14px',
+  borderRadius: 10,
+  border: '1px solid #1f2937',
+  background: '#0b1220',
+  color: '#e5e7eb',
+  fontWeight: 600,
+}
+
+const ghostButtonStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: 10,
+  border: '1px solid #1f2937',
+  background: 'transparent',
+  color: '#e5e7eb',
 }

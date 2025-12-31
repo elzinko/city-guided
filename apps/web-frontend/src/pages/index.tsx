@@ -6,7 +6,7 @@ import { GuideControls } from '../components/GuideControls'
 import { BottomSheet } from '../components/BottomSheet'
 import { AdminSheet } from '../components/AdminSheet'
 import { distanceMeters } from '../utils/distance'
-import { DEFAULT_CENTER_RADIUS_METERS } from '../config/constants'
+import { DEFAULT_CENTER_RADIUS_METERS, GPS_BUTTON_BOTTOM_VH } from '../config/constants'
 
 const DEFAULT_RADIUS_METERS = 400
 const DEFAULT_DRIVE_PATH = [
@@ -349,13 +349,16 @@ export default function Home() {
         if ((mapEl as any)._leaflet_initialized && (window as any)._le_map) return
 
         // initialize map and store reference globally (HMR safe)
-        const map = (window as any)._le_map || L.map('map')
+        const map = (window as any)._le_map || L.map('map', { zoomControl: false })
         if (!map._hasInit) {
           map.setView([fallbackPos.lat, fallbackPos.lng], 12)
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
           }).addTo(map)
           map._hasInit = true
+          if (map.zoomControl && map.removeControl) {
+            map.removeControl(map.zoomControl)
+          }
         }
 
         // suivre les déplacements de carte pour rafraîchir les POI visibles et la position de référence
@@ -506,6 +509,10 @@ export default function Home() {
           searchActive={searchActive}
           setSearchActive={setSearchActive}
           setSearchReady={setSearchReady}
+          onQuickSelect={() => {
+            setSearchReady(true)
+            setSheetLevel('mid')
+          }}
         />
 
         <div
@@ -542,13 +549,13 @@ export default function Home() {
           style={{
             position: 'fixed',
             right: 16,
-            bottom: 16,
-        zIndex: 12000,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
-    >
+            bottom: `${GPS_BUTTON_BOTTOM_VH}vh`,
+            zIndex: 12000,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
           {adminLevel === 'hidden' && (
             <button
               onClick={recenterOnUser}

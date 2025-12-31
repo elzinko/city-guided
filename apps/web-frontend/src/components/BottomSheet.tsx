@@ -1,10 +1,13 @@
 import React from 'react'
 import { distanceMeters } from '../utils/distance'
 import { ghostButtonStyle } from './ui'
+import { SHEET_HEIGHTS } from '../config/constants'
+
+type Level = 'hidden' | 'peek' | 'mid' | 'full'
 
 type Props = {
-  level: 'hidden' | 'peek' | 'mid' | 'full'
-  setLevel: (v: 'hidden' | 'peek' | 'mid' | 'full') => void
+  level: Level
+  setLevel: (v: Level) => void
   query: string
   items: any[]
   speak: (text?: string) => void
@@ -15,8 +18,62 @@ type Props = {
 
 export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, actions = [] }: Props) {
   if (level === 'hidden') return null
-  const heights: any = { peek: '12vh', mid: '65vh', full: '90vh' }
-  const height = heights[level] || '12vh'
+  const heights: any = {
+    peek: `${SHEET_HEIGHTS.peek}vh`,
+    mid: `${SHEET_HEIGHTS.mid}vh`,
+    full: `${SHEET_HEIGHTS.full}vh`,
+  }
+  const height = heights[level] || `${SHEET_HEIGHTS.peek}vh`
+  const startYRef = React.useRef<number | null>(null)
+  const startLevelRef = React.useRef<Level>(level)
+  const order: Level[] = ['peek', 'mid', 'full']
+  const pickLevel = (delta: number, current: Level): Level => {
+    const idx = order.indexOf(current)
+    if (delta < -60 && idx < order.length - 1) return order[idx + 1]
+    if (delta > 60 && idx > 0) return order[idx - 1]
+    return current
+  }
+  const handlePointerEnd = (clientY: number | null) => {
+    if (clientY === null || startYRef.current === null) return
+    const delta = startYRef.current - clientY
+    const target = pickLevel(delta, startLevelRef.current)
+    setLevel(target)
+    startYRef.current = null
+  }
+  const handlePointerDown = (e: React.PointerEvent | React.TouchEvent) => {
+    const clientY =
+      (e as any).clientY ??
+      (e as React.TouchEvent).touches?.[0]?.clientY ??
+      (e as React.TouchEvent).changedTouches?.[0]?.clientY ??
+      null
+    if (clientY === null) return
+    startYRef.current = clientY
+    startLevelRef.current = level
+    const move = (ev: any) => {
+      const y =
+        ev.clientY ??
+        ev.touches?.[0]?.clientY ??
+        ev.changedTouches?.[0]?.clientY ??
+        null
+      if (y === null) return
+    }
+    const up = (ev: any) => {
+      const y =
+        ev.clientY ??
+        ev.touches?.[0]?.clientY ??
+        ev.changedTouches?.[0]?.clientY ??
+        null
+      handlePointerEnd(y)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('touchmove', move)
+      window.removeEventListener('touchend', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('touchmove', move)
+    window.addEventListener('touchend', up)
+  }
   const cycle = () => {
     setLevel(level === 'peek' ? 'mid' : level === 'mid' ? 'full' : 'peek')
   }
@@ -42,19 +99,22 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
         borderTopRightRadius: 16,
         border: '1px solid #1f2937',
         boxShadow: '0 -10px 30px rgba(0,0,0,0.45)',
-        zIndex: 9998,
+        zIndex: 12050,
         display: 'flex',
         flexDirection: 'column',
+        transition: 'height 0.2s ease, transform 0.2s ease',
       }}
     >
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '8px 12px',
-          borderBottom: '1px solid #111827',
-        }}
-      >
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '8px 12px',
+        borderBottom: '1px solid #111827',
+      }}
+      onPointerDown={handlePointerDown as any}
+      onTouchStart={handlePointerDown as any}
+    >
         <div
           onClick={cycle}
           style={{
@@ -136,6 +196,14 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
                   gap: 6,
                 }}
               >
+                <div
+                  style={{
+                    height: 90,
+                    borderRadius: 10,
+                    background: 'linear-gradient(135deg, #1f2937, #0b1220)',
+                    border: '1px solid #111827',
+                  }}
+                />
                 <div style={{ fontWeight: 700 }}>{p.name}</div>
                 <div style={{ color: '#9ca3af' }}>{p.shortDescription}</div>
                 {p.dist !== null && <div style={{ fontSize: 12, color: '#6b7280' }}>{p.dist} m</div>}

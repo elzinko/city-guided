@@ -7,9 +7,10 @@ type Props = {
   searchActive: boolean
   setSearchActive: (v: boolean) => void
   setSearchReady?: (v: boolean) => void
+  onQuickSelect?: (value: string) => void
 }
 
-export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, setSearchReady }: Props) {
+export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, setSearchReady, onQuickSelect }: Props) {
   const suggestions = ['Château', 'Musée', 'Forêt', 'Street Art', 'Patrimoine', 'Balade']
   const markReady = () => {
     if (setSearchReady) setSearchReady(true)
@@ -67,6 +68,7 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
                 onClick={() => {
                   setQuery(s)
                   markReady()
+                  if (onQuickSelect) onQuickSelect(s)
                 }}
               >
                 {s}
@@ -123,21 +125,6 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
             <button style={ghostButtonStyle} onClick={() => setSearchActive(false)}>
               ✕
             </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }} onClick={(e) => e.stopPropagation()}>
-            {suggestions.map((s) => (
-              <Chip
-                key={s}
-                active={false}
-                onClick={() => {
-                  setQuery(s)
-                  markReady()
-                }}
-              >
-                {s}
-              </Chip>
-            ))}
           </div>
 
           <div style={{ color: '#9ca3af', fontSize: 13, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>

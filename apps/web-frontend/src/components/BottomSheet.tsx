@@ -136,7 +136,16 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
         <div style={{ fontWeight: 700 }}>{mode === 'results' ? query : 'Ambiance locale'}</div>
 
         {mode === 'ambience' && (
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              overflowX: 'auto',
+              paddingBottom: 4,
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'thin',
+            }}
+          >
             {actions.map((a) => (
               <button
                 key={a.label}
@@ -204,13 +213,14 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
                     border: '1px solid #111827',
                   }}
                 />
-                <div style={{ fontWeight: 700 }}>{p.name}</div>
-                <div style={{ color: '#9ca3af' }}>{p.shortDescription}</div>
-                {p.dist !== null && <div style={{ fontSize: 12, color: '#6b7280' }}>{p.dist} m</div>}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button style={ghostButtonStyle} onClick={() => speak(p.ttsText)}>
-                    Lire (TTS)
-                  </button>
+              <div style={{ fontWeight: 700 }}>{p.name}</div>
+              <div style={{ color: '#9ca3af' }}>{p.shortDescription}</div>
+              <div style={{ fontSize: 12, color: '#9ca3af' }}>Durée estimée : ~15 min</div>
+              {p.dist !== null && <div style={{ fontSize: 12, color: '#6b7280' }}>{p.dist} m</div>}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button style={ghostButtonStyle} onClick={() => speak(p.ttsText)}>
+                  Lire (TTS)
+                </button>
                 </div>
               </div>
             ))}

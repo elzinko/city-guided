@@ -14,3 +14,4 @@
 - Mode navigation audio (post-recherche) : interface type GPS avec POI suivant/temps-distance, zone texte/contrôles (lecture/pause/suivant), sortie du mode nav, et affichage superposé à la carte pendant la navigation.
 - Implémenter « Enregistrés » (gestion des lieux favoris) dans la barre Ambiance locale.
 - Implémenter « Contribuer » (notation/signalement de lieux) dans la barre Ambiance locale.
+- Ajouter la notation/avis des lieux (étoiles + nombre d’avis) dans les cartes résultats.

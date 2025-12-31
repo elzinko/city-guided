@@ -8,12 +8,19 @@ type Props = {
   setSearchActive: (v: boolean) => void
   setSearchReady?: (v: boolean) => void
   onQuickSelect?: (value: string) => void
+  onClear?: () => void
 }
 
-export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, setSearchReady, onQuickSelect }: Props) {
+export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, setSearchReady, onQuickSelect, onClear }: Props) {
   const suggestions = ['Château', 'Musée', 'Forêt', 'Street Art', 'Patrimoine', 'Balade']
   const markReady = () => {
     if (setSearchReady) setSearchReady(true)
+  }
+  const clearAll = () => {
+    setQuery('')
+    if (setSearchReady) setSearchReady(false)
+    if (onClear) onClear()
+    setSearchActive(false)
   }
   return (
     <>
@@ -57,10 +64,24 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               fontSize: 14,
             }}
           />
+          {query && (
+            <button style={ghostButtonStyle} onClick={clearAll} aria-label="Effacer la recherche">
+              ✕
+            </button>
+          )}
           <button style={ghostButtonStyle}>🎤</button>
         </div>
         {!searchActive && (
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              overflowX: 'auto',
+              paddingBottom: 4,
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'thin',
+            }}
+          >
             {suggestions.map((s) => (
               <Chip
                 key={s}
@@ -122,8 +143,13 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               }}
             />
             <button style={ghostButtonStyle}>🎤</button>
+            {query && (
+              <button style={ghostButtonStyle} onClick={clearAll} aria-label="Effacer">
+                ✕
+              </button>
+            )}
             <button style={ghostButtonStyle} onClick={() => setSearchActive(false)}>
-              ✕
+              Fermer
             </button>
           </div>
 

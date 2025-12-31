@@ -6,7 +6,7 @@ import { GuideControls } from '../components/GuideControls'
 import { BottomSheet } from '../components/BottomSheet'
 import { AdminSheet } from '../components/AdminSheet'
 import { distanceMeters } from '../utils/distance'
-import { DEFAULT_CENTER_RADIUS_METERS, GPS_BUTTON_BOTTOM_VH } from '../config/constants'
+import { DEFAULT_CENTER_RADIUS_METERS, GPS_BUTTON_BOTTOM_VH, MAX_POIS_DISPLAYED } from '../config/constants'
 
 const DEFAULT_RADIUS_METERS = 400
 const DEFAULT_DRIVE_PATH = [
@@ -71,14 +71,16 @@ export default function Home() {
   const [sheetLevel, setSheetLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('peek')
   const [adminLevel, setAdminLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
   const [centerRadiusMeters, setCenterRadiusMeters] = useState(DEFAULT_CENTER_RADIUS_METERS)
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(fallbackPos)
+  const [discoverMode, setDiscoverMode] = useState(false)
   useEffect(() => {
     if (searchActive) return
-    if (searchReady) {
+    if (searchReady || discoverMode) {
       setSheetLevel('mid')
     } else {
       setSheetLevel('peek')
     }
-  }, [searchReady, searchActive])
+  }, [searchReady, searchActive, discoverMode])
   useEffect(() => {
     setSimStep(0)
   }, [simPath])
@@ -110,14 +112,15 @@ export default function Home() {
 
   useEffect(() => {
     const base = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
-    const params = new URLSearchParams({ radius: 'all', lat: String(pos?.lat ?? fallbackPos.lat), lng: String(pos?.lng ?? fallbackPos.lng) })
+    const basePos = mapCenter || pos || fallbackPos
+    const params = new URLSearchParams({ radius: 'all', lat: String(basePos.lat), lng: String(basePos.lng) })
     if (query) params.set('q', query)
     const url = base ? `${base}/api/pois?${params.toString()}` : `/api/pois?${params.toString()}`
     fetch(url)
       .then((r) => r.json())
       .then((data) => setPois(data))
       .catch(console.error)
-  }, [query, pos?.lat, pos?.lng])
+  }, [query, mapCenter?.lat, mapCenter?.lng])
 
   function getStorySegments(p: Poi): string[] {
     if (p.storySegments && p.storySegments.length) return p.storySegments
@@ -365,6 +368,8 @@ export default function Home() {
         if (!(map as any)._move_handler_bound) {
           map.on('moveend', () => {
             setMapMoveVersion((v: number) => v + 1)
+            const center = map.getCenter && map.getCenter()
+            if (center) setMapCenter({ lat: center.lat, lng: center.lng })
           })
           ;(map as any)._move_handler_bound = true
         }
@@ -465,7 +470,7 @@ export default function Home() {
         const bounds = map.getBounds()
         inView = pois.filter((p) => bounds.contains([p.lat, p.lng]))
       }
-      setVisiblePois(inView)
+      setVisiblePois(inView.slice(0, MAX_POIS_DISPLAYED))
 
       inView.forEach((p) => {
         const marker = L.marker([p.lat, p.lng]).bindPopup(`<b>${p.name}</b><br/>${p.shortDescription}`)
@@ -510,8 +515,16 @@ export default function Home() {
           setSearchActive={setSearchActive}
           setSearchReady={setSearchReady}
           onQuickSelect={() => {
+            setDiscoverMode(false)
             setSearchReady(true)
             setSheetLevel('mid')
+          }}
+          onClear={() => {
+            setSearchReady(false)
+            setQuery('')
+            setSheetLevel('peek')
+            setSearchActive(false)
+            setDiscoverMode(false)
           }}
         />
 
@@ -537,9 +550,18 @@ export default function Home() {
           items={visiblePois}
           speak={speak}
           pos={pos}
-          mode={searchReady ? 'results' : 'ambience'}
+          mode={searchReady || discoverMode ? 'results' : 'ambience'}
           actions={[
-            { label: 'Découvrir', icon: '🌍', onClick: () => setSheetLevel('mid') },
+            {
+              label: 'Découvrir',
+              icon: '🌍',
+              onClick: () => {
+                setDiscoverMode(true)
+                setSearchReady(false)
+                setQuery('')
+                setSheetLevel('mid')
+              },
+            },
             { label: 'Enregistrés', icon: '⭐', onClick: () => setSheetLevel('mid') },
             { label: 'Contribuer', icon: '✍️', onClick: () => setSheetLevel('mid') },
           ]}

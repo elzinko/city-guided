@@ -18,14 +18,14 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
     <>
       <div
         style={{
-          position: 'fixed',
+          position: 'absolute',
           top: 12,
           left: 12,
           right: 12,
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
-          zIndex: 10,
+          zIndex: 12005,
         }}
       >
         <div
@@ -82,14 +82,14 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(8, 13, 23, 0.96)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            padding: 16,
-            gap: 12,
-          }}
+          background: 'rgba(8, 13, 23, 0.96)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 12006,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: 16,
+          gap: 12,
+        }}
         >
           <div
             style={{

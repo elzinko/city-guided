@@ -9,9 +9,11 @@ type Props = {
   items: any[]
   speak: (text?: string) => void
   pos: { lat: number; lng: number } | null
+  mode: 'ambience' | 'results'
+  actions?: { label: string; icon?: string; onClick?: () => void }[]
 }
 
-export function BottomSheet({ level, setLevel, query, items, speak, pos }: Props) {
+export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, actions = [] }: Props) {
   if (level === 'hidden') return null
   const heights: any = { peek: '12vh', mid: '65vh', full: '90vh' }
   const height = heights[level] || '12vh'
@@ -71,8 +73,36 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos }: Props
       </div>
 
       <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden' }}>
-        <div style={{ fontWeight: 700 }}>{query}</div>
-        {level === 'peek' && (
+        <div style={{ fontWeight: 700 }}>{mode === 'results' ? query : 'Ambiance locale'}</div>
+
+        {mode === 'ambience' && (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+            {actions.map((a) => (
+              <button
+                key={a.label}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: '1px solid #1f2937',
+                  background: '#0f172a',
+                  color: '#e5e7eb',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+                onClick={a.onClick}
+              >
+                <span>{a.icon || ''}</span> {a.label}
+              </button>
+            ))}
+            {actions.length === 0 && (
+              <div style={{ color: '#9ca3af', fontSize: 13 }}>Suggestions à venir…</div>
+            )}
+          </div>
+        )}
+
+        {mode === 'results' && level === 'peek' && (
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
             {featured.map((p: any) => (
               <button
@@ -91,7 +121,7 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos }: Props
             ))}
           </div>
         )}
-        {(level === 'mid' || level === 'full') && (
+        {mode === 'results' && (level === 'mid' || level === 'full') && (
           <div style={{ overflowY: 'auto', maxHeight: '100%', display: 'grid', gap: 10, paddingBottom: 20 }}>
             {sorted.map((p: any) => (
               <div

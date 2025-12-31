@@ -12,3 +12,5 @@
 - Bouton feedback beta → création d’issue GitHub : popup plein écran avec titre, description, type (bug/feature/other), contexte auto (historique d’actions utilisateur) attaché en PJ ou dans le body; utilisation d’un token GitHub fourni.
 - Refactor front en composants dédiés (SearchOverlay, MapShell, FiltersBar, BottomSheet, StoryPanel, ResultsList, DevControls, HeroHeader) avec fichiers séparés et éventuellement stories/tests UI pour clarifier la structure.
 - Mode navigation audio (post-recherche) : interface type GPS avec POI suivant/temps-distance, zone texte/contrôles (lecture/pause/suivant), sortie du mode nav, et affichage superposé à la carte pendant la navigation.
+- Implémenter « Enregistrés » (gestion des lieux favoris) dans la barre Ambiance locale.
+- Implémenter « Contribuer » (notation/signalement de lieux) dans la barre Ambiance locale.

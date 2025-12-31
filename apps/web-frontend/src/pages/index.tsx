@@ -72,6 +72,14 @@ export default function Home() {
   const [adminLevel, setAdminLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
   const [centerRadiusMeters, setCenterRadiusMeters] = useState(DEFAULT_CENTER_RADIUS_METERS)
   useEffect(() => {
+    if (searchActive) return
+    if (searchReady) {
+      setSheetLevel('mid')
+    } else {
+      setSheetLevel('peek')
+    }
+  }, [searchReady, searchActive])
+  useEffect(() => {
     setSimStep(0)
   }, [simPath])
 
@@ -516,12 +524,18 @@ export default function Home() {
         </div>
 
         <BottomSheet
-          level={!searchReady || searchActive ? 'hidden' : sheetLevel}
+          level={searchActive ? 'hidden' : sheetLevel}
           setLevel={setSheetLevel}
           query={query || 'Découvrir'}
           items={visiblePois}
           speak={speak}
           pos={pos}
+          mode={searchReady ? 'results' : 'ambience'}
+          actions={[
+            { label: 'Découvrir', icon: '🌍', onClick: () => setSheetLevel('mid') },
+            { label: 'Enregistrés', icon: '⭐', onClick: () => setSheetLevel('mid') },
+            { label: 'Contribuer', icon: '✍️', onClick: () => setSheetLevel('mid') },
+          ]}
         />
 
         <div

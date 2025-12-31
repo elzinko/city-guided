@@ -237,8 +237,7 @@ export default function Home() {
     if (!autoTts || audioPaused || !activeStory) return
     const poi = pois.find((p) => p.id === activeStory.poiId)
     if (!poi) return
-    const segs = getStorySegments(poi)
-    const seg = segs[activeStory.segmentIdx]
+    const seg = getStorySegments(poi)[activeStory.segmentIdx]
     if (seg) speak(seg)
   }, [autoTts, audioPaused, activeStory?.poiId, activeStory?.segmentIdx, pois])
 
@@ -263,7 +262,6 @@ export default function Home() {
       if (!cur) return cur
       const poi = pois.find((p) => p.id === cur.poiId)
       if (!poi) return cur
-      const segs = getStorySegments(poi)
       const next = Math.max(0, cur.segmentIdx - 1)
       return { ...cur, segmentIdx: next }
     })
@@ -536,6 +534,14 @@ export default function Home() {
   const gpsHidden = adminLevel !== 'hidden' || sheetHeightPercent >= GPS_HIDE_THRESHOLD_PERCENT || searchActive
   const gpsBottom = sheetLevel === 'hidden' ? 16 : `calc(${sheetHeightPercent}vh + ${GPS_BUTTON_MARGIN_PX}px)`
 
+  useEffect(() => {
+    if (!guideMode || !pos) return
+    const map = (window as any)._le_map
+    if (map && map.setView) {
+      map.setView([pos.lat, pos.lng], Math.max(15, zoomLevel))
+    }
+  }, [guideMode, pos, zoomLevel])
+
   return (
     <main
       style={{
@@ -551,7 +557,7 @@ export default function Home() {
         <SearchOverlay
           query={query}
           setQuery={setQuery}
-          searchActive={searchActive}
+          searchActive={searchActive && !guideMode}
           setSearchActive={setSearchActive}
           setSearchReady={setSearchReady}
           onQuickSelect={() => {
@@ -567,6 +573,47 @@ export default function Home() {
           }}
         />
 
+        {guideMode && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              right: 12,
+              padding: '10px 12px',
+              borderRadius: 12,
+              background: 'rgba(15,23,42,0.9)',
+              color: '#f8fafc',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              zIndex: 12010,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+            }}
+          >
+            <button
+              onClick={() => setGuideMode(false)}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(255,255,255,0.08)',
+                color: '#f8fafc',
+              }}
+              aria-label="Quitter navigation"
+            >
+              ←
+            </button>
+            <div style={{ display: 'grid', gap: 2 }}>
+              <div style={{ fontSize: 14, color: '#cbd5e1' }}>Navigation</div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>
+                {activeStory ? pois.find((p) => p.id === activeStory.poiId)?.name || 'En cours' : 'En cours'}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div
           style={{
             position: 'absolute',
@@ -578,9 +625,46 @@ export default function Home() {
             paddingBottom: 220,
           }}
         >
-          {!searchActive && <StoryPanel activeStory={activeStory} pois={pois} getStorySegments={getStorySegments} speak={speak} />}
-          {searchReady && !searchActive && <ResultsPanel visiblePois={visiblePois} speak={speak} />}
+          {!searchActive && !guideMode && <StoryPanel activeStory={activeStory} pois={pois} getStorySegments={getStorySegments} speak={speak} />}
+          {searchReady && !searchActive && !guideMode && <ResultsPanel visiblePois={visiblePois} speak={speak} />}
         </div>
+
+        {guideMode && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 12,
+              right: 12,
+              bottom: `calc(${sheetHeightPercent}vh + 80px)`,
+              display: 'flex',
+              justifyContent: 'center',
+              zIndex: 12015,
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ display: 'flex', gap: 12, pointerEvents: 'auto' }}>
+              <button style={ghostButtonStyle} onClick={prevSegment} aria-label="Précédent">
+                ⏮
+              </button>
+              <button
+                style={{ ...ghostButtonStyle, padding: '10px 14px', fontWeight: 700 }}
+                onClick={() => {
+                  setAudioPaused((p) => {
+                    const next = !p
+                    if (next) stopSpeech()
+                    return next
+                  })
+                }}
+                aria-label="Play/Pause"
+              >
+                {audioPaused ? '▶️' : '⏸'}
+              </button>
+              <button style={ghostButtonStyle} onClick={nextSegment} aria-label="Suivant">
+                ⏭
+              </button>
+            </div>
+          </div>
+        )}
 
         <BottomSheet
           level={searchActive ? 'hidden' : sheetLevel}

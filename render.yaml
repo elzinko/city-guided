@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: city-guided-frontend
+    env: node
+    branch: main
+    autoDeploy: true
+    root: .
+    buildCommand: |
+      corepack enable pnpm && pnpm install --frozen-lockfile && pnpm run build --filter apps-web-frontend...
+    startCommand: pnpm --filter apps-web-frontend start -- --hostname 0.0.0.0 --port $PORT
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: ""
+      - key: NEXT_PUBLIC_OSRM_URL
+        value: ""
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: city-guided-api
+    env: node
+    branch: main
+    autoDeploy: true
+    root: services/api
+    buildCommand: |
+      corepack enable pnpm && pnpm install --frozen-lockfile && pnpm run build --filter services-api...
+    startCommand: pnpm --filter services-api start
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: SOME_PRIVATE_KEY
+        value: ""
+    
+# Notes:
+# - Do NOT commit real secrets; set them in the Render dashboard (Environment tab) after creating the service.
+# - You can remove the API service block if you don't want to deploy the API on Render.

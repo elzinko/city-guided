@@ -2,91 +2,136 @@
   {
     "id": "poi_1",
     "name": "Cathédrale Saint-Jean",
-    "lat": 48.8570,
-    "lng": 2.3510,
-    "radiusMeters": 80,
+    "lat": 48.857,
+    "lng": 2.351,
+    "radiusMeters": 400,
     "category": "Monuments",
     "shortDescription": "Cathédrale gothique du 12e siècle.",
-    "ttsText": "Voici la cathédrale Saint-Jean, construite au 12e siècle. Vous pouvez admirer son architecture gothique et ses vitraux remarquables."
+    "ttsText": "Voici la cathédrale Saint-Jean, construite au 12e siècle. Vous pouvez admirer son architecture gothique et ses vitraux remarquables.",
+    "storySegments": [
+      "Cathédrale Saint-Jean, un repère du 12e siècle au cœur de la ville.",
+      "Son portail gothique et ses vitraux racontent la vie locale depuis des siècles.",
+      "À l'intérieur, la nef garde la fraîcheur même l'été, parfaite halte entre deux visites."
+    ]
   },
   {
     "id": "poi_2",
     "name": "Musée d'Art Local",
     "lat": 48.8585,
     "lng": 2.3498,
-    "radiusMeters": 60,
+    "radiusMeters": 400,
     "category": "Musees",
     "shortDescription": "Collection moderne et locale.",
-    "ttsText": "Le musée d'Art Local présente des artistes de la région; les expositions changent régulièrement."
+    "ttsText": "Le musée d'Art Local présente des artistes de la région; les expositions changent régulièrement.",
+    "storySegments": [
+      "Musée d'Art Local : vitrine des artistes du coin, souvent méconnus.",
+      "Les expos tournent vite, on peut revenir chaque mois sans voir la même chose.",
+      "Le café du musée sert des pâtisseries inspirées des œuvres accrochées."
+    ]
   },
   {
     "id": "poi_3",
     "name": "Place Insolite",
     "lat": 48.8566,
     "lng": 2.3522,
-    "radiusMeters": 50,
+    "radiusMeters": 400,
     "category": "Insolite",
     "shortDescription": "Place avec sculptures contemporaines.",
-    "ttsText": "Cette place est connue pour ses sculptures contemporaines et son marché artisanal le week-end."
+    "ttsText": "Cette place est connue pour ses sculptures contemporaines et son marché artisanal le week-end.",
+    "storySegments": [
+      "Place Insolite : des sculptures contemporaines posées entre deux façades classiques.",
+      "Le week-end, un marché artisanal se glisse entre les œuvres, ambiance bohème garantie.",
+      "Les habitants parient sur la sculpture qui changera en premier, un jeu de quartier."
+    ]
   },
   {
     "id": "poi_fontainebleau_1",
     "name": "Château de Fontainebleau",
     "lat": 48.4020,
     "lng": 2.6998,
-    "radiusMeters": 120,
+    "radiusMeters": 400,
     "category": "Monuments",
     "shortDescription": "Résidence royale classée UNESCO avec jardins.",
-    "ttsText": "Le château de Fontainebleau fut l'une des résidences préférées des rois de France. Ses jardins et appartements reflètent huit siècles d'histoire."
+    "ttsText": "Le château de Fontainebleau fut l'une des résidences préférées des rois de France. Ses jardins et appartements reflètent huit siècles d'histoire.",
+    "storySegments": [
+      "À droite, le château de Fontainebleau, huit siècles d'histoire royale alignés sur la même façade.",
+      "Napoléon y a signé son abdication en 1814 avant de partir pour l'île d'Elbe.",
+      "Les jardins cachent des canaux et un parterre inspiré de Versailles mais plus intime."
+    ]
   },
   {
     "id": "poi_fontainebleau_2",
     "name": "Musée Napoléon (Grands Appartements)",
     "lat": 48.4035,
     "lng": 2.6990,
-    "radiusMeters": 80,
+    "radiusMeters": 400,
     "category": "Musees",
     "shortDescription": "Collections liées à Napoléon Ier au cœur du château.",
-    "ttsText": "Le musée Napoléon présente souvenirs et objets personnels de l'empereur, installés dans les Grands Appartements du château."
+    "ttsText": "Le musée Napoléon présente souvenirs et objets personnels de l'empereur, installés dans les Grands Appartements du château.",
+    "storySegments": [
+      "Musée Napoléon : souvenirs d'empereur, des bottes aux portraits officiels.",
+      "Les Grands Appartements ont vu passer deux abdications et une restauration.",
+      "Un des secrétaires de l'Empereur disait que le parquet craquait plus fort la nuit, superstition ou pas."
+    ]
   },
   {
     "id": "poi_fontainebleau_3",
     "name": "Forêt de Fontainebleau — Rochers d'Apremont",
     "lat": 48.4200,
     "lng": 2.6460,
-    "radiusMeters": 300,
+    "radiusMeters": 500,
     "category": "Insolite",
     "shortDescription": "Spot emblématique de blocs et belvédère sur la forêt.",
-    "ttsText": "Les rochers d'Apremont offrent un panorama sur la forêt et des parcours d'escalade de blocs réputés dans le monde entier."
+    "ttsText": "Les rochers d'Apremont offrent un panorama sur la forêt et des parcours d'escalade de blocs réputés dans le monde entier.",
+    "storySegments": [
+      "À l'horizon, les rochers d'Apremont, terrain de jeu des grimpeurs depuis plus d'un siècle.",
+      "Les peintres de Barbizon venaient capter ces lumières filtrées par les pins.",
+      "On raconte qu'un bloc porte encore la trace d'un pique-nique impérial improvisé."
+    ]
   },
   {
     "id": "poi_perthes_1",
     "name": "Église Saint-Pierre de Perthes-en-Gâtinais",
     "lat": 48.4865,
     "lng": 2.5155,
-    "radiusMeters": 70,
+    "radiusMeters": 400,
     "category": "Monuments",
     "shortDescription": "Église rurale du XIIe siècle au cœur du village.",
-    "ttsText": "L'église Saint-Pierre de Perthes-en-Gâtinais conserve un clocher roman et des éléments gothiques, témoins de l'histoire locale."
+    "ttsText": "L'église Saint-Pierre de Perthes-en-Gâtinais conserve un clocher roman et des éléments gothiques, témoins de l'histoire locale.",
+    "storySegments": [
+      "Église Saint-Pierre de Perthes : un clocher roman qui servait de repère aux voyageurs.",
+      "Les pierres mêlent motifs romans et ajouts gothiques, preuve des chantiers successifs.",
+      "Un soir d'orage, la cloche aurait sonné seule, racontent les anciens."
+    ]
   },
   {
     "id": "poi_perthes_2",
     "name": "Lisières de la Forêt de Fontainebleau",
     "lat": 48.4705,
     "lng": 2.5600,
-    "radiusMeters": 250,
+    "radiusMeters": 450,
     "category": "Art",
     "shortDescription": "Clairière appréciée des peintres de Barbizon.",
-    "ttsText": "Ces lisières ont inspiré les peintres de l'école de Barbizon, attirés par la lumière et les paysages forestiers ouverts."
+    "ttsText": "Ces lisières ont inspiré les peintres de l'école de Barbizon, attirés par la lumière et les paysages forestiers ouverts.",
+    "storySegments": [
+      "Lisières de la forêt : lumière douce qui a fait craquer les peintres de Barbizon.",
+      "Ils posaient leurs chevalets ici pour saisir les clairières sans poussière de route.",
+      "Certains cadres en bois étaient fabriqués avec le pin abattu juste à côté."
+    ]
   },
   {
     "id": "poi_fontainebleau_4",
     "name": "Théâtre Municipal de Fontainebleau",
     "lat": 48.4055,
     "lng": 2.7008,
-    "radiusMeters": 60,
+    "radiusMeters": 380,
     "category": "Art",
     "shortDescription": "Théâtre à l'italienne inauguré au XIXe siècle.",
-    "ttsText": "Le théâtre municipal, construit en 1857, propose une programmation variée et conserve son architecture à l'italienne."
+    "ttsText": "Le théâtre municipal, construit en 1857, propose une programmation variée et conserve son architecture à l'italienne.",
+    "storySegments": [
+      "Théâtre municipal : salle à l'italienne inaugurée en 1857.",
+      "Les loges serrées gardent encore des miroirs biseautés d'origine.",
+      "La rumeur veut que le rideau ait été tissé dans un atelier local, pas à Lyon."
+    ]
   }
 ]

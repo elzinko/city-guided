@@ -61,6 +61,11 @@ Prérequis : pnpm (v7+), Node 18+, git
 - Admin : endpoints CRUD sous `/api/admin/pois` protégé par header `X-ADMIN-TOKEN` (dev: `dev-secret`).
 - Architecture : séparation hexagonale (domain/use-cases/infrastructure). Les packages sont purs et ne lisent pas `process.env` directement.
 - Ports dev : le frontend démarre sur `3002` (pour éviter le fallback Next.js sur `3001` quand `3000` est occupé) et l'API sur `3001`. Tu peux changer le port frontend avec `pnpm --filter apps/web-frontend dev -- --port 3000`.
+- Routage local (optionnel) : OSRM est packagé dans `infra/docker/docker-compose.yml` (profil `osrm`).
+  - depuis `infra/docker/`: `OSRM_REGION_BASE=ile-de-france-latest OSRM_PBF_URL=https://download.geofabrik.de/europe/france/ile-de-france-latest.osm.pbf docker compose --profile osrm up osrm-download osrm-prep osrm`
+  - chaîne complète : `osrm-download` (télécharge le PBF avec curl) → `osrm-prep` (extract/partition/customize) → `osrm` (écoute sur :5001 côté host, 5000 dans le conteneur). Données dans `infra/docker/osrm-data/`.
+  - Dans le frontend, mettre `NEXT_PUBLIC_OSRM_URL=http://localhost:3001/api/osrm` (ou `http://localhost:5001/route` si tu appelles OSRM direct), sinon le fallback utilise `NEXT_PUBLIC_API_URL` + `/api/osrm`.
+- `pnpm dev` démarre automatiquement OSRM via Docker Compose (profil `osrm`). Si Docker n'est pas dispo ou pour ignorer OSRM : `SKIP_OSRM=1 pnpm dev` ou `OSRM_AUTO=0 pnpm dev`.
 
 ## Docker / infra
 - Un docker-compose minimal est disponible dans `infra/docker/docker-compose.yml` pour lancer frontend + api.

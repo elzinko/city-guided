@@ -34,5 +34,10 @@ export function createRoutes({ poiRepo }: { poiRepo: any }): any[] {
       url: '/api/health',
       handler: async () => ({ status: 'ok' }),
     },
+    {
+      method: 'GET',
+      url: '/api/osrm/route',
+      handler: controller.proxyOsrmRoute,
+    },
   ]
 }

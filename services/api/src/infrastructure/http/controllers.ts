@@ -6,7 +6,11 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
     const q = req.query as any
     const lat = Number(q.lat)
     const lng = Number(q.lng)
-    const radius = q.radius ? Number(q.radius) : 500 // default 500 m
+    const radiusRaw = q.radius
+    const radius =
+      radiusRaw === undefined || radiusRaw === null || String(radiusRaw).toLowerCase() === 'all'
+        ? Infinity
+        : Number(radiusRaw) // if NaN, filter below will drop everything by distance <= NaN
     const category = q.category
 
     const qText = q.q ? String(q.q).toLowerCase() : null
@@ -17,7 +21,7 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
         ...p,
         distanceMeters: distanceMeters(lat, lng, p.lat, p.lng),
       }))
-      .filter((p: any) => p.distanceMeters <= radius)
+      .filter((p: any) => (Number.isFinite(radius) ? p.distanceMeters <= radius : true))
       .filter((p: any) => {
         if (!qText) return true
         return (
@@ -38,6 +42,33 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
       return reply.status(404).send({ error: 'Not found' })
     }
     return reply.send(p)
+  }
+
+  async function proxyOsrmRoute(req: FastifyRequest, reply: FastifyReply) {
+    const q = req.query as any
+    const base = (process.env.OSRM_URL || 'http://localhost:5001').replace(/\/$/, '')
+    const coords =
+      q.coords ||
+      (q.startLng !== undefined && q.startLat !== undefined && q.endLng !== undefined && q.endLat !== undefined
+        ? `${q.startLng},${q.startLat};${q.endLng},${q.endLat}`
+        : null)
+    if (!coords) return reply.status(400).send({ error: 'coords or start/end required' })
+
+    const url = new URL(`${base}/route/v1/driving/${coords}`)
+    const allowParams = ['overview', 'geometries', 'steps', 'annotations', 'alternatives']
+    allowParams.forEach((k) => {
+      if (q[k] !== undefined) url.searchParams.set(k, String(q[k]))
+    })
+    // defaults if not provided
+    if (!url.searchParams.has('overview')) url.searchParams.set('overview', 'full')
+    if (!url.searchParams.has('geometries')) url.searchParams.set('geometries', 'geojson')
+    if (!url.searchParams.has('steps')) url.searchParams.set('steps', 'true')
+    if (!url.searchParams.has('annotations')) url.searchParams.set('annotations', 'distance,duration,speed')
+
+    const res = await fetch(url.toString())
+    if (!res.ok) return reply.status(res.status).send({ error: `OSRM ${res.status}` })
+    const data = await res.json()
+    return reply.send(data)
   }
 
   // Simple admin auth (token in X-ADMIN-TOKEN)
@@ -114,5 +145,5 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
     return reply.status(204).send()
   }
 
-  return { getNearbyPois, getPoiById, createPoi, updatePoi, deletePoi }
+  return { getNearbyPois, getPoiById, proxyOsrmRoute, createPoi, updatePoi, deletePoi }
 }

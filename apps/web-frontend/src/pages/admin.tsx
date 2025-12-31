@@ -130,9 +130,27 @@ export default function Admin() {
     }
   }
 
+  const deployedCommit = process.env.NEXT_PUBLIC_RENDER_DEPLOYED_COMMIT || null
+  const githubRepo = process.env.NEXT_PUBLIC_GITHUB_REPO || null
+
   return (
     <main style={{ padding: 20 }}>
       <h1>Admin — POIs</h1>
+      <div style={{ marginBottom: 12 }}>
+        <strong>Render déployé:</strong>{' '}
+        {deployedCommit ? (
+          <span>
+            <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{deployedCommit.slice(0, 7)}</code>
+            {githubRepo ? (
+              <a style={{ marginLeft: 8 }} href={`https://github.com/${githubRepo}/commit/${deployedCommit}`} target="_blank" rel="noreferrer">
+                Voir le commit
+              </a>
+            ) : null}
+          </span>
+        ) : (
+          <span>inconnu</span>
+        )}
+      </div>
       <section>
         <h2>{editingId ? 'Modifier un POI' : 'Créer un POI'}</h2>
         <div style={{ display: 'grid', gap: 8, maxWidth: 540 }}>

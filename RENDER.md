@@ -37,4 +37,29 @@ Si tu veux, je peux :
 - créer une pull request avec `render.yaml` + la correction du script `start` (déjà appliquée ici),
 - ou préparer l'ajout automatique des variables d'environnement dans un script (mais les secrets doivent rester dans l'UI Render).
 
-Si tu souhaites que j'aille plus loin, dis-moi ce que tu veux que je fasse en priorité (créer PR, déployer l'API aussi, configurer un domaine personnalisé…).
+Déploiement manuel via GitHub Actions
+- J'ai ajouté un workflow `/.github/workflows/render-deploy.yml` qui peut être déclenché manuellement (workflow_dispatch) pour déployer le frontend sur Render.
+- Avantages : tu déclenches le déploiement uniquement quand tu veux ("push sur Render seulement au lancement du job").
+
+Ce que tu dois configurer dans GitHub (Repository → Settings → Secrets):
+- `RENDER_API_KEY` : une API key Render (Account Settings → API Keys)
+- `RENDER_FRONTEND_SERVICE_ID` : l'ID du service Render du frontend (tu peux le trouver dans l'URL de la page du service ou via l'API `GET /v1/services`)
+- (optionnel) `NEXT_PUBLIC_GITHUB_REPO` : `owner/repo` pour afficher un lien vers le commit déployé dans la page Admin.
+
+Comportement du workflow
+1. Build localement le frontend (utilise la même commande que Render).  
+2. Met ou met à jour la variable d'environnement `NEXT_PUBLIC_RENDER_DEPLOYED_COMMIT` sur le service Render pour le SHA du commit déployé.  
+3. Déclenche un deploy sur Render pour le commit demandé et attend la fin du deploy (succès / échec).
+
+Affichage dans l'admin
+- La page `pages/admin.tsx` affiche maintenant le commit actuellement enregistré dans `NEXT_PUBLIC_RENDER_DEPLOYED_COMMIT` (affiché sous forme de short SHA et lien vers GitHub si `NEXT_PUBLIC_GITHUB_REPO` est défini).
+
+Notes de sécurité
+- Ne pas committer de clés API : mets `RENDER_API_KEY` et autres secrets dans les GitHub Secrets uniquement.
+
+Souhaites-tu que je :
+- push ces modifications sur la branche `ci/render-deploy` et mette à jour la PR existante (déjà fait pour d'autres changements) ? ✅
+- lancer le job manuellement pour tester un déploiement (il faudra ajouter `RENDER_API_KEY` et `RENDER_FRONTEND_SERVICE_ID` aux secrets) ?
+- ajouter un job de confirmation (ex: notifier Slack, créer un Tag Git ou mettre à jour un fichier `DEPLOYED.txt`) après deploy réussi ?
+
+

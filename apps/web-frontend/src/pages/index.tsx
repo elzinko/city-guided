@@ -510,8 +510,8 @@ export default function Home() {
     <main
       style={{
         height: '100vh',
-        background: '#0b1220',
-        color: '#e5e7eb',
+        background: '#eef2f7',
+        color: '#0f172a',
         fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
       }}
     >

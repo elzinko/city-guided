@@ -4,11 +4,12 @@ export function Card({ children, style }: any) {
   return (
     <div
       style={{
-        background: '#0f172a',
-        border: '1px solid #1f2937',
+        background: '#f8fafc',
+        border: '1px solid #e2e8f0',
         borderRadius: 16,
         padding: 14,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+        boxShadow: '0 16px 36px rgba(15, 23, 42, 0.06)',
+        color: '#0f172a',
         ...style,
       }}
     >
@@ -24,9 +25,9 @@ export function Chip({ children, active, onClick }: any) {
       style={{
         padding: '8px 12px',
         borderRadius: 999,
-        border: active ? '1px solid #22c55e' : '1px solid #1f2937',
-        background: active ? 'rgba(34,197,94,0.12)' : '#0b1220',
-        color: active ? '#bbf7d0' : '#e5e7eb',
+        border: active ? '1px solid #16a34a' : '1px solid #d4d9e1',
+        background: active ? '#e3f6eb' : '#eef2f7',
+        color: active ? '#0f5132' : '#0f172a',
       }}
     >
       {children}
@@ -48,9 +49,10 @@ export function Badge({ children }: any) {
       style={{
         padding: '6px 10px',
         borderRadius: 999,
-        background: 'rgba(255,255,255,0.08)',
-        border: '1px solid rgba(255,255,255,0.12)',
+        background: '#eef2f7',
+        border: '1px solid #e2e8f0',
         fontSize: 12,
+        color: '#0f172a',
       }}
     >
       {children}
@@ -70,16 +72,16 @@ export const primaryButtonStyle: React.CSSProperties = {
 export const secondaryButtonStyle: React.CSSProperties = {
   padding: '10px 14px',
   borderRadius: 10,
-  border: '1px solid #1f2937',
-  background: '#0b1220',
-  color: '#e5e7eb',
+  border: '1px solid #d4d9e1',
+  background: '#f5f7fb',
+  color: '#0f172a',
   fontWeight: 600,
 }
 
 export const ghostButtonStyle: React.CSSProperties = {
   padding: '8px 12px',
   borderRadius: 10,
-  border: '1px solid #1f2937',
-  background: 'transparent',
-  color: '#e5e7eb',
+  border: '1px solid #d4d9e1',
+  background: '#fdfefe',
+  color: '#0f172a',
 }

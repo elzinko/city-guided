@@ -94,15 +94,16 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
         right: 0,
         bottom: 0,
         height,
-        background: '#0b1220',
+        background: '#f8fafc',
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
-        border: '1px solid #1f2937',
-        boxShadow: '0 -10px 30px rgba(0,0,0,0.45)',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 -12px 30px rgba(15,23,42,0.08)',
         zIndex: 12050,
         display: 'flex',
         flexDirection: 'column',
         transition: 'height 0.2s ease, transform 0.2s ease',
+        color: '#0f172a',
       }}
     >
       <div
@@ -152,9 +153,9 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
                 style={{
                   padding: '10px 12px',
                   borderRadius: 12,
-                  border: '1px solid #1f2937',
-                  background: '#0f172a',
-                  color: '#e5e7eb',
+                  border: '1px solid #e2e8f0',
+                  background: '#f5f7fb',
+                  color: '#0f172a',
                   whiteSpace: 'nowrap',
                   display: 'flex',
                   alignItems: 'center',
@@ -179,9 +180,9 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
                 style={{
                   padding: '8px 10px',
                   borderRadius: 12,
-                  border: '1px solid #1f2937',
-                  background: '#0f172a',
-                  color: '#e5e7eb',
+                  border: '1px solid #e2e8f0',
+                  background: '#f5f7fb',
+                  color: '#0f172a',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -198,8 +199,8 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
                 style={{
                   padding: 12,
                   borderRadius: 12,
-                  border: '1px solid #1f2937',
-                  background: '#0f172a',
+                  border: '1px solid #e2e8f0',
+                  background: '#f5f7fb',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 6,
@@ -209,8 +210,8 @@ export function BottomSheet({ level, setLevel, query, items, speak, pos, mode, a
                   style={{
                     height: 90,
                     borderRadius: 10,
-                    background: 'linear-gradient(135deg, #1f2937, #0b1220)',
-                    border: '1px solid #111827',
+                    background: 'linear-gradient(135deg, #e2e8f0, #f8fafc)',
+                    border: '1px solid #e2e8f0',
                   }}
                 />
               <div style={{ fontWeight: 700 }}>{p.name}</div>

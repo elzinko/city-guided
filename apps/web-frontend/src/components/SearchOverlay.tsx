@@ -40,11 +40,11 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
           style={{
             display: 'flex',
             alignItems: 'center',
-            background: '#0b1220',
+            background: '#fdfefe',
             borderRadius: 12,
-            border: '1px solid #1f2937',
+            border: '1px solid #e2e8f0',
             padding: '8px 10px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+            boxShadow: '0 10px 28px rgba(15, 23, 42, 0.08)',
             gap: 6,
           }}
         >
@@ -65,7 +65,7 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               flex: 1,
               background: 'transparent',
               border: 'none',
-              color: '#e5e7eb',
+              color: '#0f172a',
               outline: 'none',
               fontSize: 14,
             }}
@@ -112,7 +112,7 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(8, 13, 23, 0.96)',
+            background: 'rgba(248, 250, 252, 0.94)',
             backdropFilter: 'blur(4px)',
             zIndex: 12006,
             display: 'flex',
@@ -126,9 +126,9 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
             style={{
               display: 'flex',
               alignItems: 'center',
-              background: '#0b1220',
+              background: '#fdfefe',
               borderRadius: 12,
-              border: '1px solid #1f2937',
+              border: '1px solid #e2e8f0',
               padding: '10px 12px',
               gap: 6,
             }}
@@ -146,14 +146,14 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               }}
               style={{
                 flex: 1,
-                background: 'transparent',
-                border: 'none',
-                color: '#e5e7eb',
-                outline: 'none',
-                fontSize: 15,
-              }}
-              data-testid="search-input-overlay"
-            />
+              background: 'transparent',
+              border: 'none',
+              color: '#0f172a',
+              outline: 'none',
+              fontSize: 15,
+            }}
+            data-testid="search-input-overlay"
+          />
             {query ? (
               <button style={ghostButtonStyle} onClick={clearAll} aria-label="Effacer">
                 ✕
@@ -163,19 +163,23 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
             )}
           </div>
 
-          <div style={{ color: '#9ca3af', fontSize: 13, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ color: '#6b7280', fontSize: 13, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>
             Adresses enregistrées
           </div>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }} onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {['Maison', 'Bureau', 'Gare', 'Taxi stand', 'Spot photo'].map((r) => (
               <div
                 key={r}
                 style={{
                   padding: '10px 12px',
                   borderRadius: 12,
-                  background: '#0b1220',
-                  border: '1px solid #1f2937',
+                  background: '#fdfefe',
+                  border: '1px solid #e2e8f0',
                   whiteSpace: 'nowrap',
+                  color: '#0f172a',
                 }}
               >
                 {r}
@@ -185,9 +189,9 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               style={{
                 padding: '10px 12px',
                 borderRadius: 999,
-                background: '#111827',
-                border: '1px dashed #1f2937',
-                color: '#e5e7eb',
+                background: '#f5f7fb',
+                border: '1px dashed #d4d9e1',
+                color: '#0f172a',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
@@ -198,16 +202,33 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
             </div>
           </div>
 
-          <div style={{ color: '#9ca3af', fontSize: 13, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ color: '#6b7280', fontSize: 13, paddingTop: 6 }} onClick={(e) => e.stopPropagation()}>
             Recherches récentes
           </div>
           <div style={{ display: 'grid', gap: 10, overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             {['Fontainebleau château', 'Rochers d’Apremont', 'Gare Thomery', 'Village des impressionnistes', 'Rue des peintres'].map((r) => (
-              <div key={r} style={{ padding: 10, borderRadius: 10, background: '#0b1220', border: '1px solid #1f2937' }}>
+              <div
+                key={r}
+                style={{
+                  padding: 10,
+                  borderRadius: 10,
+                  background: '#fdfefe',
+                  border: '1px solid #e2e8f0',
+                  color: '#0f172a',
+                }}
+              >
                 {r}
               </div>
             ))}
-            <div style={{ padding: 10, borderRadius: 10, background: 'transparent', border: '1px dashed #1f2937', color: '#9ca3af' }}>
+            <div
+              style={{
+                padding: 10,
+                borderRadius: 10,
+                background: 'transparent',
+                border: '1px dashed #d4d9e1',
+                color: '#6b7280',
+              }}
+            >
               Autres adresses récentes →
             </div>
           </div>

@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 export SKIP_OSRM="${SKIP_OSRM:-1}"
 export OSRM_AUTO="${OSRM_AUTO:-0}"
-enable_osrm="${ENABLE_OSRM:-1}"
+enable_osrm="${ENABLE_OSRM:-0}"
 
 if [[ "$enable_osrm" == "1" || "$enable_osrm" == "true" ]]; then
   echo "ENABLE_OSRM=1 -> starting OSRM via docker compose (may take several minutes on first run)..."

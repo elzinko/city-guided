@@ -2,6 +2,13 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      enable_osrm:
+        description: "Start OSRM (docker) during dev check"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
   push:
     branches: ["main", "feature/**", "bugfix/**", "ci/**"]
   pull_request:
@@ -41,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     env:
-      ENABLE_OSRM: "true"
+      ENABLE_OSRM: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.enable_osrm) || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

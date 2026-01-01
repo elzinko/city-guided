@@ -5,6 +5,7 @@ import { ResultsPanel } from '../components/ResultsPanel'
 import { GuideControls } from '../components/GuideControls'
 import { BottomSheet } from '../components/BottomSheet'
 import { AdminSheet } from '../components/AdminSheet'
+import { ghostButtonStyle } from '../components/ui'
 import { distanceMeters } from '../utils/distance'
 import {
   DEFAULT_CENTER_RADIUS_METERS,

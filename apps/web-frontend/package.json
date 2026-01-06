@@ -3,21 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002",
+    "dev": "next dev -p 3080",
     "build": "next build",
-    "start": "next start -p 3000"
+    "start": "next start --hostname 0.0.0.0 --port $PORT",
+    "test:e2e": "TS_NODE_PROJECT=tests/tsconfig.json cucumber-js tests/e2e/features"
   },
   "dependencies": {
-    "next": "^13.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "@city-guided/tts": "workspace:*",
     "isomorphic-unfetch": "^3.0.0",
     "leaflet": "^1.9.0",
-    "@city-guided/tts": "workspace:*"
+    "next": "^13.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
+    "@cucumber/cucumber": "^12.5.0",
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^18.0.0",
     "@types/react": "^18.0.0",
-    "@types/node": "^18.0.0"
+    "playwright": "^1.57.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
   }
 }

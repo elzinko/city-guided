@@ -16,10 +16,10 @@ out/
 .vscode/
 
 # Build
-.next/
 .build/
 
 # Misc
 npm-debug.log
 yarn-error.log
 pnpm-lock.yaml
+test-results/

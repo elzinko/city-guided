@@ -1,0 +1,169 @@
+# Loader de données OSRM
+# Ce compose gère le cycle de vie des données géographiques OSRM
+# Complètement découplé du service OSRM lui-même
+#
+# Workflow:
+#   1. Download: Télécharge le fichier PBF depuis Geofabrik
+#   2. Extract: Extrait les données pour OSRM
+#   3. Partition: Partitionne le graphe
+#   4. Customize: Optimise pour l'algorithme MLD
+#
+# Usage:
+#   # Avec fichier .env
+#   docker-compose --env-file .env.local -f docker-compose.osrm-data.yml up
+#   docker-compose --env-file .env.staging -f docker-compose.osrm-data.yml up
+#
+#   # Ou override OSRM_REGION directement
+#   OSRM_REGION=europe/monaco docker-compose -f docker-compose.osrm-data.yml up
+#
+# Migration de données:
+#   1. Créer un nouveau volume: docker volume create osrm-data-new
+#   2. Charger les nouvelles données dans ce volume (modifier volumes ci-dessous)
+#   3. Arrêter OSRM: docker-compose -f docker-compose.osrm.yml down
+#   4. Modifier docker-compose.osrm.yml pour pointer vers osrm-data-new
+#   5. Redémarrer OSRM: docker-compose -f docker-compose.osrm.yml up -d
+
+services:
+  osrm-download:
+    image: alpine:latest
+    platform: linux/amd64
+    container_name: osrm-download
+    volumes:
+      - osrm-data:/data
+    environment:
+      # Format: continent/country/region OU continent/country
+      # Exemples: europe/monaco, europe/france/ile-de-france, europe/germany/berlin
+      - OSRM_REGION=${OSRM_REGION:-europe/france/ile-de-france}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+
+        # Install curl if not present
+        apk add --no-cache curl
+
+        REGION_NAME=$$(echo $$OSRM_REGION | sed 's/\//-/g')
+        PBF_FILE_DOWNLOAD="/data/$${REGION_NAME}-latest.osm.pbf"
+        PBF_FILE="/data/$${REGION_NAME}.osm.pbf"
+
+        if [ -f "$$PBF_FILE" ]; then
+          echo "✓ PBF file already exists: $$PBF_FILE"
+          echo "  Delete the volume to re-download: docker volume rm osrm-data"
+          exit 0
+        fi
+
+        echo "⬇ Downloading OSM data for $$OSRM_REGION..."
+        echo "  Source: https://download.geofabrik.de/$$OSRM_REGION-latest.osm.pbf"
+
+        curl -L \
+          --progress-bar \
+          -o "$$PBF_FILE_DOWNLOAD" \
+          "https://download.geofabrik.de/$$OSRM_REGION-latest.osm.pbf"
+
+        # Rename to remove -latest suffix so osrm-extract creates files with correct name
+        mv "$$PBF_FILE_DOWNLOAD" "$$PBF_FILE"
+
+        echo "✓ Download complete: $$PBF_FILE"
+        ls -lh "$$PBF_FILE"
+
+  osrm-extract:
+    image: osrm/osrm-backend:latest
+    platform: linux/amd64
+    container_name: osrm-extract
+    volumes:
+      - osrm-data:/data
+    environment:
+      - OSRM_REGION=${OSRM_REGION:-europe/france/ile-de-france}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        REGION_NAME=$$(echo $$OSRM_REGION | sed 's/\//-/g')
+        PBF_FILE="/data/$${REGION_NAME}.osm.pbf"
+        OSRM_FILE="/data/$${REGION_NAME}.osrm"
+
+        if [ -f "$$OSRM_FILE" ]; then
+          echo "✓ OSRM files already extracted"
+          exit 0
+        fi
+
+        echo "🔧 Extracting OSRM data..."
+        osrm-extract -p /opt/car.lua "$$PBF_FILE"
+        echo "✓ Extraction complete"
+    depends_on:
+      osrm-download:
+        condition: service_completed_successfully
+
+  osrm-partition:
+    image: osrm/osrm-backend:latest
+    platform: linux/amd64
+    container_name: osrm-partition
+    volumes:
+      - osrm-data:/data
+    environment:
+      - OSRM_REGION=${OSRM_REGION:-europe/france/ile-de-france}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        REGION_NAME=$$(echo $$OSRM_REGION | sed 's/\//-/g')
+        OSRM_FILE="/data/$${REGION_NAME}.osrm"
+        MLD_FILE="/data/$${REGION_NAME}.osrm.mldgr"
+
+        if [ -f "$$MLD_FILE" ]; then
+          echo "✓ OSRM files already partitioned"
+          exit 0
+        fi
+
+        echo "📊 Partitioning OSRM graph..."
+        osrm-partition "$$OSRM_FILE"
+        echo "✓ Partitioning complete"
+    depends_on:
+      osrm-extract:
+        condition: service_completed_successfully
+
+  osrm-customize:
+    image: osrm/osrm-backend:latest
+    platform: linux/amd64
+    container_name: osrm-customize
+    volumes:
+      - osrm-data:/data
+    environment:
+      - OSRM_REGION=${OSRM_REGION:-europe/france/ile-de-france}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        REGION_NAME=$$(echo $$OSRM_REGION | sed 's/\//-/g')
+        OSRM_FILE="/data/$${REGION_NAME}.osrm"
+        # Use .osrm.cell_metrics to check if customize was run (not .osrm.cells which is created by partition)
+        METRICS_FILE="/data/$${REGION_NAME}.osrm.cell_metrics"
+
+        if [ -f "$$METRICS_FILE" ]; then
+          echo "✓ OSRM files already customized"
+          exit 0
+        fi
+
+        echo "⚡ Customizing OSRM for MLD algorithm..."
+        osrm-customize "$$OSRM_FILE"
+        echo "✓ Customization complete"
+        echo ""
+        echo "✨ OSRM data ready!"
+        echo "   Region: $$OSRM_REGION"
+        echo "   Files: /data/$${REGION_NAME}.osrm*"
+        echo ""
+        echo "Next steps:"
+        echo "  1. Start OSRM service: docker-compose -f docker-compose.osrm.yml up -d"
+        echo "  2. Update OSRM_REGION_BASE in docker-compose.osrm.yml to: $${REGION_NAME}"
+    depends_on:
+      osrm-partition:
+        condition: service_completed_successfully
+
+volumes:
+  osrm-data:
+    name: osrm-data
+    external: true  # Le volume doit être créé avant: docker volume create osrm-data

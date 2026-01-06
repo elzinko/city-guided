@@ -1,0 +1,41 @@
+# Service OSRM indépendant
+# Ce service a son propre cycle de vie et peut tourner sans redémarrage
+# même quand l'application est redéployée
+#
+# Usage:
+#   docker-compose --env-file .env.local -f docker-compose.osrm.yml up -d
+#   docker-compose --env-file .env.staging -f docker-compose.osrm.yml up -d
+#   docker-compose --env-file .env.prod -f docker-compose.osrm.yml up -d
+
+services:
+  osrm:
+    image: osrm/osrm-backend:latest
+    platform: linux/amd64
+    container_name: ${COMPOSE_PROJECT_NAME:-city-guided}-osrm
+    ports:
+      - '${OSRM_PORT:-5001}:5000'
+    volumes:
+      # Volume externe géré indépendamment
+      - osrm-data:/data:ro  # Read-only: les données sont préparées ailleurs
+    environment:
+      - OSRM_REGION_BASE=${OSRM_REGION_BASE:-europe-france-ile-de-france}
+    command: osrm-routed --algorithm mld /data/${OSRM_REGION_BASE:-europe-france-ile-de-france}.osrm
+    networks:
+      - osrm-network
+    restart: ${RESTART_POLICY:-unless-stopped}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:5000/nearest/v1/driving/2.3522,48.8566"]
+      interval: ${HEALTHCHECK_INTERVAL:-10s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-10s}
+
+networks:
+  osrm-network:
+    name: osrm-network
+    external: true  # Le réseau doit être créé avant: docker network create osrm-network
+
+volumes:
+  osrm-data:
+    name: osrm-data
+    external: true  # Le volume doit être créé avant: docker volume create osrm-data

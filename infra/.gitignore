@@ -7,6 +7,9 @@ docker-compose.override.yml
 # Environment
 .env
 .env.*
+!.env.example
+!.env.template
+!.env.secrets.example
 
 # Editor/OS
 .DS_Store

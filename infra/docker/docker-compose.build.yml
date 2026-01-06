@@ -1,0 +1,23 @@
+# Docker Compose - Build Override
+# Use this file to build images locally instead of pulling from GHCR
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml --env-file .env.local build
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml --env-file .env.local up -d
+#
+# Or use the convenience script:
+#   ./scripts/build.sh local
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    image: city-guided-api:local
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+    image: city-guided-web:local
+

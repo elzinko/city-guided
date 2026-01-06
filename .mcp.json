@@ -1,0 +1,189 @@
+{
+  "mcpServers": {
+
+    "aws_core": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-api-mcp-server@latest"
+      ],
+      "env": {
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "aws_documentation": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-documentation-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "",
+        "AWS_DOCUMENTATION_PARTITION": "aws"
+      }
+    },
+    "aws_cdk": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.cdk-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": ""
+      }
+    },
+    "aws_terraform": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.terraform-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": ""
+      }
+    },
+    "aws_cloudformation": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.cfn-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "aws_diagram": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-diagram-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "awslabs_frontend-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.frontend-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "awslabs_code-doc-gen-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.code-doc-gen-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "awslabs_lambda-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.lambda-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "awslabs_dynamodb-mcp-server_readonly": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.dynamodb-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "awslabs_iam-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.iam-mcp-server@latest",
+        "--readonly"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "awslabs_cloudwatch-logs-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.cloudwatch-logs-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "awslabs_cloudwatch-metrics-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.cloudwatch-metrics-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "awslabs_health-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.health-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "awslabs_sns-sqs-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.sns-sqs-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    },
+    "awslabs_eventbridge-mcp-server": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.eventbridge-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_PROFILE": "dev",
+        "AWS_REGION": "eu-west-3"
+      }
+    }
+  }
+}

@@ -6,16 +6,18 @@ dist/
 .next/
 .out/
 .build/
+*.tsbuildinfo
 
 # Environment
 .env
 .env.*
-.env.local
+!.env.example
+!.env.template
+!.env.ci
 
 # pnpm store
 .pnpm-store/
 .pnpm-debug.log
-pnpm-lock.yaml
 infra/docker/osrm-data/
 
 # Turbo / cache
@@ -29,6 +31,10 @@ infra/docker/osrm-data/
 
 # Coverage
 coverage/
+
+# Test results
+test-results/
+*.html
 
 # Misc
 npm-debug.log

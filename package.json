@@ -2,22 +2,32 @@
   "name": "city-guided",
   "private": true,
   "version": "0.1.0",
-  "workspaces": [
-    "apps/*",
-    "services/*",
-    "packages/*"
-  ],
   "engines": {
     "node": ">=18",
     "pnpm": ">=8"
   },
   "scripts": {
     "bootstrap": "corepack enable && corepack prepare pnpm@8.8.0 --activate && pnpm install",
-    "dev": "node scripts/dev-with-osrm.js",
+    "dev": "bash scripts/dev-start.sh",
+    "dev:start": "bash scripts/dev-start.sh",
+    "dev:stop": "bash scripts/dev-stop.sh",
     "build": "turbo run build",
     "test": "turbo run test",
+    "test:e2e": "pnpm --filter apps-web-frontend test:e2e",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "docker:setup": "bash infra/docker/scripts/setup.sh",
+    "docker:start": "bash infra/docker/scripts/start.sh",
+    "docker:stop": "bash infra/docker/scripts/stop.sh",
+    "docker:logs": "bash infra/docker/scripts/logs.sh",
+    "docker:wait": "bash infra/docker/scripts/wait.sh",
+    "docker:build": "bash infra/docker/scripts/build.sh",
+    "docker:deploy": "bash infra/docker/scripts/deploy.sh",
+    "docker:clean": "bash infra/docker/scripts/clean.sh",
+    "docker:network": "docker network create osrm-network 2>/dev/null || true",
+    "docker:osrm:volume": "docker volume create osrm-data 2>/dev/null || true",
+    "provision": "cd infra/provisioning/aws && pnpm run provision",
+    "ssh": "bash infra/scripts/ssh.sh"
   },
   "devDependencies": {
     "turbo": "^1.8.6",

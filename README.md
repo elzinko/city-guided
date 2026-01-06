@@ -1,5 +1,7 @@
 # CityGuided — Monorepo MVP
 
+[![CI](https://github.com/elzinko/city-guided/actions/workflows/ci.yml/badge.svg)](https://github.com/elzinko/city-guided/actions/workflows/ci.yml)
+
 Fluid, segmented audio guide tailored for taxi passengers (and pedestrians) with mobile-first UX.
 
 Structure minimale : `apps/`, `services/`, `packages/`, `infra/`
@@ -17,7 +19,7 @@ Prérequis : pnpm (v7+), Node 18+, git
 
    pnpm dev
 
-   - Frontend : http://localhost:3002
+   - Frontend : http://localhost:3080
    - API : http://localhost:3001
 
 3) Build (pour production) :
@@ -62,7 +64,7 @@ Prérequis : pnpm (v7+), Node 18+, git
 - Mocks : `packages/mocks/pois.json` contient les POI de démonstration.
 - Admin : endpoints CRUD sous `/api/admin/pois` protégé par header `X-ADMIN-TOKEN` (dev: `dev-secret`).
 - Architecture : séparation hexagonale (domain/use-cases/infrastructure). Les packages sont purs et ne lisent pas `process.env` directement.
-- Ports dev : le frontend démarre sur `3002` (pour éviter le fallback Next.js sur `3001` quand `3000` est occupé) et l'API sur `3001`. Tu peux changer le port frontend avec `pnpm --filter apps/web-frontend dev -- --port 3000`.
+- Ports dev : le frontend démarre sur `3080` (pour éviter le fallback Next.js sur `3001` quand `3000` est occupé) et l'API sur `3001`. Tu peux changer le port frontend avec `pnpm --filter apps/web-frontend dev -- --port 3000`.
 - Routage local (optionnel) : OSRM est packagé dans `infra/docker/docker-compose.yml` (profil `osrm`).
   - depuis `infra/docker/`: `OSRM_REGION_BASE=ile-de-france-latest OSRM_PBF_URL=https://download.geofabrik.de/europe/france/ile-de-france-latest.osm.pbf docker compose --profile osrm up osrm-download osrm-prep osrm`
   - chaîne complète : `osrm-download` (télécharge le PBF avec curl) → `osrm-prep` (extract/partition/customize) → `osrm` (écoute sur :5001 côté host, 5000 dans le conteneur). Données dans `infra/docker/osrm-data/`.
@@ -73,7 +75,7 @@ Prérequis : pnpm (v7+), Node 18+, git
 - Un docker-compose minimal est disponible dans `infra/docker/docker-compose.yml` pour lancer frontend + api.
 
 ## Prochaines étapes recommandées
-- Affiner la CI (GitHub Actions) : build + test + lint
+- ✅ CI/CD avec GitHub Actions (build, lint, tests, auto-deploy staging)
 - Ajouter tests E2E (Playwright) et coverage
 - Améliorer TTS côté serveur (post-MVP)
 

@@ -1,0 +1,377 @@
+name: CI/CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_staging:
+        description: "Deploy to AWS staging after tests"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+  push:
+    branches: ["main", "feature/**", "bugfix/**"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Install dependencies
+        env:
+          HUSKY: 0
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Cache build artifacts
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            apps/*/dist
+            apps/*/.next
+            services/*/dist
+          key: build-${{ github.sha }}
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter apps-web-frontend exec playwright install --with-deps chromium
+
+      - name: Restore build artifacts
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            apps/*/dist
+            apps/*/.next
+            services/*/dist
+          key: build-${{ github.sha }}
+
+      - name: Start all services (using .env.ci)
+        run: pnpm docker:start ci
+        timeout-minutes: 15
+
+      - name: Wait for all services
+        run: pnpm docker:wait ci all
+
+      - name: Run E2E tests
+        run: pnpm run test:e2e
+        env:
+          # Tests via Caddy reverse proxy (port 80)
+          E2E_BASE_URL: http://localhost
+          NEXT_PUBLIC_API_URL: http://localhost/api
+          NEXT_PUBLIC_OSRM_URL: http://localhost/osrm
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: apps/web-frontend/test-results/
+          retention-days: 7
+
+      - name: Show logs on failure
+        if: failure()
+        run: pnpm docker:logs ci
+
+      - name: Cleanup
+        if: always()
+        run: pnpm docker:stop ci
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # BUILD AND PUSH DOCKER IMAGES TO GHCR
+  # ═══════════════════════════════════════════════════════════════════════════════
+
+  build-images:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [build-and-test, e2e-tests]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata for API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-api
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/Dockerfile.api
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Docker metadata for Web
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-web
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/Dockerfile.frontend
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output image tag
+        id: meta
+        run: |
+          # Use short SHA (7 chars) to match docker/metadata-action
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "version=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "Image tag: ${SHORT_SHA}"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # DEPLOY TO STAGING
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # 
+  # This job pulls pre-built images from GHCR and deploys to EC2.
+  # Configuration is fetched from AWS SSM: /city-guided/staging/*
+  # 
+  # Run `pnpm provision staging` to set up SSM parameters.
+  #
+  # ═══════════════════════════════════════════════════════════════════════════════
+
+  deploy-staging:
+    name: Deploy to AWS Staging
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_staging == 'true')
+      )
+    environment:
+      name: staging
+      url: https://cityguided.duckdns.org
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.SECRET_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.SECRET_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.SECRET_AWS_REGION }}
+
+      - name: Deploy application via SSM
+        env:
+          EC2_INSTANCE_ID: ${{ secrets.SECRET_EC2_INSTANCE_ID }}
+          IMAGE_TAG: ${{ needs.build-images.outputs.image_tag }}
+        run: |
+          echo "🚀 Deploying to AWS staging via SSM..."
+          echo "   Instance: $EC2_INSTANCE_ID"
+          echo "   Image tag: $IMAGE_TAG"
+          echo ""
+          
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[
+              \"set -e\",
+              \"cd /home/ec2-user\",
+              \"\",
+              \"# Clone or update repository (for docker-compose.yml and scripts)\",
+              \"if [ -d city-guided/.git ]; then\",
+              \"  echo '🔄 Updating repository...'\",
+              \"  cd city-guided\",
+              \"  git fetch origin main\",
+              \"  git reset --hard origin/main\",
+              \"else\",
+              \"  echo '📥 Cloning repository...'\",
+              \"  git clone https://github.com/${{ github.repository }}.git\",
+              \"  cd city-guided\",
+              \"fi\",
+              \"\",
+              \"# Deploy using pre-built images from GHCR\",
+              \"cd infra/docker\",
+              \"chmod +x scripts/deploy.sh\",
+              \"IMAGE_TAG=${IMAGE_TAG} ./scripts/deploy.sh staging\"
+            ]" \
+            --timeout-seconds 600 \
+            --query 'Command.CommandId' \
+            --output text)
+          
+          echo "Command ID: $COMMAND_ID"
+          
+          # Wait for command to complete (up to 5 minutes)
+          echo "⏳ Waiting for deployment to complete..."
+          for i in {1..60}; do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --query 'Status' \
+              --output text 2>/dev/null || echo "Pending")
+            
+            if [ "$STATUS" = "Success" ]; then
+              echo "✅ Deployment successful!"
+              break
+            elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ]; then
+              echo "❌ Deployment failed with status: $STATUS"
+              # Get error output
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$EC2_INSTANCE_ID" \
+                --query 'StandardErrorContent' \
+                --output text
+              exit 1
+            fi
+            
+            echo "   Status: $STATUS (attempt $i/60)..."
+            sleep 5
+          done
+          
+          # Show deployment output
+          echo ""
+          echo "📋 Deployment output:"
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --query 'StandardOutputContent' \
+            --output text | tail -50
+
+      - name: Get deployment info from SSM
+        id: ssm
+        run: |
+          # Fetch key values from SSM for verification and summary
+          SITE_DOMAIN=$(aws ssm get-parameter --name "/city-guided/staging/SITE_DOMAIN" --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          EC2_PUBLIC_IP=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_EC2_PUBLIC_IP" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          WEB_PORT=$(aws ssm get-parameter --name "/city-guided/staging/WEB_PORT" --query "Parameter.Value" --output text 2>/dev/null || echo "3080")
+          API_PORT=$(aws ssm get-parameter --name "/city-guided/staging/API_PORT" --query "Parameter.Value" --output text 2>/dev/null || echo "4000")
+          DUCKDNS_TOKEN=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_DUCKDNS_TOKEN" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          
+          echo "site_domain=$SITE_DOMAIN" >> $GITHUB_OUTPUT
+          echo "public_ip=$EC2_PUBLIC_IP" >> $GITHUB_OUTPUT
+          echo "web_port=$WEB_PORT" >> $GITHUB_OUTPUT
+          echo "api_port=$API_PORT" >> $GITHUB_OUTPUT
+          echo "duckdns_token=$DUCKDNS_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Update DuckDNS
+        if: steps.ssm.outputs.duckdns_token != ''
+        run: |
+          echo "🦆 Updating DuckDNS..."
+          
+          SITE_DOMAIN="${{ steps.ssm.outputs.site_domain }}"
+          DUCKDNS_TOKEN="${{ steps.ssm.outputs.duckdns_token }}"
+          EC2_PUBLIC_IP="${{ steps.ssm.outputs.public_ip }}"
+          
+          DUCKDNS_SUBDOMAIN="${SITE_DOMAIN%.duckdns.org}"
+          
+          RESPONSE=$(curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_SUBDOMAIN}&token=${DUCKDNS_TOKEN}&ip=${EC2_PUBLIC_IP}")
+          
+          if [ "$RESPONSE" = "OK" ]; then
+            echo "✅ DuckDNS updated: $SITE_DOMAIN → $EC2_PUBLIC_IP"
+          else
+            echo "⚠️ DuckDNS update failed: $RESPONSE"
+            echo "   Ensure subdomain '${DUCKDNS_SUBDOMAIN}' exists at https://www.duckdns.org"
+          fi
+
+      - name: Verify deployment
+        run: |
+          echo "🔍 Verifying deployment via Caddy (port 80)..."
+          
+          EC2_PUBLIC_IP="${{ steps.ssm.outputs.public_ip }}"
+          
+          # Wait for Caddy to start and obtain SSL certificate
+          sleep 30
+          
+          # Check via Caddy reverse proxy (HTTP on port 80)
+          curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}" > /dev/null \
+            && echo "✅ Frontend OK (via Caddy)" || echo "⚠️ Frontend not responding yet"
+          
+          curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}/api/health" > /dev/null \
+            && echo "✅ API OK (via Caddy)" || echo "⚠️ API not responding yet"
+
+      - name: Deployment summary
+        run: |
+          echo ""
+          echo "╔════════════════════════════════════════════════════════╗"
+          echo "║            ✅ Staging Deployment Completed             ║"
+          echo "╚════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "📦 Commit:  ${{ github.sha }}"
+          echo "🌍 URL:     https://${{ steps.ssm.outputs.site_domain }}"
+          echo "📍 IP:      ${{ steps.ssm.outputs.public_ip }}"
+          echo "🗄️ Config:  AWS SSM /city-guided/staging/*"
+          echo ""

@@ -11,7 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@city-guided/*": ["packages/*/dist", "packages/*/src"]
+      "@city-guided/*": ["packages/*/src"]
     }
   }
 }

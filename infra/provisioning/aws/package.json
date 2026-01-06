@@ -1,0 +1,27 @@
+{
+  "name": "@city-guided/aws-provisioning",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "tsx scripts/setup.ts",
+    "provision": "tsx scripts/provision.ts",
+    "deploy": "cdk deploy --require-approval never",
+    "destroy": "cdk destroy",
+    "synth": "cdk synth",
+    "diff": "cdk diff"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.2",
+    "aws-cdk-lib": "^2.172.0",
+    "constructs": "^10.4.2",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "aws-cdk": "^2.172.0",
+    "chalk": "^5.4.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  }
+}

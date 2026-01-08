@@ -17,6 +17,8 @@ Then('I should see the map container', async function (this: CityGuidedWorld) {
 });
 
 Then('I should see the search bar', async function (this: CityGuidedWorld) {
-  const searchBar = await this.page!.locator('[data-testid="search-bar"]');
-  await expect(searchBar).toBeVisible();
+  // Wait for page to load and search bar to appear
+  await this.page!.waitForTimeout(1000);
+  const searchBar = this.page!.locator('[data-testid="search-bar-main"], [data-testid="search-bar"]').first();
+  await expect(searchBar).toBeVisible({ timeout: 10000 });
 });

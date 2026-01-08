@@ -1,0 +1,18 @@
+{
+  "require": [
+    "steps/**/*.ts",
+    "support/**/*.ts"
+  ],
+  "format": [
+    "progress-bar",
+    "json:reports/cucumber-report.json",
+    "html:reports/cucumber-report.html"
+  ],
+  "formatOptions": {
+    "snippetInterface": "async-await"
+  },
+  "worldParameters": {
+    "baseUrl": "http://localhost:3080"
+  }
+}
+

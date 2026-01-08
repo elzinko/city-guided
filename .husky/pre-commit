@@ -38,12 +38,53 @@ if [ $RC -ne 0 ]; then
   exit $RC
 fi
 
+echo "Running type-check..."
+pnpm -w type-check
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Type-check failed (exit $RC). Aborting commit."
+  exit $RC
+fi
+
 echo "Running lint..."
 pnpm -w lint
 RC=$?
 if [ $RC -ne 0 ]; then
   echo "Lint failed (exit $RC). Aborting commit."
   exit $RC
+fi
+
+# E2E tests (optional - won't block commit if they fail, but will warn)
+# Skip if SKIP_E2E env var is set
+if [ -z "$SKIP_E2E" ]; then
+  echo "Running E2E tests (optional - warnings only, won't block commit)..."
+  # Check if Playwright package is installed (browsers might not be, but that's OK - test will fail gracefully)
+  if [ -d "apps/web-frontend/node_modules/@playwright/test" ]; then
+    # Try to run E2E tests with a timeout to avoid blocking commits too long
+    # Use timeout command if available (GNU coreutils or macOS gtimeout)
+    # Note: Tests require frontend server to be running (pnpm dev in another terminal)
+    if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
+      TIMEOUT_CMD=$(command -v timeout || command -v gtimeout)
+      $TIMEOUT_CMD 90 pnpm -w test:e2e 2>&1 | head -50 || {
+        echo "⚠️  E2E tests failed or timed out, but commit will proceed."
+        echo "   Note: E2E tests require frontend server running (pnpm dev) and Playwright browsers installed"
+        echo "   Install browsers: cd apps/web-frontend && pnpm exec playwright install chromium"
+        echo "   To skip E2E tests: SKIP_E2E=1 git commit"
+      }
+    else
+      # No timeout command available, run without timeout but limit output
+      pnpm -w test:e2e 2>&1 | head -50 || {
+        echo "⚠️  E2E tests failed, but commit will proceed."
+        echo "   To skip E2E tests: SKIP_E2E=1 git commit"
+      }
+    fi
+  else
+    echo "⚠️  Playwright not installed. Skipping E2E tests."
+    echo "   Install with: cd apps/web-frontend && pnpm exec playwright install chromium"
+    echo "   To skip this warning: SKIP_E2E=1 git commit"
+  fi
+else
+  echo "Skipping E2E tests (SKIP_E2E is set)"
 fi
 
 echo "Pre-commit quick CI checks passed."

@@ -303,7 +303,6 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
               }}
               showPoiIcon={false}
               autoFocus={true}
-              testId="search-bar-overlay"
             />
           </div>
 

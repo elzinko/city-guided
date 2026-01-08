@@ -448,6 +448,28 @@ async function setupEc2Dependencies(instanceId: string): Promise<void> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ECS INFRASTRUCTURE DEPLOYMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function deployEcsInfrastructure(env: EnvironmentName): Promise<void> {
+  console.log(chalk.blue(`\n🏗️  Deploying ECS infrastructure for ${env}...`));
+
+  try {
+    // Deploy CDK stack for ECS
+    execSilent(`cd ${projectRoot}/infra/provisioning/aws && npx cdk deploy CityGuidedEcsStack --require-approval never`);
+
+    console.log(chalk.green(`✓ ECS infrastructure deployed`));
+
+    // Return empty outputs (ECS doesn't need instance ID for SSM setup)
+    return {};
+
+  } catch (error: any) {
+    console.error(chalk.red(`   ❌ ECS deployment failed: ${error.message}`));
+    throw error;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DUCKDNS
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -488,20 +510,46 @@ async function updateDuckDNS(envVars: Record<string, string>, publicIp: string):
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Infrastructure modes
+type InfraMode = 'ec2' | 'ecs';
+
 async function main() {
-  // Parse environment argument
-  const env = (process.argv[2] || 'staging') as EnvironmentName;
+  // Parse arguments
+  const args = process.argv.slice(2);
+  let env: EnvironmentName = 'staging';
+  let mode: InfraMode = 'ec2'; // Default to EC2 for backward compatibility
+
+  // Parse --mode flag
+  const modeIndex = args.indexOf('--mode');
+  if (modeIndex !== -1 && modeIndex + 1 < args.length) {
+    const modeValue = args[modeIndex + 1];
+    if (modeValue === 'ec2' || modeValue === 'ecs') {
+      mode = modeValue as InfraMode;
+      args.splice(modeIndex, 2); // Remove --mode and its value
+    }
+  }
+
+  // Parse environment (remaining first argument)
+  if (args[0]) {
+    env = args[0] as EnvironmentName;
+  }
   
   if (!ENVIRONMENTS[env]) {
     console.error(chalk.red(`\n❌ Unknown environment: ${env}`));
     console.error(chalk.yellow(`   Valid environments: ${Object.keys(ENVIRONMENTS).join(', ')}`));
+    console.error(chalk.cyan(`\nUsage:`));
+    console.error(chalk.white(`   pnpm provision <environment> [--mode ec2|ecs]`));
+    console.error(chalk.white(`\nExamples:`));
+    console.error(chalk.white(`   pnpm provision staging              # EC2 (default)`));
+    console.error(chalk.white(`   pnpm provision staging --mode ec2   # EC2 explicit`));
+    console.error(chalk.white(`   pnpm provision staging --mode ecs   # ECS Fargate`));
     process.exit(1);
   }
 
   const awsConfig = getEnvironmentConfig(env);
 
   console.log(chalk.bold.cyan('\n╔════════════════════════════════════════════════════════╗'));
-  console.log(chalk.bold.cyan(`║     🚀 Provisioning: ${env.toUpperCase().padEnd(30)}    ║`));
+  console.log(chalk.bold.cyan(`║     🚀 Provisioning: ${env.toUpperCase().padEnd(15)} Mode: ${mode.toUpperCase().padEnd(5)}    ║`));
   console.log(chalk.bold.cyan('╚════════════════════════════════════════════════════════╝\n'));
 
   // Load environment variables from .env file (source of truth)
@@ -509,10 +557,17 @@ async function main() {
 
   console.log(chalk.cyan('\n📋 Configuration:'));
   console.log(chalk.white(`   Environment:  ${env}`));
+  console.log(chalk.white(`   Mode:         ${mode}`));
   console.log(chalk.white(`   Source:       ${getEnvFilePath(env)}`));
   console.log(chalk.white(`   Region:       ${AWS_CONFIG.region}`));
   console.log(chalk.white(`   Domain:       ${envVars.SITE_DOMAIN || 'not set'}`));
-  console.log(chalk.white(`   Stack:        ${awsConfig.STACK_NAME}`));
+
+  if (mode === 'ec2') {
+    console.log(chalk.white(`   Stack:        ${awsConfig.STACK_NAME}`));
+  } else {
+    console.log(chalk.white(`   Stack:        CityGuidedEcsStack`));
+  }
+
   console.log(chalk.white(`   SSM Path:     ${getSsmPath(env)}/*`));
 
   // Check for required secrets
@@ -533,20 +588,31 @@ async function main() {
     const awsCredentials = await getAWSCredentials();
     rl.close();
 
-    // 1. Deploy infrastructure
-    const infraOutputs = await deployInfrastructure(env);
+    let infraOutputs: any = {};
+
+    if (mode === 'ec2') {
+      // 1. Deploy EC2 infrastructure
+      infraOutputs = await deployInfrastructure(env);
+
+      // 4. Setup EC2 dependencies (Docker Compose v2, Buildx)
+      await setupEc2Dependencies(infraOutputs.instanceId);
+
+      // 5. Update DuckDNS (needs public IP)
+      await updateDuckDNS(envVars, infraOutputs.publicIp);
+    } else {
+      // ECS mode - deploy ECS stack (no EC2 instance)
+      console.log(chalk.blue('\n🏗️  Deploying ECS infrastructure...'));
+      await deployEcsInfrastructure(env);
+
+      // Update DuckDNS with a placeholder (ECS ALB will have its own IP)
+      await updateDuckDNS(envVars, 'ecs-managed');
+    }
 
     // 2. Store config in SSM Parameter Store (from .env file)
     await provisionSsmParameters(env, envVars, awsCredentials, infraOutputs);
 
     // 3. Configure minimal GitHub secrets for CI
     await provisionGitHubSecrets(env, awsCredentials, infraOutputs);
-
-    // 4. Setup EC2 dependencies (Docker Compose v2, Buildx)
-    await setupEc2Dependencies(infraOutputs.instanceId);
-
-    // 5. Update DuckDNS
-    await updateDuckDNS(envVars, infraOutputs.publicIp);
 
     // Summary
     console.log(chalk.bold.green('\n╔════════════════════════════════════════════════════════╗'));
@@ -555,16 +621,33 @@ async function main() {
 
     console.log(chalk.cyan('📋 Summary:'));
     console.log(chalk.white(`   Environment: ${env}`));
-    console.log(chalk.white(`   Instance:    ${infraOutputs.instanceId}`));
-    console.log(chalk.white(`   IP:          ${infraOutputs.publicIp}`));
+    console.log(chalk.white(`   Mode:        ${mode}`));
+
+    if (mode === 'ec2') {
+      console.log(chalk.white(`   Instance:    ${infraOutputs.instanceId}`));
+      console.log(chalk.white(`   IP:          ${infraOutputs.publicIp}`));
+    } else {
+      console.log(chalk.white(`   Cluster:     city-guided-${env}`));
+      console.log(chalk.white(`   Service:     city-guided-${env}-service`));
+    }
+
     console.log(chalk.white(`   Domain:      https://${envVars.SITE_DOMAIN}`));
     console.log(chalk.white(`   SSM:         ${getSsmPath(env)}/*`));
 
     console.log(chalk.cyan('\n🔗 Next steps:'));
-    console.log(chalk.white(`   1. SSH: ssh -i ~/.ssh/${awsConfig.KEY_PAIR_NAME}.pem ec2-user@${infraOutputs.publicIp}`));
-    console.log(chalk.white('   2. Deploy: git push origin main (triggers CI)'));
-    console.log(chalk.white('   3. Manual: gh workflow run ci.yml --ref main -f deploy_staging=true'));
-    console.log(chalk.white(`   4. Access: https://${envVars.SITE_DOMAIN}\n`));
+
+    if (mode === 'ec2') {
+      console.log(chalk.white(`   1. SSH: ssh -i ~/.ssh/${awsConfig.KEY_PAIR_NAME}.pem ec2-user@${infraOutputs.publicIp}`));
+      console.log(chalk.white('   2. Deploy: git push origin main (triggers CI)'));
+      console.log(chalk.white('   3. Manual: gh workflow run ci.yml --ref main -f deploy_staging=true'));
+    } else {
+      console.log(chalk.white('   1. Check ECS service status'));
+      console.log(chalk.white(`   aws ecs describe-services --cluster city-guided-${env} --services city-guided-${env}-service`));
+      console.log(chalk.white('   2. Check ALB health'));
+      console.log(chalk.white(`   aws elbv2 describe-target-health --load-balancer-arn $(aws elbv2 describe-load-balancers --names city-guided-${env}-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)`));
+    }
+
+    console.log(chalk.white(`   Access: https://${envVars.SITE_DOMAIN}\n`));
 
   } catch (error: any) {
     console.error(chalk.red(`\n❌ Provisioning failed: ${error.message}\n`));

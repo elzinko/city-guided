@@ -3,8 +3,11 @@ import { SearchOverlay } from '../components/SearchOverlay'
 import { StoryPanel } from '../components/StoryPanel'
 import { ResultsPanel } from '../components/ResultsPanel'
 import { GuideControls } from '../components/GuideControls'
-import { BottomSheet } from '../components/BottomSheet'
+import { BottomSheetNew } from '../components/BottomSheetNew'
+import { BottomMenu, type MenuTab } from '../components/BottomMenu'
 import { AdminSheet } from '../components/AdminSheet'
+import { NavigationOverlay } from '../components/NavigationOverlay'
+import { NavigationPanel } from '../components/NavigationPanel'
 import { ghostButtonStyle } from '../components/ui'
 import { distanceMeters } from '../utils/distance'
 import {
@@ -51,6 +54,31 @@ type Poi = {
   storySegments?: string[]
 }
 
+// Composant pour l'icône GPS personnalisée
+function GpsIcon({ hasGps }: { hasGps: boolean }) {
+  if (!hasGps) {
+    // Version grisée quand pas de GPS - agrandie
+    return (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+        <path d="M2 17l10 5 10-5" />
+        <path d="M2 12l10 5 10-5" />
+      </svg>
+    )
+  }
+  // Version avec point bleu et cercle concentrique - agrandie
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+      {/* Cercle extérieur bleu clair */}
+      <circle cx="12" cy="12" r="10" fill="#3b82f6" opacity="0.2" />
+      {/* Cercle moyen bleu */}
+      <circle cx="12" cy="12" r="6" fill="#3b82f6" opacity="0.4" stroke="#ffffff" strokeWidth="1" />
+      {/* Point central bleu */}
+      <circle cx="12" cy="12" r="3" fill="#2563eb" stroke="#ffffff" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
 export default function Home() {
   const fallbackPos = { lat: 48.402, lng: 2.699 } // proche des mocks Fontainebleau/Perthes
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(fallbackPos)
@@ -75,20 +103,71 @@ export default function Home() {
   const [audioPaused, setAudioPaused] = useState(false)
   const [searchActive, setSearchActive] = useState(false)
   const [searchReady, setSearchReady] = useState(false)
-  const [sheetLevel, setSheetLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('peek')
-  const [adminLevel, setAdminLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
+  const [sheetLevel, setSheetLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
   const [centerRadiusMeters, setCenterRadiusMeters] = useState(DEFAULT_CENTER_RADIUS_METERS)
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(fallbackPos)
   const [discoverMode, setDiscoverMode] = useState(false)
   const [guideMode, setGuideMode] = useState(false)
-  useEffect(() => {
-    if (searchActive) return
-    if (searchReady || discoverMode || guideMode) {
-      setSheetLevel('mid')
+  const [activeTab, setActiveTab] = useState<MenuTab>('discover')
+  const [adminLevel, setAdminLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
+  const [navigationStartTime, setNavigationStartTime] = useState<number | null>(null)
+  const [navigationElapsed, setNavigationElapsed] = useState(0)
+  const [loadingPois, setLoadingPois] = useState(false)
+  const [query, setQuery] = useState<string>('')
+  const [lastQuery, setLastQuery] = useState<string>('') // Sauvegarder la dernière query pour la réafficher
+
+  // Handle tab change
+  const handleTabChange = (tab: MenuTab) => {
+    setActiveTab(tab)
+    // Toujours ouvrir le panneau quand on change de tab
+    setSheetLevel('mid')
+    if (tab === 'discover') {
+      setDiscoverMode(true)
+      setSearchReady(false)
     } else {
-      setSheetLevel('peek')
+      // Pour les autres tabs (saved, contribute), on garde le panneau ouvert
+      // mais on ne met pas discoverMode à true
+      setDiscoverMode(false)
+      setSearchReady(false)
     }
-  }, [searchReady, searchActive, discoverMode, guideMode])
+  }
+
+  useEffect(() => {
+    console.log('[SHEET LEVEL] searchActive:', searchActive, 'searchReady:', searchReady, 'loadingPois:', loadingPois, 'discoverMode:', discoverMode, 'query:', query)
+    
+    // Pendant la recherche active (overlay ouvert), cacher le sheet
+    if (searchActive) {
+      console.log('[SHEET LEVEL] Setting to hidden (search overlay active)')
+      setSheetLevel('hidden')
+      return
+    }
+    
+    // Attendre que les POI soient chargés avant d'afficher les résultats
+    if ((searchReady || discoverMode) && loadingPois) {
+      console.log('[SHEET LEVEL] Waiting for POIs to load...')
+      return
+    }
+    
+    // Si on a une recherche avec résultats (mais overlay fermé), afficher le panneau
+    if (searchReady && query && !loadingPois) {
+      console.log('[SHEET LEVEL] Setting to mid (search results)')
+      setSheetLevel('mid')
+      return
+    }
+    
+    // Si on a cliqué sur un bouton du menu (discoverMode ou autre tab), ouvrir le panneau
+    // Le panneau reste ouvert tant qu'un tab est actif
+    // MAIS seulement si on n'est pas en train de fermer une recherche (pas de searchActive et pas de résultats de recherche)
+    if ((discoverMode || guideMode || activeTab !== 'discover') && !searchActive && !(searchReady && query)) {
+      console.log('[SHEET LEVEL] Setting to mid (menu tab active)')
+      setSheetLevel('mid')
+      return
+    }
+    
+    // Par défaut : cacher le panneau (seul le menu est visible)
+    console.log('[SHEET LEVEL] Setting to hidden (default - menu only)')
+    setSheetLevel('hidden')
+  }, [searchReady, searchActive, discoverMode, guideMode, loadingPois, query])
   useEffect(() => {
     setSimStep(0)
   }, [simPath])
@@ -116,9 +195,9 @@ export default function Home() {
     return () => clearTimeout(t)
   }, [pos])
 
-  const [query, setQuery] = useState<string>('')
-
   useEffect(() => {
+    setLoadingPois(true)
+    console.log('[POI FETCH] Starting fetch with query:', query)
     const base = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
     const basePos = mapCenter || pos || fallbackPos
     const params = new URLSearchParams({ radius: 'all', lat: String(basePos.lat), lng: String(basePos.lng) })
@@ -132,9 +211,14 @@ export default function Home() {
           dist: basePos ? distanceMeters(basePos.lat, basePos.lng, p.lat, p.lng) : 0,
         }))
         sorted.sort((a: any, b: any) => a.dist - b.dist)
+        console.log('[POI FETCH] Received', sorted.length, 'POIs for query:', query)
         setPois(sorted)
+        setLoadingPois(false)
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error('[POI FETCH] Error:', err)
+        setLoadingPois(false)
+      })
   }, [query, mapCenter?.lat, mapCenter?.lng])
 
   function getStorySegments(p: Poi): string[] {
@@ -241,6 +325,27 @@ export default function Home() {
     const seg = getStorySegments(poi)[activeStory.segmentIdx]
     if (seg) speak(seg)
   }, [autoTts, audioPaused, activeStory?.poiId, activeStory?.segmentIdx, pois])
+
+  // Navigation time tracker
+  useEffect(() => {
+    if (!guideMode) {
+      setNavigationStartTime(null)
+      setNavigationElapsed(0)
+      return
+    }
+
+    if (!navigationStartTime) {
+      setNavigationStartTime(Date.now())
+    }
+
+    const interval = setInterval(() => {
+      if (navigationStartTime && !audioPaused) {
+        setNavigationElapsed(Math.floor((Date.now() - navigationStartTime) / 1000))
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [guideMode, navigationStartTime, audioPaused])
 
   // Simulation de trajet en voiture
   function startSimulation() {
@@ -373,7 +478,9 @@ export default function Home() {
       import('leaflet').then((mod) => {
         const L = (mod as any).default || mod
         // Force explicit icon paths because Leaflet's auto-detection builds a bad URL (distmarker-icon-2x.png)
+        // Use absolute URLs to avoid duplication issues
         const iconBase = 'https://unpkg.com/leaflet@1.9.4/dist/images/'
+        delete (L.Icon.Default.prototype as any)._getIconUrl
         L.Icon.Default.mergeOptions({
           iconRetinaUrl: `${iconBase}marker-icon-2x.png`,
           iconUrl: `${iconBase}marker-icon.png`,
@@ -539,16 +646,71 @@ export default function Home() {
   }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath])
 
   const sheetHeightPercent = SHEET_HEIGHTS[sheetLevel] || 0
-  const gpsHidden = adminLevel !== 'hidden' || sheetHeightPercent >= GPS_HIDE_THRESHOLD_PERCENT || searchActive
-  const gpsBottom = sheetLevel === 'hidden' ? 16 : `calc(${sheetHeightPercent}vh + ${GPS_BUTTON_MARGIN_PX}px)`
+  const gpsHidden = sheetHeightPercent >= GPS_HIDE_THRESHOLD_PERCENT || searchActive
+  // Position GPS button above bottom menu (64px = menu height)
+  const gpsBottom = sheetLevel === 'hidden' ? '80px' : `calc(${sheetHeightPercent}vh + 80px)`
 
+  // Adaptive zoom in navigation mode
   useEffect(() => {
     if (!guideMode || !pos) return
     const map = (window as any)._le_map
-    if (map && map.setView) {
-      map.setView([pos.lat, pos.lng], Math.max(15, zoomLevel))
+    if (!map || !map.setView) return
+
+    // If we have an active story, calculate distance and adjust zoom
+    if (activeStory) {
+      const activePoi = pois.find((p) => p.id === activeStory.poiId)
+      if (activePoi) {
+        const distance = distanceMeters(pos.lat, pos.lng, activePoi.lat, activePoi.lng)
+
+        // Adaptive zoom: closer = more zoom, farther = less zoom
+        let targetZoom = 15
+        if (distance < 100) {
+          targetZoom = 18 // Very close - zoom in to see details
+        } else if (distance < 300) {
+          targetZoom = 17 // Close - good detail
+        } else if (distance < 500) {
+          targetZoom = 16 // Medium - balanced view
+        } else if (distance < 1000) {
+          targetZoom = 15 // Far - wider view
+        } else {
+          targetZoom = 14 // Very far - must see both user and POI
+        }
+
+        // Calculate center point between user and POI for very far distances
+        if (distance > 1000) {
+          const centerLat = (pos.lat + activePoi.lat) / 2
+          const centerLng = (pos.lng + activePoi.lng) / 2
+          map.setView([centerLat, centerLng], targetZoom, { animate: true, duration: 0.5 })
+        } else {
+          // For closer distances, center on user position
+          map.setView([pos.lat, pos.lng], targetZoom, { animate: true, duration: 0.5 })
+        }
+        return
+      }
     }
-  }, [guideMode, pos, zoomLevel])
+
+    // Fallback: no active story, just center on user
+    map.setView([pos.lat, pos.lng], Math.max(15, zoomLevel))
+  }, [guideMode, pos, zoomLevel, activeStory, pois])
+
+  // Logique centralisée pour déterminer si le menu du bas doit être visible
+  // Le menu est visible si :
+  // - Pas en mode guide
+  // - Pas en mode recherche active (overlay ouvert)
+  // - ET (panneau fermé OU pas de résultats de recherche à afficher)
+  const shouldShowBottomMenu = !guideMode && !searchActive && (sheetLevel === 'hidden' || !(searchReady && query))
+
+  // Quand on ferme le panneau (sheetLevel = 'hidden'), réinitialiser searchReady si on avait des résultats
+  // Cela permet de réafficher le menu proprement
+  // IMPORTANT: Ne pas réinitialiser si on vient juste de lancer une recherche (query existe)
+  // car le useEffect principal va ouvrir le panneau automatiquement
+  useEffect(() => {
+    if (sheetLevel === 'hidden' && searchReady && !searchActive && !query) {
+      // Si on ferme le panneau de résultats ET qu'il n'y a plus de query, réinitialiser searchReady
+      // Cela permet de réafficher le menu proprement après avoir fermé une recherche terminée
+      setSearchReady(false)
+    }
+  }, [sheetLevel, searchReady, searchActive, query])
 
   return (
     <main
@@ -563,175 +725,123 @@ export default function Home() {
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <div id="map" data-testid="map-container" style={{ position: 'absolute', inset: 0 }} />
 
-        <SearchOverlay
-          query={query}
-          setQuery={setQuery}
-          searchActive={searchActive && !guideMode}
-          setSearchActive={setSearchActive}
-          setSearchReady={setSearchReady}
-          onQuickSelect={() => {
-            setDiscoverMode(false)
-            setSearchReady(true)
-            setSheetLevel('mid')
-          }}
-          onClear={() => {
-            setSearchReady(false)
-            setQuery('')
-            setSheetLevel('peek')
-            setDiscoverMode(false)
-          }}
-        />
+        {!guideMode && (
+          <SearchOverlay
+            query={query}
+            setQuery={setQuery}
+            searchActive={searchActive}
+            setSearchActive={setSearchActive}
+            setSearchReady={setSearchReady}
+            setLastQuery={setLastQuery}
+            setDiscoverMode={setDiscoverMode}
+            setSheetLevel={setSheetLevel}
+            lastQuery={lastQuery}
+            onQuickSelect={(value) => {
+              console.log('[QUICK SELECT] Selected:', value)
+              // Fermer la recherche et afficher les résultats
+              setSearchActive(false)
+              // searchReady est déjà true (défini par markReady() dans SearchOverlay)
+              // Le useEffect va automatiquement mettre sheetLevel à 'mid' une fois les POIs chargés
+            }}
+            onClear={() => {
+              setSearchReady(false)
+              setSearchActive(false)
+              setQuery('')
+              setSheetLevel('peek')
+              setDiscoverMode(false)
+            }}
+            onNavigateToSaved={() => {
+              // Fermer la recherche et naviguer vers le menu "Enregistrés"
+              setSearchActive(false)
+              setSearchReady(false)
+              setQuery('')
+              setActiveTab('saved')
+              setSheetLevel('mid')
+            }}
+          />
+        )}
 
-        {guideMode && (
+        {guideMode && activeStory && (
+          <NavigationOverlay
+            poiName={pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu en cours'}
+            totalDuration={180} // 3 minutes par segment par défaut
+            currentTime={navigationElapsed}
+          />
+        )}
+
+        {(!searchActive && !guideMode && (activeStory || searchReady)) && (
           <div
             style={{
               position: 'absolute',
-              top: 12,
+              top: 'calc(70vh + 12px)',
               left: 12,
               right: 12,
-              padding: '10px 12px',
-              borderRadius: 12,
-              background: 'rgba(15,23,42,0.9)',
-              color: '#f8fafc',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              zIndex: 12010,
-              boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+              display: 'grid',
+              gap: 12,
+              paddingBottom: 220,
             }}
           >
-            <button
-              onClick={() => setGuideMode(false)}
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'rgba(255,255,255,0.08)',
-                color: '#f8fafc',
-              }}
-              aria-label="Quitter navigation"
-            >
-              ←
-            </button>
-            <div style={{ display: 'grid', gap: 2 }}>
-              <div style={{ fontSize: 14, color: '#cbd5e1' }}>Navigation</div>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>
-                {activeStory ? pois.find((p) => p.id === activeStory.poiId)?.name || 'En cours' : 'En cours'}
-              </div>
-            </div>
+            {activeStory && <StoryPanel activeStory={activeStory} pois={pois} getStorySegments={getStorySegments} speak={speak} />}
+            {searchReady && <ResultsPanel visiblePois={visiblePois} speak={speak} />}
           </div>
         )}
 
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(70vh + 12px)',
-            left: 12,
-            right: 12,
-            display: 'grid',
-            gap: 12,
-            paddingBottom: 220,
-          }}
-        >
-          {!searchActive && !guideMode && <StoryPanel activeStory={activeStory} pois={pois} getStorySegments={getStorySegments} speak={speak} />}
-          {searchReady && !searchActive && !guideMode && <ResultsPanel visiblePois={visiblePois} speak={speak} />}
-        </div>
+        {!guideMode && (() => {
+          const items = searchReady || discoverMode ? pois : visiblePois
+          // Si recherche avec résultats : panneau visible même si searchActive est false (overlay fermé)
+          const level = searchActive ? 'hidden' : sheetLevel
+          const mode = searchReady || discoverMode ? 'results' : 'ambience'
+          // Si recherche avec résultats, utiliser la query, sinon le titre du tab
+          const title = searchReady && query ? query : undefined
+          // Menu caché si on affiche des résultats de recherche (panneau ouvert)
+          const menuVisible = shouldShowBottomMenu
+          console.log('[BOTTOM SHEET] Rendering with:', { level, mode, itemsCount: items.length, query, searchReady, discoverMode, title, menuVisible, shouldShowBottomMenu })
+          return (
+            <BottomSheetNew
+              level={level}
+              setLevel={setSheetLevel}
+              query={title || 'Découvrir'}
+              items={items}
+              speak={speak}
+              pos={pos}
+              mode={mode}
+              activeTab={activeTab}
+              menuVisible={menuVisible}
+            />
+          )
+        })()}
 
         {guideMode && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 12,
-              right: 12,
-              bottom: `calc(${sheetHeightPercent}vh + 80px)`,
-              display: 'flex',
-              justifyContent: 'center',
-              zIndex: 12015,
-              pointerEvents: 'none',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 12, pointerEvents: 'auto' }}>
-              <button style={ghostButtonStyle} onClick={prevSegment} aria-label="Précédent">
-                ⏮
-              </button>
-              <button
-                style={{ ...ghostButtonStyle, padding: '10px 14px', fontWeight: 700 }}
-                onClick={() => {
-                  setAudioPaused((p) => {
-                    const next = !p
-                    if (next) stopSpeech()
-                    return next
-                  })
-                }}
-                aria-label="Play/Pause"
-              >
-                {audioPaused ? '▶️' : '⏸'}
-              </button>
-              <button style={ghostButtonStyle} onClick={nextSegment} aria-label="Suivant">
-                ⏭
-              </button>
-            </div>
-          </div>
-        )}
-
-        <BottomSheet
-          level={searchActive ? 'hidden' : sheetLevel}
-          setLevel={setSheetLevel}
-          query={query || 'Découvrir'}
-          items={visiblePois}
-          speak={speak}
-          pos={pos}
-          mode={searchReady || discoverMode ? 'results' : 'ambience'}
-          guideMode={guideMode}
-          guideTitle={
-            guideMode && activeStory ? pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu en cours' : undefined
-          }
-          guideSubtitle={guideMode && activeStory ? 'Visite audio en cours' : undefined}
-          guideImage={
-            guideMode && activeStory ? `https://via.placeholder.com/640x320?text=${encodeURIComponent(
+          <NavigationPanel
+            poiName={activeStory ? pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu en cours' : 'En attente d\'un point d\'intérêt'}
+            poiImage={activeStory ? `https://via.placeholder.com/640x320?text=${encodeURIComponent(
               (pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu') + ' ' + ((activeStory.segmentIdx % 3) + 1)
-            )}` : undefined
-          }
-          guideText={
-            guideMode && activeStory ? getStorySegments(pois.find((p) => p.id === activeStory.poiId) as any)[activeStory.segmentIdx] : undefined
-          }
-          onPrev={guideMode ? prevSegment : undefined}
-          onNext={guideMode ? nextSegment : undefined}
-          onPlayPause={
-            guideMode
-              ? () => {
-                  setAudioPaused((p) => {
-                    const next = !p
-                    if (next) stopSpeech()
-                    return next
-                  })
-                }
-              : undefined
-          }
-          playing={!audioPaused && guideMode}
-          actions={[
-            {
-              label: 'Découvrir',
-              icon: '🌍',
-              onClick: () => {
-                setDiscoverMode(true)
-                setSearchReady(false)
-                setQuery('')
-                setSheetLevel('mid')
-              },
-            },
-            { label: 'Enregistrés', icon: '⭐', onClick: () => setSheetLevel('mid') },
-            { label: 'Contribuer', icon: '✍️', onClick: () => setSheetLevel('mid') },
-          ]}
-        />
+            )}` : undefined}
+            currentText={activeStory ? getStorySegments(pois.find((p) => p.id === activeStory.poiId) as any)[activeStory.segmentIdx] || '' : 'Déplacez-vous pour découvrir des points d\'intérêt...'}
+            onPrev={activeStory ? prevSegment : undefined}
+            onNext={activeStory ? nextSegment : undefined}
+            onPlayPause={() => {
+              setAudioPaused((p) => {
+                const next = !p
+                if (next) stopSpeech()
+                return next
+              })
+            }}
+            playing={!audioPaused}
+          />
+        )}
+
+        {/* Menu du bas : affiché selon la logique centralisée shouldShowBottomMenu */}
+        {shouldShowBottomMenu && (
+          <BottomMenu activeTab={activeTab} onTabChange={handleTabChange} />
+        )}
 
         <div
           style={{
             position: 'fixed',
             right: 16,
             bottom: gpsBottom,
-            zIndex: 12020,
+            zIndex: 12030,
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
@@ -739,57 +849,89 @@ export default function Home() {
         >
           {!gpsHidden && (
             <button
+              id="gps-button"
               onClick={recenterOnUser}
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 999,
-                border: '1px solid #1f2937',
-                background: '#0f172a',
-                color: '#e5e7eb',
-                boxShadow: '0 14px 30px rgba(0,0,0,0.45)',
-                fontSize: 18,
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                cursor: 'pointer',
               }}
               aria-label="Recentrer sur ma position"
             >
-              📍
+              <GpsIcon hasGps={!!pos} />
             </button>
           )}
           <button
             onClick={() => {
               setGuideMode((v) => !v)
-              if (!guideMode) setSheetLevel('mid')
+              if (!guideMode) {
+                setSheetLevel('mid')
+              } else {
+                // Arrêter l'audio si on désactive le mode guide
+                stopSpeech()
+                setAudioPaused(true)
+              }
             }}
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 999,
-              border: '1px solid #1f2937',
-              background: guideMode ? '#16a34a' : '#0b1220',
-              color: '#e5e7eb',
-              boxShadow: '0 14px 30px rgba(0,0,0,0.45)',
-              fontSize: 16,
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              border: '1px solid #e2e8f0',
+              background: guideMode ? '#ef4444' : '#16a34a',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              fontSize: 20,
+              fontWeight: 'bold',
+              cursor: 'pointer',
             }}
-            aria-label="Visite guidée"
+            aria-label={guideMode ? 'Arrêter la visite guidée' : 'Démarrer la visite guidée'}
           >
-            {guideMode ? '⏹' : '▶️'}
+            {guideMode ? '⏹' : '▶'}
           </button>
-          <button
-            onClick={() => setAdminLevel(adminLevel === 'hidden' ? 'peek' : 'hidden')}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 999,
-              border: '1px solid #1f2937',
-              background: '#0b1220',
-              color: '#e5e7eb',
-              boxShadow: '0 14px 30px rgba(0,0,0,0.45)',
-              fontSize: 18,
-            }}
-            aria-label="Panneau développeur"
-          >
-            {adminLevel === 'hidden' ? '⚙️' : '✕'}
-          </button>
+          {!guideMode && (
+            <button
+              id="developer-button"
+              onClick={() => setAdminLevel((prev) => (prev === 'hidden' ? 'mid' : 'hidden'))}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                cursor: 'pointer',
+              }}
+              aria-label="Panneau développeur"
+            >
+              {/* Icône engrenage simple et classique - comme l'image fournie (engrenage avec dents trapézoïdales) */}
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#0f172a">
+                {/* Cercle central */}
+                <circle cx="12" cy="12" r="2.5" />
+                {/* Dents trapézoïdales de l'engrenage - 8 dents principales régulièrement espacées */}
+                <path d="M12 2 L13.5 5.5 L10.5 5.5 Z" />
+                <path d="M12 22 L13.5 18.5 L10.5 18.5 Z" />
+                <path d="M2 12 L5.5 13.5 L5.5 10.5 Z" />
+                <path d="M22 12 L18.5 13.5 L18.5 10.5 Z" />
+                <path d="M5.64 5.64 L8.49 8.49 L6.36 10.62 L3.51 7.77 Z" />
+                <path d="M18.36 18.36 L15.51 15.51 L17.64 13.38 L20.49 16.23 Z" />
+                <path d="M5.64 18.36 L8.49 15.51 L10.62 17.64 L7.77 20.49 Z" />
+                <path d="M18.36 5.64 L15.51 8.49 L13.38 6.36 L16.23 3.51 Z" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <AdminSheet level={adminLevel} setLevel={setAdminLevel}>
@@ -810,9 +952,9 @@ export default function Home() {
             setSimPaused={setSimPaused}
             setMapAlreadyCentered={setMapAlreadyCentered}
             setPos={setPos}
+            pos={pos}
             godMode={godMode}
             setGodMode={setGodMode}
-            pos={pos}
             autoTts={autoTts}
             setAutoTts={setAutoTts}
             audioPaused={audioPaused}

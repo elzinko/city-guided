@@ -23,11 +23,17 @@ export function Chip({ children, active, onClick }: any) {
     <button
       onClick={onClick}
       style={{
-        padding: '8px 12px',
-        borderRadius: 999,
+        padding: '5px 8px 5px 10px', // Moins de padding à gauche pour rapprocher l'icône
+        borderRadius: 999, // Bords totalement arrondis
         border: active ? '1px solid #16a34a' : '1px solid #d4d9e1',
         background: active ? '#e3f6eb' : '#eef2f7',
         color: active ? '#0f5132' : '#0f172a',
+        fontSize: 13,
+        whiteSpace: 'nowrap',
+        lineHeight: 1.4,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
       }}
     >
       {children}
@@ -37,8 +43,46 @@ export function Chip({ children, active, onClick }: any) {
 
 export function Toggle({ checked, onChange, label }: any) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {label}
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 13,
+        cursor: 'pointer',
+        color: 'inherit',
+      }}
+    >
+      <div
+        onClick={(e) => {
+          e.preventDefault()
+          onChange(!checked)
+        }}
+        style={{
+          width: 36,
+          height: 20,
+          borderRadius: 10,
+          background: checked ? '#22c55e' : '#475569',
+          position: 'relative',
+          transition: 'background 0.2s ease',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: checked ? 18 : 2,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            background: '#fff',
+            transition: 'left 0.2s ease',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          }}
+        />
+      </div>
+      <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
     </label>
   )
 }

@@ -36,6 +36,9 @@ coverage/
 test-results/
 *.html
 
+# Playwright MCP screenshots (générés automatiquement pour validation UX)
+.playwright-mcp/
+
 # Misc
 npm-debug.log
 yarn-error.log

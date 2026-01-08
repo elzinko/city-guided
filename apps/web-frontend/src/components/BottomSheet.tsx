@@ -78,7 +78,7 @@ export function BottomSheet({
   guideMode,
   guideTitle,
   guideSubtitle,
-  guideImage: _guideImage,
+  guideImage: _guideImage, // eslint-disable-line @typescript-eslint/no-unused-vars
   guideText,
   onPrev,
   onNext,

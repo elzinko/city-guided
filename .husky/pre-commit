@@ -38,6 +38,14 @@ if [ $RC -ne 0 ]; then
   exit $RC
 fi
 
+echo "Running type-check..."
+pnpm -w type-check
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Type-check failed (exit $RC). Aborting commit."
+  exit $RC
+fi
+
 echo "Running lint..."
 pnpm -w lint
 RC=$?

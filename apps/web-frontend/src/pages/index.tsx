@@ -914,20 +914,17 @@ export default function Home() {
               }}
               aria-label="Panneau développeur"
             >
-              {/* Icône engrenage simple et classique - comme l'image fournie (engrenage avec dents trapézoïdales) */}
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#0f172a">
-                {/* Cercle central */}
-                <circle cx="12" cy="12" r="2.5" />
-                {/* Dents trapézoïdales de l'engrenage - 8 dents principales régulièrement espacées */}
-                <path d="M12 2 L13.5 5.5 L10.5 5.5 Z" />
-                <path d="M12 22 L13.5 18.5 L10.5 18.5 Z" />
-                <path d="M2 12 L5.5 13.5 L5.5 10.5 Z" />
-                <path d="M22 12 L18.5 13.5 L18.5 10.5 Z" />
-                <path d="M5.64 5.64 L8.49 8.49 L6.36 10.62 L3.51 7.77 Z" />
-                <path d="M18.36 18.36 L15.51 15.51 L17.64 13.38 L20.49 16.23 Z" />
-                <path d="M5.64 18.36 L8.49 15.51 L10.62 17.64 L7.77 20.49 Z" />
-                <path d="M18.36 5.64 L15.51 8.49 L13.38 6.36 L16.23 3.51 Z" />
-              </svg>
+              {/* Icône engrenage - image PNG */}
+              <img
+                src="/images/gear-icon.png"
+                alt="Panneau développeur"
+                width="28"
+                height="28"
+                style={{
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
+              />
             </button>
           )}
         </div>

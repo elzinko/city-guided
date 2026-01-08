@@ -38,6 +38,7 @@ class CustomWorld extends World implements CityGuidedWorld {
     if (!this.browser) {
       this.browser = await chromium.launch({
         headless: true,
+        channel: undefined, // Use installed browser
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
     }

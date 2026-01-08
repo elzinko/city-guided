@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef } from 'react'
 import { distanceMeters } from '../utils/distance'
 import { SHEET_HEIGHTS } from '../config/constants'
 import type { MenuTab } from './BottomMenu'
@@ -64,7 +64,7 @@ export function BottomSheetNew({
   guideMode,
   guideTitle,
   guideSubtitle,
-  guideImage,
+  guideImage: _guideImage,
   guideText,
   onPrev,
   onNext,

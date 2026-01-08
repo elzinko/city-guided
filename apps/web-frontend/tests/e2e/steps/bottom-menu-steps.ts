@@ -3,7 +3,7 @@
  * BDD steps for bottom menu E2E tests
  */
 
-import { Given, When, Then } from '@cucumber/cucumber';
+import { When, Then } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { CityGuidedWorld } from '../support/world';
 
@@ -30,8 +30,6 @@ Then('the menu should have three tabs: {string}, {string}, {string}', async func
 Then('{string} should be the active tab', async function (this: CityGuidedWorld, tabName: string) {
   const tab = this.page!.locator(`button:has-text("${tabName}")`).first();
   await expect(tab).toBeVisible();
-  // Check if it has active styling (aria-current or active class)
-  const ariaCurrent = await tab.getAttribute('aria-current');
   // Tab should be visible and clickable
   await expect(tab).toBeEnabled();
 });
@@ -61,16 +59,13 @@ When('I close the search without results', async function (this: CityGuidedWorld
   const overlayBackButton = this.page!.locator('[data-testid="search-overlay"] button[aria-label="Retour"]').first();
   const backButton = this.page!.locator('button[aria-label="Retour"]').first();
   
-  let clicked = false;
   try {
     await overlayBackButton.waitFor({ state: 'visible', timeout: 5000 });
     await overlayBackButton.click();
-    clicked = true;
   } catch {
     try {
       await backButton.waitFor({ state: 'visible', timeout: 5000 });
       await backButton.click();
-      clicked = true;
     } catch {
       // If button not found, try Escape key
       await this.page!.keyboard.press('Escape');

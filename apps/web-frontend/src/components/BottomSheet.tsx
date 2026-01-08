@@ -78,7 +78,7 @@ export function BottomSheet({
   guideMode,
   guideTitle,
   guideSubtitle,
-  guideImage,
+  guideImage: _guideImage,
   guideText,
   onPrev,
   onNext,

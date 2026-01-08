@@ -8,11 +8,9 @@ import { BottomMenu, type MenuTab } from '../components/BottomMenu'
 import { AdminSheet } from '../components/AdminSheet'
 import { NavigationOverlay } from '../components/NavigationOverlay'
 import { NavigationPanel } from '../components/NavigationPanel'
-import { ghostButtonStyle } from '../components/ui'
 import { distanceMeters } from '../utils/distance'
 import {
   DEFAULT_CENTER_RADIUS_METERS,
-  GPS_BUTTON_MARGIN_PX,
   GPS_HIDE_THRESHOLD_PERCENT,
   MAX_POIS_DISPLAYED,
   SHEET_HEIGHTS,

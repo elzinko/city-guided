@@ -34,6 +34,7 @@ export function SearchBar({
 
   return (
     <div
+      id="search-bar"
       style={{
         display: 'flex',
         alignItems: 'center',

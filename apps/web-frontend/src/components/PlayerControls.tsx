@@ -8,6 +8,7 @@ type Props = {
   disabled?: boolean
   variant?: 'round' | 'square'
   size?: 'small' | 'medium' | 'large'
+  buttonStyle?: React.CSSProperties
 }
 
 // Triangle blanc SVG pour le bouton play
@@ -46,15 +47,16 @@ export function PlayerControls({
   disabled = false,
   variant = 'square',
   size = 'medium',
+  buttonStyle,
 }: Props) {
   const sizeStyles = {
-    small: { button: { width: 40, height: 40 }, icon: 16 },
+    small: { button: { width: 36, height: 36 }, icon: 14 },
     medium: { button: { width: 48, height: 48 }, icon: 20 },
     large: { button: { width: 56, height: 56 }, icon: 24 },
   }
 
   const sizes = sizeStyles[size]
-  const borderRadius = variant === 'round' ? '50%' : 12
+  const borderRadius = variant === 'round' ? '50%' : 8
 
   const buttonBaseStyle: React.CSSProperties = {
     ...sizes.button,
@@ -65,8 +67,9 @@ export function PlayerControls({
     justifyContent: 'center',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
-    boxShadow: variant === 'square' ? '0 4px 12px rgba(0,0,0,0.15)' : '0 4px 12px rgba(0,0,0,0.3)',
+    boxShadow: variant === 'square' ? '0 2px 8px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.3)',
     transition: 'all 0.2s',
+    ...buttonStyle,
   }
 
   const playButtonStyle: React.CSSProperties = {
@@ -82,7 +85,7 @@ export function PlayerControls({
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
       {/* Bouton précédent */}
       <button
         onClick={onPrevious}

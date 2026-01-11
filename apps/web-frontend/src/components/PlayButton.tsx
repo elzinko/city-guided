@@ -1,6 +1,7 @@
 import React from 'react'
 
 type Props = {
+  id?: string
   playing: boolean
   onPlayPause: () => void
   disabled?: boolean
@@ -19,6 +20,7 @@ function PlayTriangle({ size = 20 }: { size?: number }) {
 }
 
 export function PlayButton({
+  id,
   playing,
   onPlayPause,
   disabled = false,
@@ -52,6 +54,7 @@ export function PlayButton({
 
   return (
     <button
+      id={id}
       onClick={onPlayPause}
       disabled={disabled}
       aria-label={ariaLabel || (playing ? 'Pause' : 'Play')}
@@ -69,7 +72,10 @@ export function PlayButton({
       }}
     >
       {playing ? (
-        <span style={{ fontSize: sizes.icon, lineHeight: 1 }}>⏸</span>
+        // Icône Stop (carré) quand en mode navigation
+        <svg width={sizes.icon} height={sizes.icon} viewBox="0 0 24 24" fill="none">
+          <rect x="6" y="6" width="12" height="12" rx="2" fill="#ffffff" />
+        </svg>
       ) : (
         <PlayTriangle size={sizes.icon} />
       )}

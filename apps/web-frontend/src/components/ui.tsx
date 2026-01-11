@@ -1,8 +1,15 @@
 import React from 'react'
 
-export function Card({ children, style }: any) {
+type CardProps = {
+  id?: string
+  children: React.ReactNode
+  style?: React.CSSProperties
+}
+
+export function Card({ id, children, style }: CardProps) {
   return (
     <div
+      id={id}
       style={{
         background: '#f8fafc',
         border: '1px solid #e2e8f0',
@@ -41,9 +48,10 @@ export function Chip({ children, active, onClick }: any) {
   )
 }
 
-export function Toggle({ checked, onChange, label }: any) {
+export function Toggle({ id, checked, onChange, label }: any) {
   return (
     <label
+      id={id}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -87,9 +95,15 @@ export function Toggle({ checked, onChange, label }: any) {
   )
 }
 
-export function Badge({ children }: any) {
+type BadgeProps = {
+  id?: string
+  children: React.ReactNode
+}
+
+export function Badge({ id, children }: BadgeProps) {
   return (
     <span
+      id={id}
       style={{
         padding: '6px 10px',
         borderRadius: 999,

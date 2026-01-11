@@ -36,10 +36,14 @@ class CustomWorld extends World implements CityGuidedWorld {
    */
   async initBrowser(): Promise<void> {
     if (!this.browser) {
+      // Use installed chromium (now that playwright install has been run)
       this.browser = await chromium.launch({
         headless: true,
-        channel: undefined, // Use installed browser
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage'
+        ]
       });
     }
   }

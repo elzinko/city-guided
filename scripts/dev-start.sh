@@ -11,6 +11,8 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$ROOT_DIR/infra/docker"
 
 SKIP_OSRM="${SKIP_OSRM:-0}"
+API_PORT="${API_PORT:-3001}"
+WEB_PORT="${WEB_PORT:-3080}"
 
 # Start OSRM (unless skipped)
 if [ "$SKIP_OSRM" != "1" ]; then
@@ -55,9 +57,12 @@ fi
 
 # Start dev servers
 echo "🚀 Starting development servers..."
-echo "   - API: http://localhost:3001"
-echo "   - Frontend: http://localhost:3080"
+echo "   - API: http://127.0.0.1:$API_PORT"
+echo "   - Frontend: http://127.0.0.1:$WEB_PORT"
 echo ""
 
 cd "$ROOT_DIR"
-pnpm -r --parallel --filter apps-web-frontend --filter services-api dev
+# Pass environment variables to individual services
+PORT="$API_PORT" HOST=127.0.0.1 pnpm --filter services-api dev &
+WEB_PORT="$WEB_PORT" pnpm --filter apps-web-frontend dev &
+wait

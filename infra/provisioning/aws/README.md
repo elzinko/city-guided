@@ -1,221 +1,188 @@
-# 🚀 City-Guided AWS Staging Provisioning
+# City-Guided AWS Provisioning (Staging)
 
-Infrastructure as Code (IaC) pour déployer City-Guided sur AWS EC2 Spot avec auto-sleep et DuckDNS.
+This folder contains Infrastructure as Code (AWS CDK) and a unified provisioning script to deploy City-Guided on an AWS EC2 Spot instance, with configuration stored in AWS SSM Parameter Store and deployments performed via GitHub Actions.
 
-## 💰 Coût estimé
+Key idea: the source of truth for application configuration is `infra/docker/.env.<environment>`. Provisioning pushes those values to SSM, and the deployment script regenerates the `.env.<environment>` on the EC2 host from SSM before starting containers.
 
-- **EC2 Spot t3.medium** : ~$9/mois (avec sleep/wake automatique)
-- **Elastic IP** : Gratuit (quand attaché à une instance)
-- **DuckDNS** : Gratuit
-- **Total** : **~$9-12/mois**
+## Estimated monthly cost
 
-## 📋 Prérequis
+- **EC2 Spot `t3.medium`**: ~ $9/month (varies by region/availability)
+- **Elastic IP**: Free when attached to a running instance
+- **DuckDNS**: Free
 
-1. **AWS CLI** installé et configuré
-   ```bash
-   aws configure
-   ```
+## Prerequisites
 
-2. **Node.js 20+** et **pnpm**
+- **Node.js 20+** and **pnpm**
+- **AWS CLI v2** installed and configured (`aws configure`) OR be ready to paste credentials when prompted
+- AWS permissions for **CloudFormation**, **EC2**, **IAM**, **SSM**
+- **GitHub CLI (`gh`)** (optional but recommended) if you want the script to automatically set GitHub Actions environment secrets
+- **Session Manager plugin** (optional but recommended) for SSM-based shell access
 
-3. **Compte GitHub** avec accès au repo
+## Quick start (recommended)
 
-4. **DuckDNS Token** (déjà configuré dans constants.ts)
+### 1) Create the environment file
 
-## 🎯 Installation
+From the repo root:
+
+```bash
+cp infra/docker/.env.template infra/docker/.env.staging
+```
+
+Edit `infra/docker/.env.staging`:
+
+- `ENVIRONMENT=staging`
+- `NODE_ENV=production`
+- `COMPOSE_PROJECT_NAME=city-guided-staging`
+- `SITE_DOMAIN=...` (e.g. `cityguided.duckdns.org`)
+- `SECRET_DUCKDNS_TOKEN=...` (required only if using DuckDNS)
+- OSRM settings (`OSRM_REGION`, `OSRM_REGION_BASE`, …)
+
+### 2) Install provisioning dependencies
 
 ```bash
 cd infra/provisioning/aws
 pnpm install
 ```
 
-## 🚀 Usage Rapide
-
-### Setup Complet (Recommandé)
-
-Lancement du wizard interactif qui fait tout :
+### 3) Provision everything (infra + SSM + GitHub secrets + instance setup)
 
 ```bash
-pnpm run setup
+pnpm run provision -- staging
 ```
 
-Le wizard va :
-1. ✅ Créer l'EC2 Spot instance avec CDK
-2. ✅ Configurer Security Groups et Elastic IP
-3. ✅ Mettre à jour DuckDNS avec l'IP publique
-4. ✅ Configurer les secrets GitHub automatiquement
-5. ✅ Setup l'environnement GitHub "staging-aws"
+What it does:
 
-### Étapes Manuelles
+1. Deploys the CDK stack (EC2 Spot + Elastic IP + Security Group + IAM role for SSM)
+2. Stores config in SSM at `/city-guided/staging/*` (secrets are detected by the `SECRET_` prefix and stored as `SecureString`)
+3. Optionally provisions **GitHub Actions environment secrets** for the `staging` environment (requires `gh auth login`)
+4. Installs EC2 dependencies via SSM (Docker Compose v2 + Buildx)
+5. Updates DuckDNS if `SITE_DOMAIN` is a `*.duckdns.org` domain
 
-Si vous préférez contrôler chaque étape :
+## What gets provisioned
+
+### AWS (CDK / CloudFormation)
+
+- EC2 Spot instance (default: `t3.medium`)
+- Security group allowing `22` (SSH), `80` (HTTP), `443` (HTTPS)
+- Elastic IP (stable public IP)
+- IAM role with `AmazonSSMManagedInstanceCore` (SSM management) + Parameter Store read access
+
+### AWS SSM Parameter Store
+
+- Stored under: `/city-guided/<env>/*` (e.g. `/city-guided/staging/*`)
+- Values come from `infra/docker/.env.<env>` plus a few infra outputs (instance ID, public IP, etc.)
+- Secrets are keys that start with `SECRET_`
+
+### GitHub Actions environment secrets (minimal)
+
+For the GitHub environment named `staging` (see `.github/workflows/ci.yml`):
+
+- `SECRET_AWS_ACCESS_KEY_ID`
+- `SECRET_AWS_SECRET_ACCESS_KEY`
+- `SECRET_AWS_REGION`
+- `SECRET_EC2_INSTANCE_ID`
+
+## CI/CD deployment flow
+
+The main workflow is `.github/workflows/ci.yml`.
+
+On `main`, it:
+
+1. Lints + builds + runs E2E tests
+2. Builds and pushes Docker images to GHCR:
+   - `ghcr.io/<owner>/<repo>-api:<tag>`
+   - `ghcr.io/<owner>/<repo>-web:<tag>`
+3. Deploys to EC2 via **SSM** by running:
+   - `infra/docker/scripts/deploy.sh staging`
+   - with `IMAGE_TAG=<tag>` (short commit SHA)
+
+## Checking the deployed version (commit / code link)
+
+The app exposes deployment metadata in the admin module:
+
+- Go to `https://<SITE_DOMAIN>/admin`
+- The header shows `Deploy: <APP_VERSION>` and links to:
+  - the commit on GitHub
+  - the repository
+  - the code tree
+
+Where it comes from:
+
+- `APP_VERSION` and `APP_REPO_URL` are environment variables passed to the `web` container.
+- During staging deployments, `infra/docker/scripts/deploy.sh` automatically sets `APP_VERSION` to the deployed `IMAGE_TAG`.
+
+## Connecting to the EC2 instance
+
+From the repo root:
 
 ```bash
-# 1. Déployer l'infrastructure AWS
-pnpm run provision:infra
-
-# 2. Configurer GitHub CICD
-pnpm run provision:cicd
+pnpm ssh staging
 ```
 
-## 🏗️ Architecture
+This uses AWS SSM Session Manager and reads the instance ID from SSM (`/city-guided/staging/SECRET_EC2_INSTANCE_ID`).
 
-```
-┌─────────────────────────────────────────────┐
-│  AWS EC2 Spot Instance (t3.medium)          │
-│  ┌───────────────────────────────────┐      │
-│  │ Docker Compose                    │      │
-│  │  ├─ Frontend (Next.js)   :3000   │      │
-│  │  ├─ API (Node.js)        :4000   │      │
-│  │  └─ Nginx (Reverse Proxy) :80    │      │
-│  └───────────────────────────────────┘      │
-│                                             │
-│  Elastic IP: XX.XX.XX.XX                   │
-│  Auto-shutdown après 5min d'inactivité     │
-└─────────────────────────────────────────────┘
-                    ↓
-         DuckDNS DNS Update
-                    ↓
-    city-guided-staging.duckdns.org
-```
-
-## 📦 Ce qui est provisionné
-
-### Infrastructure AWS (CDK)
-
-- **EC2 Spot Instance** : t3.medium (2 vCPU, 4GB RAM)
-- **Security Group** : Ports 22 (SSH), 80 (HTTP), 443 (HTTPS)
-- **Elastic IP** : IP publique fixe
-- **IAM Role** : Pour SSM et CloudWatch
-- **User Data** : Installation Docker, Docker Compose, script d'auto-shutdown
-
-### GitHub CICD
-
-- **Environment** : staging-aws avec protection
-- **Secrets** :
-  - `AWS_ACCESS_KEY_ID`
-  - `AWS_SECRET_ACCESS_KEY`
-  - `AWS_REGION`
-  - `EC2_INSTANCE_ID`
-  - `EC2_PUBLIC_IP`
-  - `DUCKDNS_TOKEN`
-  - `DUCKDNS_DOMAIN`
-
-### DuckDNS
-
-- **Domain** : city-guided-staging.duckdns.org
-- **Auto-update** : À chaque déploiement
-
-## 🔄 Workflow CI/CD
-
-```
-Push to main
-    ↓
-GitHub Actions: Build Docker images
-    ↓
-Check EC2 state (start if stopped)
-    ↓
-Update DuckDNS with current IP
-    ↓
-Deploy Docker containers to EC2
-    ↓
-Health checks
-    ↓
-✅ Deployment complete
-```
-
-## 🛠️ Commandes CDK
+Once connected:
 
 ```bash
-# Voir les changements avant déploiement
+cd city-guided/infra/docker
+docker ps
+docker compose logs -n 200
+```
+
+## Common operations
+
+### Re-provision SSM after changing `.env.staging`
+
+```bash
+cd infra/provisioning/aws
+pnpm run provision -- staging
+```
+
+### Trigger a manual staging deploy (GitHub Actions)
+
+```bash
+gh workflow run ci.yml --ref main -f deploy_staging=true
+```
+
+### CDK commands
+
+```bash
+cd infra/provisioning/aws
 pnpm run diff
-
-# Générer le template CloudFormation
 pnpm run synth
-
-# Déployer manuellement
 pnpm run deploy
-
-# Détruire l'infrastructure
 pnpm run destroy
 ```
 
-## 🔒 Sécurité
+## Troubleshooting
 
-- Clé SSH stockée dans `~/.ssh/city-guided-staging.pem` (créée automatiquement)
-- Secrets GitHub jamais committés
-- `.env.staging` gitignored
-- Security Group limité aux ports nécessaires
+### “No parameters found in SSM”
 
-## 🐛 Dépannage
+- Ensure you ran provisioning: `pnpm run provision -- staging`
+- Check the path exists:
+  ```bash
+  aws ssm get-parameters-by-path --path "/city-guided/staging" --with-decryption
+  ```
 
-### "Key pair not found"
+### “GitHub secrets were not set”
 
-Le script créera automatiquement une paire de clés SSH. Si vous voulez utiliser une clé existante, modifiez `EC2_CONFIG.keyPairName` dans `constants.ts`.
+- The provisioning script only sets GitHub secrets if you are logged in:
+  ```bash
+  gh auth login
+  ```
 
-### "Stack already exists"
+### “The deployed site doesn’t show my latest changes”
 
-```bash
-pnpm run destroy  # Détruit le stack existant
-pnpm run deploy   # Redéploie
-```
-
-### "Cannot connect to EC2"
-
-1. Vérifier que l'instance est démarrée :
+1. Check which commit is deployed on `https://<SITE_DOMAIN>/admin` (Deploy badge).
+2. In GitHub Actions, confirm the latest run completed the `Deploy to AWS Staging` job.
+3. On the server, confirm images were pulled for the expected tag:
    ```bash
-   aws ec2 describe-instances --instance-ids <INSTANCE_ID>
+   cd city-guided/infra/docker
+   grep -E "^(API_IMAGE|WEB_IMAGE|APP_VERSION)=" .env.staging
+   docker images | head
    ```
 
-2. Vérifier le Security Group :
-   ```bash
-   aws ec2 describe-security-groups --group-ids <SG_ID>
-   ```
+## Notes / limitations
 
-3. Se connecter en SSH :
-   ```bash
-   ssh -i ~/.ssh/city-guided-staging.pem ec2-user@<PUBLIC_IP>
-   ```
-
-### "DuckDNS not updating"
-
-Vérifier le token dans `constants.ts` et tester manuellement :
-```bash
-curl "https://www.duckdns.org/update?domains=city-guided-staging&token=<TOKEN>&ip=<IP>"
-```
-
-## 📊 Monitoring
-
-- **GitHub Actions** : https://github.com/elzinko/city-guided/actions
-- **AWS Console** : https://console.aws.amazon.com/ec2
-- **DuckDNS** : https://www.duckdns.org
-- **Application** : https://city-guided-staging.duckdns.org
-
-## 🔧 Configuration Avancée
-
-### Modifier le type d'instance
-
-Éditez `constants.ts` :
-```typescript
-export const EC2_CONFIG = {
-  instanceType: 't3.small', // Change ici
-  // ...
-};
-```
-
-### Ajouter des variables d'environnement
-
-1. Ajoutez-les dans `.env.staging.template`
-2. Configurez-les comme secrets GitHub dans `provision-cicd.ts`
-3. Utilisez-les dans `docker-compose.staging.yml`
-
-### Désactiver l'auto-shutdown
-
-Éditez le User Data dans `lib/staging-stack.ts` pour retirer le cron job.
-
-## 📝 Notes
-
-- L'instance EC2 s'arrête automatiquement après 5 minutes d'inactivité
-- GitHub Actions démarre l'instance automatiquement au déploiement
-- Utilise Docker multi-stage builds pour optimiser la taille des images
-- Nginx reverse proxy pour gérer HTTP/HTTPS
+- The CDK app currently provisions a **staging** stack. A production stack is not fully wired yet.
+- There is a cron “activity check” script in the EC2 user-data, but it does **not** stop the instance automatically today (it only logs).

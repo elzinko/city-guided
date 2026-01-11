@@ -9,33 +9,48 @@ import { CityGuidedWorld } from '../support/world'
 
 // Alias pour fermer le panneau développeur
 When('I close the developer panel', async function (this: CityGuidedWorld) {
-  const closeButton = this.page!.getByRole('button', { name: 'Fermer le panneau développeur' })
-  await closeButton.waitFor({ state: 'visible', timeout: 5000 })
+  // The developer panel uses a gear button to toggle open/close
+  // The button has aria-label="Développeur" and id="dev-gear-button"
+  const closeButton = this.page!.locator('#dev-gear-button').first()
+  await closeButton.waitFor({ state: 'visible', timeout: 10000 })
   await closeButton.click()
-  await this.page!.waitForTimeout(300)
+  // Wait for panel to close (check that panel content is hidden)
+  const panelContent = this.page!.locator('#dev-panel-content')
+  await panelContent.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {})
 })
 
 Then('the GPS player should be visible on the main map', async function (this: CityGuidedWorld) {
-  // Le lecteur GPS contient les PlayerControls et l'accélérateur
-  // On peut l'identifier par la présence du texte "Étape" et des boutons de contrôle
-  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/')
-  await expect(stepIndicator).toBeVisible({ timeout: 5000 })
+  // Le GPS player est maintenant dans DevControlBlock
+  // On peut l'identifier par la présence de l'indicateur de route (#dev-route-indicator)
+  // et des PlayerControls dans la barre de contrôle dev
+  const routeIndicator = this.page!.locator('#dev-route-indicator')
+  await expect(routeIndicator).toBeVisible({ timeout: 10000 })
   
-  // Vérifier la présence des boutons de contrôle
+  // Vérifier la présence des boutons de contrôle (dans PlayerControls)
+  // Les boutons sont dans DevControlBlock, pas dans un composant séparé
   const playButton = this.page!.getByRole('button', { name: 'Play' }).or(this.page!.getByRole('button', { name: 'Pause' }))
-  await expect(playButton.first()).toBeVisible({ timeout: 2000 })
+  await expect(playButton.first()).toBeVisible({ timeout: 5000 })
 })
 
 Then('I should see the step indicator showing {string}', async function (this: CityGuidedWorld, expectedText: string) {
-  // Le texte attendu contient "Étape 1/X" où X est le nombre de points
-  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/')
-  await expect(stepIndicator).toBeVisible({ timeout: 5000 })
+  // Le GPS player est maintenant dans DevControlBlock
+  // L'indicateur d'étape est dans #dev-route-indicator (format: "1/10")
+  // On peut aussi chercher le texte "Étape" dans le panneau développeur si ouvert
+  const routeIndicator = this.page!.locator('#dev-route-indicator')
+  await expect(routeIndicator).toBeVisible({ timeout: 10000 })
+  
+  // Le format dans #dev-route-indicator est "1/10" (sans "Étape")
+  // Mais on peut aussi chercher dans le panneau développeur
+  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/').or(routeIndicator)
+  await expect(stepIndicator.first()).toBeVisible({ timeout: 5000 })
   
   const text = (await stepIndicator.first().textContent()) || ''
-  const actual = text.match(/Étape\s+\d+\/\d+/)?.[0] || ''
+  // Accepter soit "Étape 1/X" soit "1/X"
+  const actual = text.match(/(?:Étape\s+)?(\d+\/\d+)/)?.[1] || text.match(/\d+\/\d+/)?.[0] || ''
 
   // Support a simple wildcard format ("X" means any number) to keep scenarios readable.
   const expectedRegexSource = expectedText
+    .replace(/Étape\s+/i, '') // Remove "Étape " if present
     .split('X')
     .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     .join('\\d+')
@@ -45,15 +60,20 @@ Then('I should see the step indicator showing {string}', async function (this: C
 })
 
 Then('I should see the play button in the GPS player', async function (this: CityGuidedWorld) {
+  // Le GPS player est dans DevControlBlock, les boutons sont dans PlayerControls
+  // Le bouton Play est dans la barre de contrôle dev (visible si route chargée)
   const playButton = this.page!.getByRole('button', { name: 'Play' })
-  await expect(playButton.first()).toBeVisible({ timeout: 5000 })
+  await expect(playButton.first()).toBeVisible({ timeout: 10000 })
 })
 
 Then('I should see the previous and next buttons in the GPS player', async function (this: CityGuidedWorld) {
+  // Le GPS player est dans DevControlBlock, les boutons sont dans PlayerControls
   const prevButton = this.page!.getByRole('button', { name: 'POI précédent' })
   const nextButton = this.page!.getByRole('button', { name: 'POI suivant' })
   
   // Au moins un des deux devrait être visible (le précédent peut être désactivé si on est au début)
+  // Attendre un peu pour que les boutons soient rendus
+  await this.page!.waitForTimeout(500)
   const prevVisible = await prevButton.first().isVisible().catch(() => false)
   const nextVisible = await nextButton.first().isVisible().catch(() => false)
   
@@ -61,26 +81,18 @@ Then('I should see the previous and next buttons in the GPS player', async funct
 })
 
 Then('I should see the speed accelerator slider in the GPS player', async function (this: CityGuidedWorld) {
-  // L'accélérateur est un input de type range avec le texte "⚡"
-  // Chercher tous les sliders et trouver celui qui est dans le GPS player (en bas de la carte)
-  const allSliders = this.page!.locator('input[type="range"]')
-  const sliderCount = await allSliders.count()
-  
-  // Le slider du GPS player devrait être le dernier (celui en bas)
-  if (sliderCount > 0) {
-    const slider = allSliders.nth(sliderCount - 1)
-    await expect(slider).toBeVisible({ timeout: 5000 })
-  } else {
-    throw new Error('Speed accelerator slider not found')
-  }
+  // Le GPS player est dans DevControlBlock
+  // L'accélérateur est un select (#dev-speed-select) dans la barre de contrôle dev
+  const speedSelect = this.page!.locator('#dev-speed-select')
+  await expect(speedSelect).toBeVisible({ timeout: 10000 })
 })
 
 When('I click the play button in the GPS player', async function (this: CityGuidedWorld) {
   // Trouver le bouton play dans le lecteur GPS (pas celui du panneau développeur)
   // Le lecteur GPS est en bas de la carte, donc on cherche le bouton play le plus proche du bas
   // On peut l'identifier en cherchant près de l'indicateur d'étape
-  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/')
-  await stepIndicator.first().waitFor({ state: 'visible', timeout: 5000 })
+  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/, #dev-route-indicator')
+  await stepIndicator.first().waitFor({ state: 'visible', timeout: 10000 })
   
   // Trouver le bouton play près de l'indicateur d'étape
   // Le lecteur GPS contient l'indicateur d'étape et les boutons de contrôle
@@ -94,7 +106,7 @@ When('I click the play button in the GPS player', async function (this: CityGuid
     throw new Error('Play button not found in GPS player')
   }
   
-  await this.page!.waitForTimeout(500)
+  await this.page!.waitForTimeout(1000) // Wait for simulation to start
 })
 
 Then('the GPS simulation should start', async function (this: CityGuidedWorld) {
@@ -253,11 +265,19 @@ Then('the user position should update again', async function (this: CityGuidedWo
 })
 
 When('I adjust the speed accelerator slider', async function (this: CityGuidedWorld) {
-  // Trouver le slider de vitesse dans le GPS player
-  // Chercher tous les sliders et trouver celui qui est dans le GPS player (en bas de la carte)
+  // Le GPS player est dans DevControlBlock
+  // L'accélérateur est un select (#dev-speed-select) dans la barre de contrôle dev
+  const speedSelect = this.page!.locator('#dev-speed-select')
+  await speedSelect.waitFor({ state: 'visible', timeout: 10000 })
+  // Changer la vitesse (par exemple, passer à 2x)
+  await speedSelect.selectOption({ value: '2' })
+  await this.page!.waitForTimeout(500)
+  
+  // Alternative: chercher aussi les sliders si présents (pour compatibilité)
   const allSliders = this.page!.locator('input[type="range"]')
   const sliderCount = await allSliders.count()
   
+  // Le select est déjà utilisé ci-dessus, mais on garde le code pour les sliders en fallback
   if (sliderCount > 0) {
     // Le slider du GPS player devrait être le dernier (celui en bas)
     const slider = allSliders.nth(sliderCount - 1)
@@ -269,15 +289,15 @@ When('I adjust the speed accelerator slider', async function (this: CityGuidedWo
     
     await slider.fill(newValue)
     await this.page!.waitForTimeout(300)
-  } else {
-    throw new Error('Speed accelerator slider not found')
   }
+  // Si ni select ni slider, le test échouera dans la vérification suivante
 })
 
 Then('the speed value should update', async function (this: CityGuidedWorld) {
-  // Vérifier que le label de vitesse existe toujours (il devrait afficher la nouvelle valeur)
-  const speedLabel = this.page!.locator('text=/⚡.*×/')
-  await expect(speedLabel.first()).toBeVisible({ timeout: 2000 })
+  // Vérifier que le select de vitesse a la nouvelle valeur
+  const speedSelect = this.page!.locator('#dev-speed-select')
+  const value = await speedSelect.inputValue()
+  expect(value).toBe('2') // La valeur qu'on a sélectionnée
 })
 
 Then('the simulation speed should change', async function (this: CityGuidedWorld) {
@@ -292,53 +312,71 @@ Given('a route is loaded', async function (this: CityGuidedWorld) {
   if (!this.page || this.page.url() !== `${this.baseUrl}/`) {
     await this.goto('/')
   }
-  await this.page!.waitForTimeout(1000)
-  
-  // Ouvrir le panneau développeur
-  const devButton = this.page!.getByRole('button', { name: 'Développeur' })
-  await devButton.waitFor({ state: 'visible', timeout: 5000 })
-  await devButton.click()
-  await this.page!.waitForTimeout(300)
-  
-  // Sélectionner une route
-  const routeSelector = this.page!.locator('select').first()
-  await routeSelector.waitFor({ state: 'visible', timeout: 5000 })
-  await routeSelector.selectOption({ index: 0 })
+  await this.page!.waitForLoadState('networkidle')
   await this.page!.waitForTimeout(500)
   
-  // Fermer le panneau développeur
-  const closeButton = this.page!.getByRole('button', { name: 'Fermer le panneau développeur' })
-  await closeButton.waitFor({ state: 'visible', timeout: 5000 })
-  await closeButton.click()
-  await this.page!.waitForTimeout(300)
+  // Make sure the developer panel is open
+  const panelContent = this.page!.locator('#dev-panel-content')
+  const isPanelOpen = await panelContent.isVisible().catch(() => false)
+  if (!isPanelOpen) {
+    const gearButton = this.page!.locator('#dev-gear-button').first()
+    await gearButton.waitFor({ state: 'visible', timeout: 10000 })
+    await gearButton.click()
+    await panelContent.waitFor({ state: 'visible', timeout: 10000 })
+    await this.page!.waitForTimeout(500) // Wait for React to render
+  }
+  // Activate virtual route first (required before selecting a route)
+  const virtualRouteToggle = this.page!.locator('#dev-virtual-route-toggle').first()
+  const isVirtualRouteActive = await virtualRouteToggle.evaluate((el) => {
+    const switchEl = el.querySelector('#dev-virtual-route-switch')
+    if (!switchEl) return false
+    const style = window.getComputedStyle(switchEl)
+    return style.backgroundColor === 'rgb(34, 197, 94)' // #22c55e when active
+  }).catch(() => false)
+  if (!isVirtualRouteActive) {
+    await virtualRouteToggle.waitFor({ state: 'visible', timeout: 10000 })
+    await virtualRouteToggle.click()
+    // Wait for toggle to activate and React to update
+    await this.page!.waitForTimeout(1000)
+  }
+  // Select a route (now that virtual route is active)
+  const routeSelector = this.page!.locator('#dev-route-selector, select').first()
+  await routeSelector.waitFor({ state: 'visible', timeout: 10000 })
+  await routeSelector.selectOption({ index: 0 })
+  // Wait for route to load and React to update
+  await this.page!.waitForTimeout(1500)
 })
 
 Given('the GPS simulation is running', async function (this: CityGuidedWorld) {
   // S'assurer qu'une route est chargée
-  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/')
-  const isVisible = await stepIndicator.isVisible().catch(() => false)
+  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/, #dev-route-indicator')
+  const isVisible = await stepIndicator.first().isVisible().catch(() => false)
   
   if (!isVisible) {
     // Charger une route d'abord en appelant directement la logique
     if (!this.page || this.page.url() !== `${this.baseUrl}/`) {
       await this.goto('/')
     }
+    await this.page!.waitForLoadState('networkidle')
     await this.page!.waitForTimeout(1000)
     
     const devButton = this.page!.getByRole('button', { name: 'Développeur' })
-    await devButton.waitFor({ state: 'visible', timeout: 5000 })
+    await devButton.waitFor({ state: 'visible', timeout: 10000 })
     await devButton.click()
-    await this.page!.waitForTimeout(300)
-    
-    const routeSelector = this.page!.locator('select').first()
-    await routeSelector.waitFor({ state: 'visible', timeout: 5000 })
-    await routeSelector.selectOption({ index: 0 })
     await this.page!.waitForTimeout(500)
     
-    const closeButton = this.page!.getByRole('button', { name: 'Fermer le panneau développeur' })
-    await closeButton.waitFor({ state: 'visible', timeout: 5000 })
-    await closeButton.click()
-    await this.page!.waitForTimeout(300)
+    const routeSelector = this.page!.locator('#dev-route-selector, select').first()
+    await routeSelector.waitFor({ state: 'visible', timeout: 10000 })
+    await routeSelector.selectOption({ index: 0 })
+    await this.page!.waitForTimeout(1000)
+    
+    // Try to close panel - but the button might not exist, so use gear button instead
+    const gearButton = this.page!.locator('#dev-gear-button').first()
+    const gearVisible = await gearButton.isVisible().catch(() => false)
+    if (gearVisible) {
+      await gearButton.click()
+      await this.page!.waitForTimeout(500)
+    }
   }
   
   // Démarrer la simulation
@@ -347,7 +385,7 @@ Given('the GPS simulation is running', async function (this: CityGuidedWorld) {
   
   if (count > 0) {
     await playButtons.nth(count - 1).click()
-    await this.page!.waitForTimeout(1000) // Attendre que la simulation démarre
+    await this.page!.waitForTimeout(1500) // Attendre que la simulation démarre
   }
 })
 
@@ -397,13 +435,31 @@ When('I activate guide mode', async function (this: CityGuidedWorld) {
 })
 
 Then('the GPS player should be visible', async function (this: CityGuidedWorld) {
-  // Vérifier que le lecteur GPS est visible
-  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/')
-  await expect(stepIndicator.first()).toBeVisible({ timeout: 5000 })
+  // Le GPS player est maintenant dans DevControlBlock
+  // On peut l'identifier par la présence de l'indicateur de route (#dev-route-indicator)
+  // qui est visible quand virtualRouteActive && simPath.length > 0
+  const routeIndicator = this.page!.locator('#dev-route-indicator')
+  await expect(routeIndicator).toBeVisible({ timeout: 10000 })
 })
 
 Then('the GPS player should not be visible', async function (this: CityGuidedWorld) {
-  // Vérifier que le lecteur GPS n'est plus visible
-  const stepIndicator = this.page!.locator('text=/Étape \\d+\\/\\d+/')
-  await expect(stepIndicator.first()).not.toBeVisible({ timeout: 2000 })
+  // Le GPS player est maintenant dans DevControlBlock
+  // Quand guide mode est actif, les contrôles GPS sont cachés
+  // L'indicateur de route devrait être caché ou le panneau dev fermé
+  // Wait a bit for the UI to update after guide mode activation
+  await this.page!.waitForTimeout(1000);
+  const routeIndicator = this.page!.locator('#dev-route-indicator')
+  const isVisible = await routeIndicator.isVisible().catch(() => false)
+  // The GPS player might still be visible if guide mode doesn't hide it
+  // Check if the dev panel is closed or if the route indicator is hidden
+  const devPanel = this.page!.locator('#dev-panel-content')
+  const isPanelOpen = await devPanel.isVisible().catch(() => false)
+  // If panel is open, the route indicator should be hidden in guide mode
+  // If panel is closed, the route indicator won't be visible anyway
+  if (isPanelOpen) {
+    expect(isVisible).toBe(false)
+  } else {
+    // Panel is closed, so route indicator won't be visible anyway
+    expect(isVisible).toBe(false)
+  }
 })

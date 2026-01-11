@@ -4,78 +4,132 @@ type Props = {
   poiName: string
   poiImage?: string
   currentText: string
-  onPrev?: () => void
-  onNext?: () => void
-  onPlayPause?: () => void
-  playing?: boolean
+  onMuteToggle?: () => void
+  isMuted?: boolean
 }
-
-const controlButtonClass =
-  'w-12 h-12 rounded-full border-none bg-slate-800 text-white text-xl flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-lg'
 
 export function NavigationPanel({
   poiName,
   poiImage,
   currentText,
-  onPrev,
-  onNext,
-  onPlayPause,
-  playing,
+  onMuteToggle,
+  isMuted,
 }: Props) {
   return (
     <div
       id="navigation-panel"
-      className="fixed bottom-0 left-0 right-0 z-[99997] bg-slate-900/98 backdrop-blur-sm border-t border-slate-700 shadow-2xl"
-      style={{ maxHeight: '35vh' }}
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '33vh',
+        zIndex: 99997,
+        background: 'rgba(15, 23, 42, 0.98)',
+        backdropFilter: 'blur(8px)',
+        borderTop: '1px solid #334155',
+        boxShadow: '0 -8px 32px rgba(0,0,0,0.3)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
     >
-      <div className="p-4 flex flex-col gap-3 overflow-hidden">
-        {/* Image */}
+      {/* En-tête avec nom du POI */}
+      <div
+        style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid #334155',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <h3 style={{ color: '#f1f5f9', fontSize: 16, fontWeight: 600, margin: 0 }}>
+          {poiName}
+        </h3>
+      </div>
+
+      {/* Contenu principal */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: 12, gap: 12 }}>
+        {/* Image à gauche */}
         {poiImage && (
-          <div className="w-full h-32 rounded-xl overflow-hidden bg-slate-800">
+          <div
+            style={{
+              width: 120,
+              height: '100%',
+              borderRadius: 8,
+              overflow: 'hidden',
+              background: '#1e293b',
+              flexShrink: 0,
+            }}
+          >
             <img
               src={poiImage}
               alt={poiName}
-              className="w-full h-full object-cover"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           </div>
         )}
 
-        {/* Current text being read */}
-        <div className="max-h-20 overflow-y-auto text-slate-200 text-sm leading-relaxed">
+        {/* Description à droite */}
+        <div
+          style={{
+            flex: 1,
+            color: '#cbd5e1',
+            fontSize: 14,
+            lineHeight: 1.5,
+            overflowY: 'auto',
+          }}
+        >
           {currentText || 'En attente du prochain point d\'intérêt...'}
         </div>
+      </div>
 
-        {/* Controls */}
-        <div className="flex items-center justify-center gap-4 pt-2 border-t border-slate-700">
+      {/* Barre du bas avec bouton mute */}
+      <div
+        style={{
+          padding: '8px 16px',
+          borderTop: '1px solid #334155',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: 12,
+        }}
+      >
+        {onMuteToggle && (
           <button
-            id="nav-prev-button"
-            className={`${controlButtonClass} opacity-80`}
-            onClick={onPrev}
-            disabled={!onPrev}
-            aria-label="Précédent"
+            onClick={onMuteToggle}
+            style={{
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: 'none',
+              background: isMuted ? '#ef4444' : '#22c55e',
+              color: '#ffffff',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s ease',
+            }}
           >
-            ⏮
+            {isMuted ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
+            {isMuted ? 'Muet' : 'Audio'}
           </button>
-          <button
-            id="nav-play-pause-button"
-            className={`w-14 h-14 rounded-full border-none text-2xl flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-xl ${
-              playing ? 'bg-red-500' : 'bg-green-500'
-            }`}
-            onClick={onPlayPause}
-            aria-label={playing ? 'Pause' : 'Play'}
-          >
-            {playing ? '⏸' : '▶️'}
-          </button>
-          <button
-            id="nav-next-button"
-            className={`${controlButtonClass} opacity-80`}
-            onClick={onNext}
-            disabled={!onNext}
-            aria-label="Suivant"
-          >
-            ⏭
-          </button>
-        </div>
+        )}
       </div>
     </div>
   )

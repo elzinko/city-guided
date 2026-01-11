@@ -3,8 +3,11 @@
  * Setup and teardown for test scenarios
  */
 
-import { Before, After, Status } from '@cucumber/cucumber';
+import { Before, After, Status, setDefaultTimeout } from '@cucumber/cucumber';
 import { CityGuidedWorld } from './world';
+
+// Set default timeout to 10 seconds for all steps (reduced for faster test execution)
+setDefaultTimeout(10 * 1000);
 
 Before(async function (this: CityGuidedWorld) {
   // Initialize browser before each scenario

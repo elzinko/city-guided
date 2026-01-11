@@ -15,7 +15,8 @@ async function bootstrap() {
   routes.forEach((r) => server.route(r))
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3001
-  await server.listen({ port, host: '0.0.0.0' })
+  const host = process.env.HOST || '127.0.0.1'
+  await server.listen({ port, host })
   console.log(`API listening on ${port}`)
 }
 

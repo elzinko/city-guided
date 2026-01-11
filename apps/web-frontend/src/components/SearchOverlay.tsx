@@ -15,9 +15,10 @@ type Props = {
   setDiscoverMode?: (v: boolean) => void
   setSheetLevel?: (v: 'hidden' | 'peek' | 'mid' | 'full') => void
   lastQuery?: string
+  isDesktop?: boolean // Pour le layout Google Maps style
 }
 
-export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, setSearchReady, onQuickSelect, onClear, onNavigateToSaved, setLastQuery, setDiscoverMode, setSheetLevel, lastQuery }: Props) {
+export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, setSearchReady, onQuickSelect, onClear, onNavigateToSaved, setLastQuery, setDiscoverMode, setSheetLevel, lastQuery, isDesktop = false }: Props) {
   // Générer des icônes aléatoires pour les adresses enregistrées
   const getRandomIcon = (index: number) => {
     const icons = [
@@ -91,56 +92,61 @@ export function SearchOverlay({ query, setQuery, searchActive, setSearchActive, 
   return (
     <>
       <div
+        id="search-overlay"
         style={{
           position: 'absolute',
           top: 12,
           left: 12,
-          right: 12,
+          right: isDesktop ? 'auto' : 12,
+          width: isDesktop ? 'auto' : 'auto',
           display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
+          flexDirection: isDesktop ? 'row' : 'column',
+          alignItems: isDesktop ? 'center' : 'stretch',
+          gap: isDesktop ? 12 : 6,
           zIndex: 12005,
         }}
       >
-        <SearchBar
-          query={query}
-          setQuery={(v) => {
-            setQuery(v)
-            markReady()
-          }}
-          searchActive={searchActive}
-          onBack={() => {
-            // Quand on clique sur la flèche précédent, sauvegarder la query, effacer le texte et fermer la recherche
-            if (query) {
-              // Sauvegarder la query avant de l'effacer (sera réaffichée si on rouvre la recherche)
-              if (setLastQuery) setLastQuery(query)
-            }
-            setQuery('')
-            setSearchActive(false)
-            setSearchReady(false)
-            // S'assurer que le panneau découverte ne s'affiche pas
-            if (setDiscoverMode) setDiscoverMode(false)
-            if (setSheetLevel) setSheetLevel('hidden')
-          }}
-          onClear={clearAll}
-          onVoiceStart={startVoice}
-          onFocus={() => {
-            setSearchActive(true)
-            // Réafficher la dernière query si elle existe
-            if (lastQuery && !query) {
-              setQuery(lastQuery)
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && query) {
-              // Fermer l'overlay et afficher les résultats
-              setSearchActive(false)
+        <div style={{ width: isDesktop ? 380 : '100%', flexShrink: 0 }}>
+          <SearchBar
+            query={query}
+            setQuery={(v) => {
+              setQuery(v)
               markReady()
-            }
-          }}
-          showPoiIcon={!searchActive}
-          testId="search-bar-main"
-        />
+            }}
+            searchActive={searchActive}
+            onBack={() => {
+              // Quand on clique sur la flèche précédent, sauvegarder la query, effacer le texte et fermer la recherche
+              if (query) {
+                // Sauvegarder la query avant de l'effacer (sera réaffichée si on rouvre la recherche)
+                if (setLastQuery) setLastQuery(query)
+              }
+              setQuery('')
+              setSearchActive(false)
+              setSearchReady(false)
+              // S'assurer que le panneau découverte ne s'affiche pas
+              if (setDiscoverMode) setDiscoverMode(false)
+              if (setSheetLevel) setSheetLevel('hidden')
+            }}
+            onClear={clearAll}
+            onVoiceStart={startVoice}
+            onFocus={() => {
+              setSearchActive(true)
+              // Réafficher la dernière query si elle existe
+              if (lastQuery && !query) {
+                setQuery(lastQuery)
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && query) {
+                // Fermer l'overlay et afficher les résultats
+                setSearchActive(false)
+                markReady()
+              }
+            }}
+            showPoiIcon={!searchActive}
+            testId="search-bar-main"
+          />
+        </div>
         {!searchActive && (
           <div
             style={{

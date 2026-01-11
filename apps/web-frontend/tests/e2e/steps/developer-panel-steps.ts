@@ -29,12 +29,14 @@ Then('the developer panel should be visible', async function (this: CityGuidedWo
 // Step removed - using the one from bottom-menu-steps.ts to avoid duplication
 
 When('I click the close button in the developer panel', async function (this: CityGuidedWorld) {
-  // Look for the close button (X) in the panel header
-  const closeButton = this.page!.getByRole('button', { name: 'Fermer le panneau développeur' })
-  await closeButton.waitFor({ state: 'visible', timeout: 5000 })
+  // The developer panel uses a gear button to toggle open/close
+  // The button has aria-label="Développeur" and id="dev-gear-button"
+  const closeButton = this.page!.locator('#dev-gear-button').first()
+  await closeButton.waitFor({ state: 'visible', timeout: 10000 })
   await closeButton.click()
-  // Wait for panel to close
-  await this.page!.waitForTimeout(300)
+  // Wait for panel to close (check that panel content is hidden)
+  const panelContent = this.page!.locator('#dev-panel-content')
+  await panelContent.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {})
 })
 
 Then('the developer panel should not be visible', async function (this: CityGuidedWorld) {
@@ -45,10 +47,25 @@ Then('the developer panel should not be visible', async function (this: CityGuid
 // Step removed - using the one from bottom-menu-steps.ts to avoid duplication
 
 When('I select a route in the developer panel', async function (this: CityGuidedWorld) {
-  const routeSelector = this.page!.locator('select').first()
-  await routeSelector.waitFor({ state: 'visible', timeout: 5000 })
+  // Make sure the panel is open first
+  const panelContent = this.page!.locator('#dev-panel-content')
+  const isPanelOpen = await panelContent.isVisible().catch(() => false)
+  if (!isPanelOpen) {
+    // Open the panel by clicking the gear button
+    const gearButton = this.page!.locator('#dev-gear-button').first()
+    await gearButton.waitFor({ state: 'visible', timeout: 10000 })
+    await gearButton.click()
+    // Wait for panel to open
+    await panelContent.waitFor({ state: 'visible', timeout: 10000 })
+    await this.page!.waitForTimeout(500) // Wait for React to render
+  }
+  // Now find and select the route
+  // Use the specific selector for route selector in dev panel
+  const routeSelector = this.page!.locator('#dev-route-selector, select').first()
+  await routeSelector.waitFor({ state: 'visible', timeout: 10000 })
   await routeSelector.selectOption({ index: 0 })
-  await this.page!.waitForTimeout(500)
+  // Wait for route to load and React to update
+  await this.page!.waitForTimeout(1000)
 })
 
 When('I start the simulation', async function (this: CityGuidedWorld) {

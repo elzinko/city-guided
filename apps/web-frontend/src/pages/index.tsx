@@ -1,22 +1,26 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { SearchOverlay } from '../components/SearchOverlay'
-import { StoryPanel } from '../components/StoryPanel'
-import { ResultsPanel } from '../components/ResultsPanel'
-import { GuideControls } from '../components/GuideControls'
+// ResultsPanel remplacé par BottomSheetNew pour l'affichage des résultats
+// GuideControls remplacé par DevControlBlock
 import { BottomSheetNew } from '../components/BottomSheetNew'
 import { BottomMenu, type MenuTab } from '../components/BottomMenu'
-import { AdminSheet } from '../components/AdminSheet'
-import { NavigationOverlay } from '../components/NavigationOverlay'
-import { NavigationPanel } from '../components/NavigationPanel'
-import { PlayButton } from '../components/PlayButton'
-import { PlayerControls } from '../components/PlayerControls'
-import { distanceMeters } from '../utils/distance'
+// AdminSheet remplacé par DevControlBlock
+import { DevControlBlock } from '../components/DevControlBlock'
+import { NavigationPoiList } from '../components/NavigationPoiList'
+// GpsPlayer remplacé par DevControlBlock qui intègre le lecteur + panneau dev
+import { MapControlButtons } from '../components/MapControlButtons'
+import { StoryPanelContainer } from '../components/StoryPanelContainer'
+import { MapContainer } from '../components/MapContainer'
+import { AppContainer } from '../components/AppContainer'
+import { distanceMeters, calculateBearing, filterPoisForNavigation } from '../utils/distance'
 import {
   DEFAULT_CENTER_RADIUS_METERS,
   GPS_HIDE_THRESHOLD_PERCENT,
   MAX_POIS_DISPLAYED,
   SHEET_HEIGHTS,
+  SHOW_DEV_OPTIONS,
 } from '../config/constants'
+import { getBottomSheetHeight } from '../config/ui-rules'
 
 const DEFAULT_RADIUS_METERS = 400
 const DEFAULT_DRIVE_PATH = [
@@ -52,41 +56,7 @@ const ROUTE_OPTIONS: RouteOption[] = [
     description: 'Route par défaut autour du château',
     loadFn: () => Promise.resolve(DEFAULT_DRIVE_PATH),
   },
-  {
-    id: 'osrm',
-    name: 'Route OSRM',
-    description: 'Château → Melun (calculée via OSRM)',
-    loadFn: async () => {
-      const start = { lat: 48.402, lng: 2.6998 }
-      const end = { lat: 48.4865, lng: 2.5155 }
-      // Utiliser overview=simplified pour réduire le nombre de points (au lieu de full qui retourne tous les points)
-      const url = `${OSRM_BASE}/route?startLng=${start.lng}&startLat=${start.lat}&endLng=${end.lng}&endLat=${end.lat}&overview=simplified&geometries=geojson&steps=true&annotations=distance,duration,speed`
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`OSRM ${res.status}`)
-      const data = await res.json()
-      const route = data?.routes?.[0]
-      if (!route || !route.geometry?.coordinates?.length) throw new Error('Pas de géométrie retournée')
-      const coords: [number, number][] = route.geometry.coordinates
-      const ann = route.legs?.[0]?.annotation || {}
-      const distances: number[] = ann.distance || []
-      const durations: number[] = ann.duration || []
-      const speeds: number[] = ann.speed || []
-      return coords.map(([lng, lat], idx) => {
-        if (idx === 0) return { lat, lng, speedKmh: 0, durationMs: 0 }
-        const dist = distances[idx - 1] || 0
-        const dur = durations[idx - 1] || 0
-        let speedKmh = speeds[idx - 1] !== undefined ? speeds[idx - 1] * 3.6 : dist && dur ? (dist / dur) * 3.6 : 50
-        speedKmh = Math.min(Math.max(speedKmh, 15), 110)
-        const durationMs = Math.min(Math.max((dur || (dist / Math.max(speedKmh / 3.6, 1))) * 1000, 300), 8000)
-        return { lat, lng, speedKmh, durationMs }
-      })
-    },
-  },
 ]
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '')
-const OSRM_BASE =
-  (process.env.NEXT_PUBLIC_OSRM_URL && process.env.NEXT_PUBLIC_OSRM_URL.replace(/\/$/, '')) ||
-  `${API_BASE}/api/osrm`
 
 // Note: Leaflet import only on client
 type Poi = {
@@ -101,32 +71,12 @@ type Poi = {
   storySegments?: string[]
 }
 
-// Composant pour l'icône GPS personnalisée
-function GpsIcon({ hasGps }: { hasGps: boolean }) {
-  if (!hasGps) {
-    // Version grisée quand pas de GPS - agrandie
-    return (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-        <path d="M2 17l10 5 10-5" />
-        <path d="M2 12l10 5 10-5" />
-      </svg>
-    )
-  }
-  // Version avec point bleu et un seul cercle concentrique - agrandie (même taille que bouton réglages)
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-      {/* Cercle extérieur bleu clair - encore plus grand */}
-      <circle cx="12" cy="12" r="12" fill="#3b82f6" opacity="0.2" />
-      {/* Point central bleu - plus grand */}
-      <circle cx="12" cy="12" r="4" fill="#2563eb" stroke="#ffffff" strokeWidth="1.5" />
-    </svg>
-  )
-}
+// GpsIcon est maintenant un composant séparé dans ../components/GpsIcon.tsx
 
 export default function Home() {
-  const fallbackPos = { lat: 48.402, lng: 2.699 } // proche des mocks Fontainebleau/Perthes
-  const [pos, setPos] = useState<{ lat: number; lng: number } | null>(fallbackPos)
+  const fallbackPos = { lat: 48.3976, lng: 2.7855 } // By/Thomery - distinct de Fontainebleau pour ne pas confondre avec trajet virtuel
+  const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null) // Null par défaut, attend la vraie géoloc
+  const [realGpsPos, setRealGpsPos] = useState<{ lat: number; lng: number } | null>(null) // Position GPS réelle
   const [pois, setPois] = useState<Poi[]>([])
   const [visiblePois, setVisiblePois] = useState<Poi[]>([])
   const [mapAlreadyCentered, setMapAlreadyCentered] = useState(false)
@@ -143,26 +93,191 @@ export default function Home() {
   const interpolationTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastPanRef = useRef<{ lat: number; lng: number } | null>(null)
   const [simPath, setSimPath] = useState<any[]>([])
+  const [devBlockHeight, setDevBlockHeight] = useState(0) // Hauteur du bloc dev pour ajuster le menu
   const [selectedRouteId, setSelectedRouteId] = useState<string>('default')
+  const [virtualRouteActive, setVirtualRouteActive] = useState(false) // Toggle trajet virtuel
+  const [userHasPanned, setUserHasPanned] = useState(false) // Pour éviter les recadrages automatiques après pan manuel
+  const userHasPannedRef = useRef(false) // Ref synchrone pour vérifications immédiates dans les effets
   const [routeStatus, setRouteStatus] = useState<string>('Trajet par défaut prêt')
   const [osrmError, setOsrmError] = useState<string | null>(null)
   const [speedFactor, setSpeedFactor] = useState(10) // x10 par défaut pour les tests
-  const [zoomLevel, setZoomLevel] = useState(14)
+  const INITIAL_ZOOM = 14 // Zoom initial par défaut
+  const [zoomLevel, setZoomLevel] = useState(INITIAL_ZOOM)
   const [audioPaused, setAudioPaused] = useState(true) // En pause par défaut
   const [searchActive, setSearchActive] = useState(false)
   const [searchReady, setSearchReady] = useState(false)
-  const [sheetLevel, setSheetLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
+  const [sheetLevel, setSheetLevel] = useState<'hidden' | 'peek' | 'mid' | 'full' | 'searchResults' | 'poiFromSearch' | 'poiFromMap'>('hidden')
+  // Mémoriser la position du panneau "Découvertes" avant d'ouvrir un POI
+  const [previousDiscoverLevel, setPreviousDiscoverLevel] = useState<'peek' | 'mid' | 'full' | null>(null)
+  const [sheetHeightPx, setSheetHeightPx] = useState<number | null>(null) // Hauteur actuelle du panneau en pixels (pendant le drag)
   const [centerRadiusMeters, setCenterRadiusMeters] = useState(DEFAULT_CENTER_RADIUS_METERS)
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(fallbackPos)
   const [discoverMode, setDiscoverMode] = useState(false)
   const [guideMode, setGuideMode] = useState(false)
   const [activeTab, setActiveTab] = useState<MenuTab>('discover')
-  const [adminLevel, setAdminLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
+  const [adminLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
+  const [devPanelOpen, setDevPanelOpen] = useState(false) // État du panneau dev (persisté)
   const [navigationStartTime, setNavigationStartTime] = useState<number | null>(null)
-  const [navigationElapsed, setNavigationElapsed] = useState(0)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [navigationElapsed, setNavigationElapsed] = useState(0) // Track navigation time (not yet displayed in UI)
   const [loadingPois, setLoadingPois] = useState(false)
   const [query, setQuery] = useState<string>('')
   const [lastQuery, setLastQuery] = useState<string>('') // Sauvegarder la dernière query pour la réafficher
+  const [navigationPois, setNavigationPois] = useState<Poi[]>([]) // POIs pour la navigation
+  const [visitedPoiIds, setVisitedPoiIds] = useState<Set<string>>(new Set()) // POIs visités
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [currentNavigationPoiIndex, setCurrentNavigationPoiIndex] = useState<number>(-1)
+  const [isDesktop, setIsDesktop] = useState(false) // Détection desktop vs mobile
+  const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null) // POI sélectionné pour afficher les détails
+  const [heading, setHeading] = useState<number | null>(null) // Direction du mouvement en degrés
+  const previousPosRef = useRef<{ lat: number; lng: number } | null>(null) // Position précédente pour calculer le heading
+  const speedFactorRef = useRef(speedFactor) // Ref pour le speedFactor - utilisé dans l'effet de simulation
+
+  // Synchroniser la ref avec l'état
+  useEffect(() => {
+    speedFactorRef.current = speedFactor
+  }, [speedFactor])
+
+  // Clé localStorage pour les options dev
+  const DEV_OPTIONS_KEY = 'cityguided_dev_options'
+  const devOptionsLoadedRef = useRef(false) // Pour éviter d'écraser les options avant le chargement initial
+
+  // Charger les options dev depuis localStorage au montage
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem(DEV_OPTIONS_KEY)
+      if (saved) {
+        const options = JSON.parse(saved)
+        if (typeof options.virtualRouteActive === 'boolean') setVirtualRouteActive(options.virtualRouteActive)
+        if (typeof options.selectedRouteId === 'string') setSelectedRouteId(options.selectedRouteId)
+        if (typeof options.speedFactor === 'number') setSpeedFactor(options.speedFactor)
+        if (typeof options.audioPaused === 'boolean') setAudioPaused(options.audioPaused)
+        if (typeof options.godMode === 'boolean') setGodMode(options.godMode)
+        if (typeof options.autoTts === 'boolean') setAutoTts(options.autoTts)
+        if (typeof options.devPanelOpen === 'boolean') setDevPanelOpen(options.devPanelOpen)
+      }
+      // Vérifier si on revient de la page d'édition des routes (devPanel=open dans l'URL)
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('devPanel') === 'open') {
+        setDevPanelOpen(true)
+        // Nettoyer l'URL sans recharger la page
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    } catch (e) {
+      console.warn('Failed to load dev options from localStorage:', e)
+    }
+    // Marquer le chargement comme terminé après un court délai pour laisser les setState s'appliquer
+    setTimeout(() => { devOptionsLoadedRef.current = true }, 100)
+  }, [])
+
+  // Sauvegarder les options dev dans localStorage quand elles changent
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    // Ne pas sauvegarder avant que le chargement initial soit terminé
+    if (!devOptionsLoadedRef.current) return
+    try {
+      const options = {
+        virtualRouteActive,
+        selectedRouteId,
+        speedFactor,
+        audioPaused,
+        godMode,
+        autoTts,
+        devPanelOpen,
+      }
+      localStorage.setItem(DEV_OPTIONS_KEY, JSON.stringify(options))
+    } catch (e) {
+      console.warn('Failed to save dev options to localStorage:', e)
+    }
+  }, [virtualRouteActive, selectedRouteId, speedFactor, audioPaused, godMode, autoTts, devPanelOpen])
+
+  // Gérer les changements de virtualRouteActive
+  // Utiliser des refs pour stocker les valeurs actuelles et éviter les closures stales
+  const simPathRef = useRef(simPath)
+  const realGpsPosRef = useRef(realGpsPos)
+  
+  // Synchroniser les refs avec les valeurs actuelles
+  useEffect(() => { simPathRef.current = simPath }, [simPath])
+  useEffect(() => { realGpsPosRef.current = realGpsPos }, [realGpsPos])
+  
+  const virtualRouteActiveRef = useRef(virtualRouteActive)
+  useEffect(() => {
+    // Détecter si c'est un vrai changement de virtualRouteActive (pas juste un re-render)
+    const wasActive = virtualRouteActiveRef.current
+    virtualRouteActiveRef.current = virtualRouteActive
+    
+    // Pas de changement réel, ne rien faire
+    if (virtualRouteActive === wasActive) return
+    
+    const currentSimPath = simPathRef.current
+    const currentRealGpsPos = realGpsPosRef.current
+    
+    if (virtualRouteActive) {
+      // ACTIVATION du trajet virtuel
+      console.log('[VirtualRoute] Activating, simPath length:', currentSimPath.length)
+      if (currentSimPath.length > 0) {
+        const startPoint = currentSimPath[0] as any
+        if (startPoint && startPoint.lat && startPoint.lng) {
+          const newPos = { lat: startPoint.lat, lng: startPoint.lng }
+          console.log('[VirtualRoute] Setting pos to start:', newPos)
+          lastPanRef.current = newPos
+          setPos(newPos)
+          setSimStep(0)
+          userHasPannedRef.current = false
+          setUserHasPanned(false)
+          
+          // Centrer la carte sur le point de départ avec le même zoom que le GPS réel
+          setTimeout(() => {
+            const map = (window as any)?._le_map
+            if (map && map.setView) {
+              console.log('[VirtualRoute] Centering map on start point with INITIAL_ZOOM:', newPos)
+              map.setView([newPos.lat, newPos.lng], INITIAL_ZOOM, { animate: true, duration: 0.5 })
+            }
+          }, 50)
+        }
+      }
+    } else {
+      // DÉSACTIVATION du trajet virtuel
+      const targetPos = currentRealGpsPos || fallbackPos
+      console.log('[VirtualRoute] Deactivating, setting pos to:', targetPos, 'realGpsPos:', currentRealGpsPos)
+      lastPanRef.current = targetPos
+      setPos(targetPos)
+      userHasPannedRef.current = false
+      setUserHasPanned(false)
+      // Recentrer la carte sur la vraie position avec un délai pour éviter les conflits
+      // avec d'autres effets qui pourraient réagir au changement de pos
+      setTimeout(() => {
+        const map = (window as any)?._le_map
+        if (map && map.setView) {
+          console.log('[VirtualRoute] Centering map on:', targetPos)
+          map.setView([targetPos.lat, targetPos.lng], INITIAL_ZOOM, { animate: true, duration: 0.5 })
+        }
+      }, 50)
+    }
+  }, [virtualRouteActive]) // Dépendance unique : virtualRouteActive
+
+  // Détecter si on est en desktop (style Google Maps)
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 768)
+    }
+    checkDesktop()
+    window.addEventListener('resize', checkDesktop)
+    return () => window.removeEventListener('resize', checkDesktop)
+  }, [])
+
+  // Écouter l'événement de sélection de POI depuis les popups Leaflet (clic sur la carte)
+  useEffect(() => {
+    const handleSelectPoi = (e: CustomEvent) => {
+      const poi = e.detail as Poi
+      setSelectedPoi(poi)
+      // Règle UI : quand on clique sur un POI depuis la carte, ouvrir à la moitié de la page
+      setSheetLevel('poiFromMap')
+    }
+    window.addEventListener('selectPoi', handleSelectPoi as EventListener)
+    return () => window.removeEventListener('selectPoi', handleSelectPoi as EventListener)
+  }, [])
 
   // Handle tab change
   const handleTabChange = (tab: MenuTab) => {
@@ -180,42 +295,83 @@ export default function Home() {
     }
   }
 
+  // Calculer le heading (direction du mouvement) quand la position change
   useEffect(() => {
-    console.log('[SHEET LEVEL] searchActive:', searchActive, 'searchReady:', searchReady, 'loadingPois:', loadingPois, 'discoverMode:', discoverMode, 'query:', query)
+    if (!pos) return
     
-    // Pendant la recherche active (overlay ouvert), cacher le sheet
-    if (searchActive) {
-      console.log('[SHEET LEVEL] Setting to hidden (search overlay active)')
-      setSheetLevel('hidden')
+    const prev = previousPosRef.current
+    if (prev) {
+      // Calculer la distance parcourue
+      const dist = distanceMeters(prev.lat, prev.lng, pos.lat, pos.lng)
+      
+      // Seulement mettre à jour le heading si on a bougé d'au moins 5m (évite le bruit GPS)
+      if (dist > 5) {
+        const newHeading = calculateBearing(prev.lat, prev.lng, pos.lat, pos.lng)
+        setHeading(newHeading)
+      }
+    }
+    
+    // Sauvegarder la position actuelle pour le prochain calcul
+    previousPosRef.current = { lat: pos.lat, lng: pos.lng }
+  }, [pos])
+
+  // Recalculer les POIs de navigation toutes les 5s en mode navigation
+  useEffect(() => {
+    if (!guideMode || !pos) return
+
+    const updateNavigationPois = () => {
+      // Filtrer les POIs déjà visités
+      const unvisitedPois = pois.filter((p) => !visitedPoiIds.has(p.id))
+      
+      // Utiliser le filtrage par cône de direction si on a un heading
+      const filteredPois = filterPoisForNavigation(
+        unvisitedPois,
+        pos!.lat,
+        pos!.lng,
+        heading, // null si pas de mouvement = cercle complet
+        2000, // rayon max 2km
+        75 // cône de ±75° (150° total)
+      )
+      
+      // Garder max 4 POIs (1 courant + 3 suivants)
+      // Remove distance property to match Poi type
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      setNavigationPois(filteredPois.slice(0, 4).map(({ distance, ...poi }) => poi) as Poi[])
+    }
+
+    // Mettre à jour immédiatement
+    updateNavigationPois()
+
+    // Puis toutes les 5s (plus réactif)
+    const interval = setInterval(updateNavigationPois, 5000)
+
+    return () => clearInterval(interval)
+  }, [guideMode, pos, pois, visitedPoiIds, heading])
+
+  useEffect(() => {
+    // Ne pas gérer automatiquement le panneau - laisser les actions utilisateur le contrôler
+    // Sauf pour le mode navigation qui force le panneau à 1/3
+    if (guideMode) {
+      setSheetLevel('mid')
       return
     }
     
-    // Attendre que les POI soient chargés avant d'afficher les résultats
-    if ((searchReady || discoverMode) && loadingPois) {
-      console.log('[SHEET LEVEL] Waiting for POIs to load...')
+    // Pendant la recherche active (overlay ouvert), cacher le sheet
+    if (searchActive) {
+      setSheetLevel('hidden')
       return
     }
     
     // Si on a une recherche avec résultats (mais overlay fermé), afficher le panneau
     if (searchReady && query && !loadingPois) {
-      console.log('[SHEET LEVEL] Setting to mid (search results)')
-      setSheetLevel('mid')
+      // Règle UI : la liste de recherche prend 2/3 de l'écran
+      setSheetLevel('searchResults')
       return
     }
     
-    // Si on a cliqué sur un bouton du menu (discoverMode ou autre tab), ouvrir le panneau
-    // Le panneau reste ouvert tant qu'un tab est actif
-    // MAIS seulement si on n'est pas en train de fermer une recherche (pas de searchActive et pas de résultats de recherche)
-    if ((discoverMode || guideMode || activeTab !== 'discover') && !searchActive && !(searchReady && query)) {
-      console.log('[SHEET LEVEL] Setting to mid (menu tab active)')
-      setSheetLevel('mid')
-      return
-    }
-    
-    // Par défaut : cacher le panneau (seul le menu est visible)
-    console.log('[SHEET LEVEL] Setting to hidden (default - menu only)')
-    setSheetLevel('hidden')
-  }, [searchReady, searchActive, discoverMode, guideMode, loadingPois, query])
+    // Par défaut : ne pas changer le niveau du panneau automatiquement
+    // Le panneau ne s'ouvre que sur action explicite (clic sur menu, recherche, etc.)
+  }, [searchReady, searchActive, guideMode, loadingPois, query])
   useEffect(() => {
     setSimStep(0)
   }, [simPath])
@@ -231,49 +387,79 @@ export default function Home() {
     if (!('geolocation' in navigator)) return
     const id = navigator.geolocation.watchPosition(
       (p) => {
-        setPos({ lat: p.coords.latitude, lng: p.coords.longitude })
+        const gpsPosition = { lat: p.coords.latitude, lng: p.coords.longitude }
+        setRealGpsPos(gpsPosition)
+        // Ne mettre à jour pos que si on n'est pas en simulation virtuelle
+        if (!virtualRouteActive) {
+          setPos(gpsPosition)
+        }
       },
       (err) => {
         console.error(err)
         // si l'utilisateur refuse la géoloc, on place une position de démo pour activer l'UI
-        setPos(fallbackPos)
+        setRealGpsPos(fallbackPos)
+        if (!virtualRouteActive) {
+          setPos(fallbackPos)
+        }
       },
       { enableHighAccuracy: true, maximumAge: 10000 }
     )
     return () => navigator.geolocation.clearWatch(id)
-  }, [])
+  }, [virtualRouteActive])
 
   // si la géoloc n'est pas dispo (desktop, blocage, etc.), injecter rapidement la position de démo
   useEffect(() => {
     if (pos) return
-    const t = setTimeout(() => setPos(fallbackPos), 500)
+    if (virtualRouteActive) return // En mode virtuel, la position sera définie par le trajet
+    const t = setTimeout(() => {
+      setPos(fallbackPos)
+      setRealGpsPos(fallbackPos)
+    }, 500)
     return () => clearTimeout(t)
-  }, [pos])
+  }, [pos, virtualRouteActive])
 
+  // Fetch POIs avec debounce pour éviter trop d'appels API
+  const lastFetchRef = useRef<{ query: string; lat: number; lng: number } | null>(null)
   useEffect(() => {
-    setLoadingPois(true)
-    console.log('[POI FETCH] Starting fetch with query:', query)
-    const base = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
     const basePos = mapCenter || pos || fallbackPos
+    
+    // Éviter les refetch inutiles si position très proche (< 100m) et même query
+    const last = lastFetchRef.current
+    if (last && last.query === query) {
+      const dist = distanceMeters(last.lat, last.lng, basePos.lat, basePos.lng)
+      if (dist < 100) {
+        // Position trop proche, pas besoin de refetch
+        return
+      }
+    }
+    
+    setLoadingPois(true)
+    const base = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
     const params = new URLSearchParams({ radius: 'all', lat: String(basePos.lat), lng: String(basePos.lng) })
     if (query) params.set('q', query)
     const url = base ? `${base}/api/pois?${params.toString()}` : `/api/pois?${params.toString()}`
-    fetch(url)
-      .then((r) => r.json())
-      .then((data) => {
-        const sorted = (data || []).map((p: any) => ({
-          ...p,
-          dist: basePos ? distanceMeters(basePos.lat, basePos.lng, p.lat, p.lng) : 0,
-        }))
-        sorted.sort((a: any, b: any) => a.dist - b.dist)
-        console.log('[POI FETCH] Received', sorted.length, 'POIs for query:', query)
-        setPois(sorted)
-        setLoadingPois(false)
-      })
-      .catch((err) => {
-        console.error('[POI FETCH] Error:', err)
-        setLoadingPois(false)
-      })
+    
+    // Debounce avec timeout
+    const timer = setTimeout(() => {
+      fetch(url)
+        .then((r) => r.json())
+        .then((data) => {
+          const sorted = (data || []).map((p: any) => ({
+            ...p,
+            dist: basePos ? distanceMeters(basePos.lat, basePos.lng, p.lat, p.lng) : 0,
+          }))
+          sorted.sort((a: any, b: any) => a.dist - b.dist)
+          setPois(sorted)
+          setLoadingPois(false)
+          lastFetchRef.current = { query, lat: basePos.lat, lng: basePos.lng }
+        })
+        .catch((err) => {
+          console.error('[POI FETCH] Error:', err)
+          setLoadingPois(false)
+        })
+    }, 300) // Debounce 300ms
+    
+    return () => clearTimeout(timer)
   }, [query, mapCenter?.lat, mapCenter?.lng])
 
   function getStorySegments(p: Poi): string[] {
@@ -295,26 +481,18 @@ export default function Home() {
       const path = await routeOption.loadFn()
       if (!path || path.length < 2) throw new Error('Route trop courte')
       setSimPath(path)
-      // Réinitialiser la position au début du nouveau trajet
-      if (path.length > 0 && path[0]) {
+      // Réinitialiser la position au début du nouveau trajet SEULEMENT si le trajet virtuel est activé
+      if (path.length > 0 && path[0] && virtualRouteActive) {
         const startPoint = path[0] as any
         if (startPoint.lat && startPoint.lng) {
           setPos({ lat: startPoint.lat, lng: startPoint.lng })
           setSimStep(0)
+          // Ne pas recadrer automatiquement - laisser l'utilisateur pan/zoom librement
+          userHasPannedRef.current = false
+          setUserHasPanned(false)
         }
       }
-      if (routeId === 'osrm') {
-        // Pour OSRM, on calcule la distance totale
-        let totalDist = 0
-        for (let i = 1; i < path.length; i++) {
-          const prev = path[i - 1] as any
-          const curr = path[i] as any
-          totalDist += distanceMeters(prev.lat, prev.lng, curr.lat, curr.lng)
-        }
-        setRouteStatus(`Route OSRM chargée (${Math.round(totalDist / 1000)} km)`)
-      } else {
-        setRouteStatus(`${routeOption.name} chargée (${path.length} points)`)
-      }
+      setRouteStatus(`${routeOption.name} chargée (${path.length} points)`)
     } catch (e: any) {
       setOsrmError(e?.message || 'Erreur de chargement')
       setRouteStatus(`Erreur: ${e?.message || 'Impossible de charger la route'}`)
@@ -429,12 +607,20 @@ export default function Home() {
       setPos({ lat: startPoint.lat, lng: startPoint.lng })
     }
   }
-  function stopSimulation() {
+  const stopSimulation = useCallback(() => {
+    console.log('[SIMULATION] Stopping simulation')
     setIsSimulating(false)
-    if (simTimerRef.current) clearTimeout(simTimerRef.current)
-    if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
+    setSimPaused(false)
+    if (simTimerRef.current) {
+      clearTimeout(simTimerRef.current)
+      simTimerRef.current = null
+    }
+    if (interpolationTimerRef.current) {
+      clearInterval(interpolationTimerRef.current)
+      interpolationTimerRef.current = null
+    }
     stopSpeech()
-  }
+  }, [stopSpeech])
 
   // Handle play/pause pour le simulateur GPS sur la carte principale
   const handleSimulationPlayPause = () => {
@@ -445,6 +631,7 @@ export default function Home() {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function prevSegment() {
     setActiveStory((cur) => {
       if (!cur) return cur
@@ -455,6 +642,7 @@ export default function Home() {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function nextSegment() {
     setActiveStory((cur) => {
       if (!cur) return cur
@@ -483,23 +671,40 @@ export default function Home() {
   }
 
   function recenterOnUser() {
-    if (typeof window === 'undefined' || !pos) return
+    if (typeof window === 'undefined') return
     const map = (window as any)._le_map
     if (!map) return
-    const r = centerRadiusMeters || DEFAULT_CENTER_RADIUS_METERS
-    const latDelta = r / 111000
-    const lngDelta = r / (111000 * Math.max(Math.cos((pos.lat * Math.PI) / 180), 0.2))
-    const southWest = [pos.lat - latDelta, pos.lng - lngDelta]
-    const northEast = [pos.lat + latDelta, pos.lng + lngDelta]
-    if (map.fitBounds) {
-      map.fitBounds([southWest, northEast], { padding: [24, 24] })
-    } else if (map.setView) {
-      map.setView([pos.lat, pos.lng], zoomLevel)
+    
+    // Déterminer la position cible selon le mode
+    // - Si trajet virtuel activé : utiliser pos (position simulée)
+    // - Sinon : utiliser realGpsPos (position GPS réelle) ou fallback
+    const targetPos = virtualRouteActive 
+      ? pos 
+      : (realGpsPos || fallbackPos)
+    
+    if (!targetPos) return
+    
+    // Si on n'est pas en mode trajet virtuel, synchroniser pos avec realGpsPos
+    // Important: mettre à jour lastPanRef AVANT setPos pour empêcher l'effet de suivi
+    // de recentrer automatiquement quand le state change
+    if (!virtualRouteActive) {
+      const newPos = realGpsPos || fallbackPos
+      lastPanRef.current = newPos // Mettre à jour AVANT setPos
+      setPos(newPos)
     }
+    
+    // Recentrer la carte sur la position cible AVEC le zoom initial
+    if (map.setView) {
+      map.setView([targetPos.lat, targetPos.lng], INITIAL_ZOOM, { animate: true, duration: 0.3 })
+    }
+    
     setMapAlreadyCentered(true)
+    userHasPannedRef.current = false
+    setUserHasPanned(false) // Réinitialiser le flag après recentrage manuel
   }
 
   // Interpolation progressive entre deux points du trajet
+  // Utilise speedFactorRef pour permettre le changement de vitesse sans redémarrer
   useEffect(() => {
     if (!isSimulating || simPaused || simStep >= simPath.length - 1) {
       if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
@@ -510,30 +715,38 @@ export default function Home() {
     const next = simPath[simStep + 1] as any
     if (!cur || !next) return
 
-    // Calculer la durée totale pour cette étape
+    // Calculer la distance et la durée de base pour cette étape
     const speedKmh = next?.speedKmh ?? cur?.speedKmh ?? 50
     const speedMs = Math.max(5, speedKmh / 3.6)
     const dist = distanceMeters(cur.lat, cur.lng, next.lat, next.lng)
     const baseDelay = (dist / speedMs) * 1000
     const delayRaw = next?.durationMs ?? baseDelay
-    const totalDuration = Math.max(300, Math.min(8000, delayRaw / Math.max(speedFactor, 0.25)))
 
-    // Mettre à jour la position de manière progressive (60 FPS)
+    // Utiliser une interpolation basée sur le temps écoulé
+    // Cela permet de changer speedFactor en temps réel
+    const startTime = Date.now()
+    let accumulatedProgress = 0 // Progression accumulée (0 à 1)
+    let lastUpdate = startTime
+
     const updateInterval = 16 // ~60 FPS
-    const steps = Math.max(1, Math.floor(totalDuration / updateInterval))
-    let currentStep = 0
-
     interpolationTimerRef.current = setInterval(() => {
-      currentStep++
-      const progress = Math.min(1, currentStep / steps)
+      const now = Date.now()
+      const elapsed = now - lastUpdate
+      lastUpdate = now
+
+      // Calculer la progression basée sur le temps et le speedFactor actuel
+      const currentSpeedFactor = Math.max(0.25, speedFactorRef.current)
+      const totalDuration = Math.max(300, Math.min(8000, delayRaw / currentSpeedFactor))
+      const progressIncrement = elapsed / totalDuration
+      accumulatedProgress = Math.min(1, accumulatedProgress + progressIncrement)
 
       // Interpolation linéaire entre les deux points
-      const interpolatedLat = cur.lat + (next.lat - cur.lat) * progress
-      const interpolatedLng = cur.lng + (next.lng - cur.lng) * progress
+      const interpolatedLat = cur.lat + (next.lat - cur.lat) * accumulatedProgress
+      const interpolatedLng = cur.lng + (next.lng - cur.lng) * accumulatedProgress
       setPos({ lat: interpolatedLat, lng: interpolatedLng })
 
       // Quand on arrive au point suivant, passer à l'étape suivante
-      if (progress >= 1) {
+      if (accumulatedProgress >= 1) {
         if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
         setSimStep((s) => s + 1)
       }
@@ -542,61 +755,54 @@ export default function Home() {
     return () => {
       if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
     }
-  }, [isSimulating, simPaused, simStep, simPath, speedFactor])
+  }, [isSimulating, simPaused, simStep, simPath]) // speedFactor retiré des dépendances
+
+  // Stop the simulation automatically when reaching the end of the path
+  useEffect(() => {
+    if (!isSimulating || simPaused) return
+    if (!simPath.length) return
+    if (simStep < simPath.length - 1) return
+    console.log('[SIMULATION] End of path reached, stopping...')
+    stopSimulation()
+  }, [isSimulating, simPaused, simStep, simPath.length, stopSimulation])
 
   // Suivre la position interpolée sur la carte pendant la simulation
+  // Seulement si l'utilisateur n'a pas déplacé la carte manuellement
   useEffect(() => {
-    if (!isSimulating || simPaused || !pos) return
+    // Utiliser la ref pour une vérification synchrone
+    if (!isSimulating || simPaused || !pos || userHasPannedRef.current) return
+    // Ne suivre que si le trajet virtuel est activé
+    if (!virtualRouteActive) return
 
     const map = (window as any)._le_map
     if (map && map.panTo) {
       // Suivre le point en mouvement sans animation (déjà animé par l'interpolation)
       map.panTo([pos.lat, pos.lng], { animate: false })
-      // Garder le zoom constant pendant le mouvement
-      if (map.setZoom) map.setZoom(zoomLevel)
+      // Garder le zoom constant pendant le mouvement (même zoom que GPS réel)
+      if (map.setZoom) map.setZoom(INITIAL_ZOOM)
     }
-  }, [pos, isSimulating, simPaused, adminLevel, zoomLevel])
+  }, [pos, isSimulating, simPaused, adminLevel, userHasPanned, virtualRouteActive])
 
   useEffect(() => {
     // Mettre à jour la position quand la simulation est en pause ou arrêtée (pour les boutons prev/next)
+    // Ne s'applique QUE si le trajet virtuel est activé ou la simulation en cours
+    if (!virtualRouteActive && !isSimulating) return // Ne pas modifier pos si pas de trajet virtuel
     if (isSimulating && !simPaused) return // L'interpolation gère déjà la position
 
     const pt = simPath[simStep] as any
     if (!pt || !pt.lat || !pt.lng || simStep < 0 || simStep >= simPath.length) return
     
     setPos(pt)
-    const map = (window as any)._le_map
-    if (map && map.panTo) {
-      map.panTo([pt.lat, pt.lng], { animate: true, duration: 0.3 })
-    }
-    
-    if (adminLevel !== 'hidden' && simPath.length > 0) {
-      // En mode développeur, mettre à jour la position même si la simulation est arrêtée
-      setPos(pt)
+    // Ne pas recadrer automatiquement si l'utilisateur a déplacé la carte
+    // Utiliser la ref pour une vérification synchrone
+    if (!userHasPannedRef.current) {
       const map = (window as any)._le_map
-      if (map) {
-        // Calculer le padding pour s'assurer que le point est visible
-        const viewportHeight = window.innerHeight
-        const adminHeights: Record<string, number> = {
-          peek: 0.15,
-          mid: 0.6,
-          full: 0.75,
-        }
-        const adminHeightPercent = adminHeights[adminLevel] || 0
-        const bottomPadding = viewportHeight * adminHeightPercent + 60
-        
-        // Utiliser fitBounds pour garantir la visibilité
-        const latDelta = 0.001
-        const lngDelta = 0.001
-        const bounds = [[pt.lat - latDelta, pt.lng - lngDelta], [pt.lat + latDelta, pt.lng + lngDelta]]
-        if (map.fitBounds) {
-          map.fitBounds(bounds, { padding: [24, 24, bottomPadding, 24], maxZoom: zoomLevel })
-        } else if (map.panTo) {
-          map.panTo([pt.lat, pt.lng], { animate: true, duration: 0.3 })
-        }
+      if (map && map.setView) {
+        // Centrer sur le point avec le même zoom que le GPS réel
+        map.setView([pt.lat, pt.lng], INITIAL_ZOOM, { animate: true, duration: 0.3 })
       }
     }
-  }, [simStep, isSimulating, simPath, zoomLevel, adminLevel])
+  }, [simStep, isSimulating, simPath, userHasPanned, virtualRouteActive])
 
   // use the shared tts package if available
   function speak(text?: string) {
@@ -684,7 +890,8 @@ export default function Home() {
 
         // initialize map and store reference globally (HMR safe)
         const map = (window as any)._le_map || L.map('map', { zoomControl: false })
-        if (!map._hasInit) {
+        const isNewMap = !map._hasInit
+        if (isNewMap) {
           map.setView([fallbackPos.lat, fallbackPos.lng], 12)
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
@@ -692,6 +899,11 @@ export default function Home() {
           map._hasInit = true
           if (map.zoomControl && map.removeControl) {
             map.removeControl(map.zoomControl)
+          }
+        } else {
+          // Pour les HMR, recentrer sur la position de départ si pas de virtualRoute
+          if (!virtualRouteActive && !pos) {
+            map.setView([fallbackPos.lat, fallbackPos.lng], 12, { animate: false })
           }
         }
 
@@ -701,6 +913,14 @@ export default function Home() {
             setMapMoveVersion((v: number) => v + 1)
             const center = map.getCenter && map.getCenter()
             if (center) setMapCenter({ lat: center.lat, lng: center.lng })
+            // Marquer que l'utilisateur a déplacé la carte manuellement
+            userHasPannedRef.current = true
+            setUserHasPanned(true)
+          })
+          map.on('dragstart', () => {
+            // Marquer dès le début du drag que l'utilisateur contrôle la carte
+            userHasPannedRef.current = true
+            setUserHasPanned(true)
           })
           ;(map as any)._move_handler_bound = true
         }
@@ -750,14 +970,17 @@ export default function Home() {
       }
 
       // centrer sur la position (follow) et afficher un marqueur courant
-      if (pos) {
+      // Mais seulement si l'utilisateur n'a pas déplacé la carte manuellement
+      // Utiliser la ref pour une vérification synchrone (évite les problèmes de timing avec setState)
+      if (pos && !userHasPannedRef.current) {
         const last = lastPanRef.current
         const hasChanged = !last || Math.abs(last.lat - pos.lat) > 1e-6 || Math.abs(last.lng - pos.lng) > 1e-6
         if (hasChanged) {
           // Si la simulation est active, utiliser une animation plus fluide
           if (isSimulating && !simPaused) {
-            const animationDuration = Math.max(0.2, Math.min(1.0, 1 / Math.max(speedFactor, 0.25)))
-            map.panTo([pos.lat, pos.lng], { animate: true, duration: animationDuration })
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const _animationDuration = Math.max(0.2, Math.min(1.0, 1 / Math.max(speedFactor, 0.25)))
+            map.panTo([pos.lat, pos.lng], { animate: false }) // Pas d'animation pour éviter les conflits
           } else {
             map.panTo([pos.lat, pos.lng], { animate: true, duration: 0.5 })
           }
@@ -813,7 +1036,7 @@ export default function Home() {
         }
       }
 
-      // route affichée si une simulation est chargée
+      // Route affichée si trajet virtuel activé (dev only) - pas besoin de simuler
       let routeGroup = (mapEl as any).__route_group as any
       if (routeGroup) {
         routeGroup.clearLayers()
@@ -821,12 +1044,54 @@ export default function Home() {
         routeGroup = L.layerGroup().addTo(map)
         ;(mapEl as any).__route_group = routeGroup
       }
-      if (simPath.length > 1 && isSimulating) {
+      // Afficher le trajet dès que virtualRouteActive est activé (fonctionnalité dev)
+      if (simPath.length > 1 && virtualRouteActive) {
         const latlngs = simPath.map((p: any) => [p.lat, p.lng])
-        const poly = L.polyline(latlngs, { color: '#ef4444', weight: 5, opacity: 0.85 })
+        // Style différent si en simulation active vs juste prévisualisation
+        const routeColor = isSimulating ? '#ef4444' : '#3b82f6' // Rouge si actif, bleu si prévisualisation
+        const routeWeight = isSimulating ? 5 : 4
+        const routeOpacity = isSimulating ? 0.85 : 0.6
+        const poly = L.polyline(latlngs, { 
+          color: routeColor, 
+          weight: routeWeight, 
+          opacity: routeOpacity,
+          dashArray: isSimulating ? undefined : '10, 10' // Pointillés si pas en simulation
+        })
         routeGroup.addLayer(poly)
+        
+        // Ajouter des marqueurs pour les points de départ et d'arrivée
+        if (!isSimulating) {
+          const startIcon = L.divIcon({
+            className: 'route-start-marker',
+            html: `<div style="
+              width: 24px; height: 24px; border-radius: 50%;
+              background: #22c55e; border: 3px solid white;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+              display: flex; align-items: center; justify-content: center;
+              color: white; font-size: 12px; font-weight: bold;
+            ">▶</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          })
+          const endIcon = L.divIcon({
+            className: 'route-end-marker',
+            html: `<div style="
+              width: 24px; height: 24px; border-radius: 50%;
+              background: #ef4444; border: 3px solid white;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+              display: flex; align-items: center; justify-content: center;
+              color: white; font-size: 12px; font-weight: bold;
+            ">⬛</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          })
+          L.marker([simPath[0].lat, simPath[0].lng], { icon: startIcon }).addTo(routeGroup)
+          L.marker([simPath[simPath.length - 1].lat, simPath[simPath.length - 1].lng], { icon: endIcon }).addTo(routeGroup)
+        }
+        
         // ajuster la vue sur l'itinéraire lors du chargement d'une nouvelle route
-        if (!mapAlreadyCentered) {
+        // Utiliser la ref pour une vérification synchrone
+        if (!mapAlreadyCentered && !userHasPannedRef.current) {
           map.fitBounds(poly.getBounds(), { padding: [24, 24] })
           setMapAlreadyCentered(true)
         }
@@ -844,7 +1109,15 @@ export default function Home() {
         // Vérifier si ce POI est actif (en cours de lecture)
         const isActive = activeStory && activeStory.poiId === p.id
         
-        // Créer une icône personnalisée pour le POI actif avec animation
+        // Icône selon la catégorie
+        const categoryIcon = p.category === 'Château' ? '🏰' :
+          p.category === 'Musée' ? '🏛️' :
+          p.category === 'Forêt' ? '🌲' :
+          p.category === 'Street Art' ? '🎨' :
+          p.category === 'Patrimoine' ? '🏛️' :
+          p.category === 'Balade' ? '🚶' : '📍'
+        
+        // Créer une icône personnalisée pour le POI
         let marker
         if (isActive && L.divIcon) {
           // Icône brillante et plus grande pour le POI actif
@@ -864,15 +1137,38 @@ export default function Home() {
               color: white;
               font-weight: bold;
               font-size: 14px;
-            ">📍</div>`,
+            ">${categoryIcon}</div>`,
             iconSize: [32, 32],
             iconAnchor: [16, 16],
           })
-          marker = L.marker([p.lat, p.lng], { icon: customIcon }).bindPopup(`<b>${p.name}</b><br/>${p.shortDescription}`)
+          marker = L.marker([p.lat, p.lng], { icon: customIcon })
         } else {
-          // Icône standard
-          marker = L.marker([p.lat, p.lng]).bindPopup(`<b>${p.name}</b><br/>${p.shortDescription}`)
+          // Icône standard avec emoji de catégorie
+          const defaultIcon = L.divIcon({
+            className: 'poi-marker',
+            html: `<div style="
+              width: 28px;
+              height: 28px;
+              border-radius: 50%;
+              background: #3b82f6;
+              border: 2px solid #ffffff;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 14px;
+              cursor: pointer;
+            ">${categoryIcon}</div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+          })
+          marker = L.marker([p.lat, p.lng], { icon: defaultIcon })
         }
+        
+        // Au clic sur le marker, ouvrir directement le panneau de détails
+        marker.on('click', () => {
+          window.dispatchEvent(new CustomEvent('selectPoi', { detail: p }))
+        })
         
         group.addLayer(marker)
       })
@@ -894,16 +1190,62 @@ export default function Home() {
         godGroup.clearLayers()
       }
     })
-  }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath, isSimulating, simPaused, speedFactor])
+  }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath, isSimulating, simPaused, speedFactor, userHasPanned, virtualRouteActive])
 
-  const sheetHeightPercent = SHEET_HEIGHTS[sheetLevel] || 0
+  // Utiliser getBottomSheetHeight pour gérer tous les niveaux (y compris contextuels)
+  const sheetHeightPercent = getBottomSheetHeight(sheetLevel)
   const gpsHidden = sheetHeightPercent >= GPS_HIDE_THRESHOLD_PERCENT || searchActive
-  // Position GPS button above bottom menu (64px = menu height)
-  const gpsBottom = sheetLevel === 'hidden' ? '80px' : `calc(${sheetHeightPercent}vh + 80px)`
+  
+  // Position des boutons : fixes quand le panneau dépasse le milieu
+  // Le panneau passe par-dessus les boutons (z-index plus élevé)
+  // Les boutons restent à une position fixe au milieu de l'écran quand le panneau est grand
+  const BOTTOM_MENU_HEIGHT = 64
+  const getButtonsBottom = () => {
+    if (guideMode) {
+      return 'calc(33vh + 16px)'
+    }
+    if (sheetLevel !== 'hidden') {
+      // Si le panneau dépasse le milieu (50%), les boutons restent fixes au milieu
+      const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+      const midHeight = vh * 0.5
+      if (sheetHeightPx !== null && sheetHeightPx > midHeight) {
+        // Panneau dépasse le milieu : boutons fixes au milieu de l'écran
+        return 'calc(50vh + 16px)'
+      }
+      // Sinon, les boutons suivent le panneau normalement
+      if (sheetHeightPx !== null) {
+        return `${devBlockHeight + BOTTOM_MENU_HEIGHT + sheetHeightPx + 16}px`
+      }
+      // Vérifier avec le pourcentage
+      const sheetHeightPxFromPercent = vh * (sheetHeightPercent / 100)
+      if (sheetHeightPxFromPercent > midHeight) {
+        return 'calc(50vh + 16px)'
+      }
+      return `calc(${devBlockHeight + BOTTOM_MENU_HEIGHT}px + ${sheetHeightPercent}vh + 16px)`
+    }
+    // Panneau fermé : au-dessus du menu (64px) + devBlock (dynamique) + marge (16px)
+    return `${BOTTOM_MENU_HEIGHT + devBlockHeight + 16}px`
+  }
+  const gpsBottom = getButtonsBottom()
+  
+  // Réinitialiser la hauteur en pixels quand le niveau change (après le drag)
+  useEffect(() => {
+    if (sheetLevel === 'hidden') {
+      setSheetHeightPx(null)
+    } else {
+      // Calculer la hauteur attendue basée sur le niveau
+      const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+      const heightPercent = getBottomSheetHeight(sheetLevel)
+      const calculatedHeight = vh * (heightPercent / 100)
+      setSheetHeightPx(calculatedHeight)
+    }
+  }, [sheetLevel])
 
   // Recadrer la carte sur la position utilisateur quand un panneau s'ouvre
+  // Mais seulement si l'utilisateur n'a pas déplacé la carte manuellement
   useEffect(() => {
-    if (!pos) return
+    // Utiliser la ref pour une vérification synchrone
+    if (!pos || userHasPannedRef.current) return
     const map = (window as any)._le_map
     if (!map || !map.setView) return
 
@@ -933,7 +1275,9 @@ export default function Home() {
       }
       
       // En mode développeur avec une route chargée, afficher le trajet complet
-      if (adminLevel !== 'hidden' && simPath.length > 0) {
+      // Mais seulement au premier chargement, pas à chaque fois que le panneau s'ouvre
+      // Utiliser la ref pour une vérification synchrone
+      if (adminLevel !== 'hidden' && simPath.length > 0 && !userHasPannedRef.current) {
         // Calculer les bounds de toute la route
         const routeLats = simPath.map((p: any) => p.lat).filter((lat: any) => typeof lat === 'number')
         const routeLngs = simPath.map((p: any) => p.lng).filter((lng: any) => typeof lng === 'number')
@@ -999,7 +1343,7 @@ export default function Home() {
         map.setView([pos.lat, pos.lng], adjustedZoom)
       }
     }
-  }, [sheetLevel, adminLevel, pos, centerRadiusMeters, zoomLevel, activeStory, pois, simPath, selectedRouteId])
+  }, [sheetLevel, adminLevel, pos, centerRadiusMeters, zoomLevel, activeStory, pois, simPath, selectedRouteId, userHasPanned])
 
   // Adaptive zoom in navigation mode
   useEffect(() => {
@@ -1050,22 +1394,35 @@ export default function Home() {
   // - Pas en mode recherche active (overlay ouvert)
   // - ET (panneau fermé OU pas de résultats de recherche à afficher)
   // - ET panneau développeur fermé
-  const shouldShowBottomMenu = !guideMode && !searchActive && adminLevel === 'hidden' && (sheetLevel === 'hidden' || !(searchReady && query))
+  // - ET pas en desktop (Google Maps style: pas de menu en bas sur desktop)
+  // Si searchActive est false ET query est vide, le menu doit être visible même si searchReady est true
+  const shouldShowBottomMenu = !isDesktop && !guideMode && !searchActive && !devPanelOpen && (sheetLevel === 'hidden' || !(searchReady && query && query.trim() !== ''))
 
   // Quand on ferme le panneau (sheetLevel = 'hidden'), réinitialiser searchReady si on avait des résultats
   // Cela permet de réafficher le menu proprement
   // IMPORTANT: Ne pas réinitialiser si on vient juste de lancer une recherche (query existe)
   // car le useEffect principal va ouvrir le panneau automatiquement
+  // Réinitialiser searchReady et query quand la recherche est fermée
+  // Cela permet au menu de réapparaître immédiatement
   useEffect(() => {
-    if (sheetLevel === 'hidden' && searchReady && !searchActive && !query) {
-      // Si on ferme le panneau de résultats ET qu'il n'y a plus de query, réinitialiser searchReady
-      // Cela permet de réafficher le menu proprement après avoir fermé une recherche terminée
+    if (!searchActive && (!query || query.trim() === '')) {
+      // Si la recherche n'est plus active ET que query est vide, réinitialiser searchReady
       setSearchReady(false)
     }
-  }, [sheetLevel, searchReady, searchActive, query])
+  }, [searchActive, query])
+  
+  // Réinitialiser searchReady quand le panneau est fermé et qu'il n'y a pas de query
+  useEffect(() => {
+    if (sheetLevel === 'hidden' && !searchActive && (!query || query.trim() === '')) {
+      // Si on ferme le panneau ET que la recherche n'est plus active ET que query est vide
+      // Réinitialiser searchReady pour permettre au menu de réapparaître
+      setSearchReady(false)
+    }
+  }, [sheetLevel, searchActive, query])
 
   return (
     <main
+      id="homepage"
       data-testid="homepage"
       style={{
         minHeight: 'calc(100vh + 100px)', // Permet de scroller et voir la zone blanche en dessous
@@ -1074,17 +1431,12 @@ export default function Home() {
         fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
       }}
     >
-      <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
-        <div 
-          id="map" 
-          data-testid="map-container" 
-          style={{ 
-            position: 'absolute', 
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))', // La carte s'arrête au niveau du bottom-menu
-          }} 
+      <AppContainer id="app-container">
+        <MapContainer
+          id="map"
+          isDesktop={isDesktop}
+          adminLevel={adminLevel}
+          guideMode={guideMode}
         />
 
         {!guideMode && (
@@ -1098,6 +1450,7 @@ export default function Home() {
             setDiscoverMode={setDiscoverMode}
             setSheetLevel={setSheetLevel}
             lastQuery={lastQuery}
+            isDesktop={isDesktop}
             onQuickSelect={(value) => {
               console.log('[QUICK SELECT] Selected:', value)
               // Fermer la recherche et afficher les résultats
@@ -1123,36 +1476,32 @@ export default function Home() {
           />
         )}
 
-        {guideMode && activeStory && (() => {
-          const activePoi = pois.find((p) => p.id === activeStory.poiId)
-          const segments = activePoi ? getStorySegments(activePoi) : []
-          return (
-            <NavigationOverlay
-              poiName={activePoi?.name || 'Lieu en cours'}
-              totalDuration={180} // 3 minutes par segment par défaut
-              currentTime={navigationElapsed}
-              currentSegment={activeStory.segmentIdx}
-              totalSegments={segments.length}
-            />
-          )
-        })()}
+        {/* NavigationOverlay supprimé - les infos sont maintenant dans StoryPanel */}
 
-        {(!searchActive && !guideMode && (activeStory || searchReady)) && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(70vh + 12px)',
-              left: 12,
-              right: 12,
-              display: 'grid',
-              gap: 12,
-              paddingBottom: 220,
-            }}
-          >
-            {activeStory && <StoryPanel activeStory={activeStory} pois={pois} getStorySegments={getStorySegments} speak={speak} />}
-            {searchReady && <ResultsPanel visiblePois={visiblePois} speak={speak} />}
-          </div>
-        )}
+        {/* Conteneur pour StoryPanel - visible uniquement en mode navigation (guideMode) */}
+        <StoryPanelContainer
+          id="story-panel-container"
+          visible={!searchActive && guideMode}
+          devBlockHeight={devBlockHeight}
+          activeStory={activeStory}
+          pois={pois}
+          getStorySegments={getStorySegments}
+          speak={speak}
+          stopSpeech={stopSpeech}
+          pauseSpeech={pauseSpeech}
+          resumeSpeech={resumeSpeech}
+          onStopNavigation={() => {
+            setGuideMode(false)
+            stopSpeech()
+            setAudioPaused(true)
+            setAudioGuideActive(false)
+            setNavigationPois([])
+            setSheetLevel('hidden')
+          }}
+          onSegmentChange={(poiId, segmentIdx) => {
+            setActiveStory({ poiId, segmentIdx })
+          }}
+        />
 
         {!guideMode && (() => {
           const items = searchReady || discoverMode ? pois : visiblePois
@@ -1163,7 +1512,6 @@ export default function Home() {
           const title = searchReady && query ? query : undefined
           // Menu caché si on affiche des résultats de recherche (panneau ouvert)
           const menuVisible = shouldShowBottomMenu
-          console.log('[BOTTOM SHEET] Rendering with:', { level, mode, itemsCount: items.length, query, searchReady, discoverMode, title, menuVisible, shouldShowBottomMenu })
           return (
             <BottomSheetNew
               level={level}
@@ -1171,230 +1519,163 @@ export default function Home() {
               query={title || 'Découvrir'}
               items={items}
               speak={speak}
+              stopSpeech={stopSpeech}
+              pauseSpeech={pauseSpeech}
+              resumeSpeech={resumeSpeech}
               pos={pos}
               mode={mode}
               activeTab={activeTab}
               menuVisible={menuVisible}
+              devBlockHeight={devBlockHeight}
+              isDesktop={isDesktop}
+              selectedPoi={selectedPoi}
+              onSelectPoi={(poi) => {
+                // Mémoriser la position actuelle du panneau "Découvertes" avant d'ouvrir le POI
+                // On mémorise seulement si on vient du panneau "Découvertes" (pas de recherche)
+                if (!searchReady && !query && (sheetLevel === 'peek' || sheetLevel === 'mid' || sheetLevel === 'full')) {
+                  setPreviousDiscoverLevel(sheetLevel as 'peek' | 'mid' | 'full')
+                  // Ouvrir le panneau POI à 50% (mid) quand on clique depuis "Découvertes"
+                  setSheetLevel('poiFromMap') // poiFromMap = 50%
+                } else if (searchReady && query) {
+                  // Si on vient d'une recherche, ouvrir à 90% (poiFromSearch)
+                  setSheetLevel('poiFromSearch')
+                }
+                setSelectedPoi(poi)
+              }}
+              onClosePoi={() => {
+                setSelectedPoi(null)
+                // Restaurer la position précédente du panneau "Découvertes"
+                if (previousDiscoverLevel) {
+                  setSheetLevel(previousDiscoverLevel)
+                  setPreviousDiscoverLevel(null)
+                } else if (searchReady && query) {
+                  // Si on était en mode recherche, revenir à la liste de recherche
+                  setSheetLevel('searchResults')
+                } else {
+                  // Sinon, fermer le panneau
+                  setSheetLevel('hidden')
+                }
+              }}
+              onClose={() => {
+                // Quand on ferme le panneau avec le bouton X, réinitialiser searchReady et query
+                // pour permettre au menu de réapparaître immédiatement
+                setSheetLevel('hidden')
+                setSearchReady(false)
+                setQuery('')
+              }}
+              onCenterOnPoi={(poi) => {
+                // Centrer la carte sur le POI
+                const map = (window as any)?._le_map
+                if (map && map.setView) {
+                  map.setView([poi.lat, poi.lng], 16, { animate: true, duration: 0.5 })
+                }
+              }}
+              onHeightChange={(heightPx) => {
+                // Mettre à jour la hauteur en temps réel pendant le drag
+                setSheetHeightPx(heightPx)
+              }}
+              previousDiscoverLevel={previousDiscoverLevel}
             />
           )
         })()}
 
-        {guideMode && (
-          <NavigationPanel
-            poiName={activeStory ? pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu en cours' : 'En attente d\'un point d\'intérêt'}
-            poiImage={activeStory ? `https://via.placeholder.com/640x320?text=${encodeURIComponent(
-              (pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu') + ' ' + ((activeStory.segmentIdx % 3) + 1)
-            )}` : undefined}
-            currentText={activeStory ? getStorySegments(pois.find((p) => p.id === activeStory.poiId) as any)[activeStory.segmentIdx] || '' : 'Déplacez-vous pour découvrir des points d\'intérêt...'}
-            onPrev={activeStory ? prevSegment : undefined}
-            onNext={activeStory ? nextSegment : undefined}
-            onPlayPause={() => {
-              setAudioPaused((p) => {
-                const next = !p
-                if (next) stopSpeech()
-                return next
+        {/* Liste POIs navigation - en bas à gauche */}
+        {guideMode && navigationPois.length > 0 && (
+          <NavigationPoiList
+            id="navigation-poi-list"
+            previousPoi={null} // Pas de POI précédent pour l'instant
+            currentPoi={navigationPois[0] || null} // Le plus proche dans le cône
+            nextPois={navigationPois.slice(1, 4)} // Les 3 suivants
+            onPoiClick={(poi) => {
+              // Marquer le POI comme visité
+              setVisitedPoiIds((prev) => {
+                const newSet = new Set(prev)
+                newSet.add(poi.id)
+                return newSet
               })
+              // Ouvrir le panneau de détails du POI
+              // Trouver le POI complet dans la liste des POIs
+              const fullPoi = pois.find((p) => p.id === poi.id)
+              if (fullPoi) {
+                setSelectedPoi(fullPoi)
+                setSheetLevel('peek')
+              }
             }}
-            playing={!audioPaused}
           />
         )}
 
-        {/* Lecteur GPS sur la carte principale - visible quand un trajet est chargé */}
-        {simPath.length > 0 && !guideMode && (
-          <div
-            style={{
-              position: 'fixed',
-              bottom: shouldShowBottomMenu ? 'calc(64px + env(safe-area-inset-bottom, 0px) + 16px)' : 'calc(16px + env(safe-area-inset-bottom, 0px))',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 12020,
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(8px)',
-              borderRadius: 16,
-              padding: '10px 12px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-              border: '1px solid rgba(0,0,0,0.1)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            {/* Numéro d'étape */}
-            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textAlign: 'center', marginBottom: -4 }}>
-              Étape {simStep + 1}/{simPath.length}
-            </div>
-            <PlayerControls
-              playing={isSimulating && !simPaused}
-              onPlayPause={handleSimulationPlayPause}
-              onPrevious={simPath.length > 0 && simStep > 0 ? prevPoi : undefined}
-              onNext={simPath.length > 0 && simStep < simPath.length - 1 ? nextPoi : undefined}
-              variant="square"
-              size="medium"
-            />
-            {/* Accélérateur miniaturisé */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                maxWidth: 200,
-              }}
-            >
-              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500, minWidth: 35 }}>
-                ⚡ {speedFactor.toFixed(1)}×
-              </span>
-              <input
-                type="range"
-                min={0.25}
-                max={10}
-                step={0.25}
-                value={speedFactor}
-                onChange={(e) => setSpeedFactor(Math.max(0.25, Number(e.target.value)))}
-                style={{
-                  flex: 1,
-                  height: 4,
-                  borderRadius: 2,
-                  background: '#e2e8f0',
-                  outline: 'none',
-                  accentColor: '#22c55e',
-                  cursor: 'pointer',
-                }}
-                title={`Vitesse: ${speedFactor.toFixed(1)}×`}
-              />
-            </div>
-          </div>
-        )}
+
+        {/* NavigationPanel remplacé par StoryPanel plus haut - ce composant n'est plus utilisé */}
 
         {/* Menu du bas : affiché selon la logique centralisée shouldShowBottomMenu */}
         {shouldShowBottomMenu && (
-          <BottomMenu activeTab={activeTab} onTabChange={handleTabChange} />
+          <BottomMenu activeTab={activeTab} onTabChange={handleTabChange} devBlockHeight={devBlockHeight} />
         )}
 
-        <div
-          style={{
-            position: 'fixed',
-            right: 16,
-            bottom: gpsBottom,
-            zIndex: 12030,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
+        {/* Boutons de contrôle flottants à droite (GPS + Play) */}
+        <MapControlButtons
+          id="map-control-buttons"
+          gpsBottom={gpsBottom}
+          gpsHidden={gpsHidden}
+          hasGps={!!pos}
+          guideMode={guideMode}
+          activeStory={activeStory}
+          onRecenterUser={recenterOnUser}
+          onPlayPause={() => {
+            if (!guideMode) {
+              setGuideMode(true)
+              setSheetLevel('mid')
+              setVisitedPoiIds(new Set())
+              setCurrentNavigationPoiIndex(-1)
+            } else {
+              setGuideMode(false)
+              stopSpeech()
+              setAudioPaused(true)
+              setAudioGuideActive(false)
+              setNavigationPois([])
+              setSheetLevel('hidden')
+            }
           }}
-        >
-          {!gpsHidden && (
-            <button
-              id="gps-button"
-              onClick={recenterOnUser}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                background: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                cursor: 'pointer',
-              }}
-              aria-label="Recentrer sur ma position"
-            >
-              <GpsIcon hasGps={!!pos} />
-            </button>
-          )}
-          <PlayButton
-            playing={guideMode}
-            onPlayPause={() => {
-              setGuideMode((v) => !v)
-              if (!guideMode) {
-                setSheetLevel('mid')
-              } else {
-                // Arrêter l'audio si on désactive le mode guide
-                stopSpeech()
-                setAudioPaused(true)
-                setAudioGuideActive(false) // Désactiver l'audio guide explicitement
-              }
-            }}
-            variant="square"
-            size="medium"
-            ariaLabel={guideMode ? 'Arrêter la visite guidée' : 'Démarrer la visite guidée'}
-          />
-          {!guideMode && (
-            <button
-              id="developer-button"
-              onClick={() => setAdminLevel((prev) => (prev === 'hidden' ? 'mid' : 'hidden'))}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                background: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                cursor: 'pointer',
-              }}
-              aria-label="Développeur"
-            >
-              {/* Icône engrenage - image PNG */}
-              <img
-                src="/images/gear-icon.png"
-                alt="Développeur"
-                width="28"
-                height="28"
-                style={{
-                  display: 'block',
-                  objectFit: 'contain',
-                }}
-              />
-            </button>
-          )}
-        </div>
+        />
 
-        <AdminSheet level={adminLevel} setLevel={setAdminLevel}>
-          <GuideControls
+        {/* Bloc unifié : lecteur GPS + panneau développeur - Visible uniquement si SHOW_DEV_OPTIONS */}
+        {SHOW_DEV_OPTIONS && (
+        <DevControlBlock
+            virtualRouteActive={virtualRouteActive}
+            setVirtualRouteActive={setVirtualRouteActive}
+            simStep={simStep}
+            simPath={simPath}
+            isSimulating={isSimulating}
+            simPaused={simPaused}
+            speedFactor={speedFactor}
+            setSpeedFactor={setSpeedFactor}
+            onPlayPause={handleSimulationPlayPause}
+            onPrevious={simPath.length > 0 && simStep > 0 ? prevPoi : undefined}
+            onNext={simPath.length > 0 && simStep < simPath.length - 1 ? nextPoi : undefined}
+            stopSimulation={stopSimulation}
             routeOptions={ROUTE_OPTIONS}
             selectedRouteId={selectedRouteId}
             onRouteSelect={setSelectedRouteId}
             loadRoute={loadRoute}
             routeStatus={routeStatus}
             osrmError={osrmError}
-            startSimulation={startSimulation}
-            stopSimulation={stopSimulation}
-            isSimulating={isSimulating}
-            simStep={simStep}
-            simPath={simPath}
-            speedFactor={speedFactor}
-            setSpeedFactor={setSpeedFactor}
-            zoomLevel={zoomLevel}
-            setZoomLevel={setZoomLevel}
-            simPaused={simPaused}
-            setSimPaused={setSimPaused}
-            setMapAlreadyCentered={setMapAlreadyCentered}
-            setPos={setPos}
             pos={pos}
             godMode={godMode}
             setGodMode={setGodMode}
-            autoTts={autoTts}
-            setAutoTts={setAutoTts}
             audioPaused={audioPaused}
             setAudioPaused={setAudioPaused}
-            audioGuideActive={audioGuideActive}
-            setAudioGuideActive={setAudioGuideActive}
-            stopSpeech={stopSpeech}
             pauseSpeech={pauseSpeech}
             resumeSpeech={resumeSpeech}
+            zoomLevel={zoomLevel}
+            setZoomLevel={setZoomLevel}
             centerRadiusMeters={centerRadiusMeters}
             setCenterRadiusMeters={setCenterRadiusMeters}
-            recenterOnUser={recenterOnUser}
-            onPrevPoi={prevPoi}
-            onNextPoi={nextPoi}
+            onHeightChange={setDevBlockHeight}
+            panelOpen={devPanelOpen}
+            setPanelOpen={setDevPanelOpen}
           />
-        </AdminSheet>
-      </div>
+        )}
+      </AppContainer>
     </main>
   )
 }

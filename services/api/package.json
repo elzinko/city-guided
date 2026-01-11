@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc --noEmit",
     "start": "node dist/main.js",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "fastify": "^4.23.0",

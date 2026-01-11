@@ -23,6 +23,8 @@ services:
       - OSRM_URL=${OSRM_URL:-http://osrm:5000}
       - DATABASE_URL=${DATABASE_URL:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - APP_VERSION=${APP_VERSION:-}
+      - APP_REPO_URL=${APP_REPO_URL:-}
     networks:
       - default
       - osrm-network
@@ -44,6 +46,8 @@ services:
       - PORT=${WEB_PORT:-3080}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001}
       - NEXT_PUBLIC_OSRM_URL=${NEXT_PUBLIC_OSRM_URL:-http://localhost:5000}
+      - APP_VERSION=${APP_VERSION:-}
+      - APP_REPO_URL=${APP_REPO_URL:-}
     depends_on:
       - api
     networks:

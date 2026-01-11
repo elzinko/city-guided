@@ -15,6 +15,11 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
+  background: #ffffff; /* Blanc pour la zone en dessous du bottom-menu */
+}
+
+html {
+  background: #ffffff; /* Blanc pour la zone en dessous du bottom-menu */
 }
 
 /* Custom utility classes for mobile-first design */

@@ -229,11 +229,7 @@ Then('the bottom menu should be visible', async function (this: CityGuidedWorld)
   await expect(bottomMenu).toBeVisible();
 });
 
-Then('the bottom menu should not be visible', async function (this: CityGuidedWorld) {
-  const bottomMenu = this.page!.locator('#bottom-menu');
-  const isVisible = await bottomMenu.isVisible().catch(() => false);
-  expect(isVisible).toBe(false);
-});
+// Step removed - using the one from bottom-menu-steps.ts to avoid duplication
 
 Then('the search overlay should be closed', async function (this: CityGuidedWorld) {
   const overlay = this.page!.locator('[data-testid="search-overlay"]');

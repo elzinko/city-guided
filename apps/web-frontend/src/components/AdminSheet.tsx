@@ -1,23 +1,22 @@
 import React from 'react'
-import { ghostButtonStyle } from './ui'
+import { CloseButton } from './CloseButton'
 
 type Level = 'hidden' | 'peek' | 'mid' | 'full'
 
 type Props = {
   level: Level
   setLevel: (v: Level) => void
-  title?: string
   children: React.ReactNode
 }
 
-export function AdminSheet({ level, setLevel, title = 'Panneau développeur', children }: Props) {
+export function AdminSheet({ level, setLevel, children }: Props) {
   if (level === 'hidden') return null
 
   const heights: Record<Level, string> = {
     hidden: '0',
     peek: 'auto',
-    mid: '60vh',
-    full: '90vh',
+    mid: '60vh', // Réduit pour réduire la hauteur
+    full: '75vh', // Réduit pour réduire la hauteur
   }
   const height = heights[level] || 'auto'
 
@@ -33,45 +32,47 @@ export function AdminSheet({ level, setLevel, title = 'Panneau développeur', ch
         right: 0,
         bottom: 0,
         height,
-        maxHeight: '90vh',
+        maxHeight: '95vh',
         background: '#f8fafc',
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
         border: '1px solid #e2e8f0',
         boxShadow: '0 -12px 30px rgba(15,23,42,0.08)',
-        zIndex: 14000,
+        zIndex: 100000,
         display: 'flex',
         flexDirection: 'column',
       }}
     >
       <div
         style={{
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
-          padding: '8px 12px',
-          borderBottom: '1px solid #111827',
-          gap: 10,
+          justifyContent: 'center',
+          padding: '12px 12px',
+          borderBottom: '1px solid #e2e8f0',
+          minHeight: 48,
         }}
       >
         <div
           onClick={cycle}
           style={{
-            flex: 1,
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
+            justifyContent: 'center',
             cursor: 'pointer',
+            width: '100%',
+            paddingRight: 44, // Espace pour le bouton fermer
           }}
         >
-          <div style={{ width: 60, height: 4, borderRadius: 999, background: '#1f2937', margin: '0 auto' }} />
+          <div style={{ width: 40, height: 3, borderRadius: 999, background: '#64748b' }} />
         </div>
-        <div style={{ flex: 4, fontWeight: 700 }}>{title}</div>
-        <button style={ghostButtonStyle} onClick={() => setLevel('hidden')}>
-          ✕
-        </button>
+        <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+          <CloseButton onClick={() => setLevel('hidden')} size="medium" ariaLabel="Fermer le panneau développeur" />
+        </div>
       </div>
 
-      <div style={{ padding: 12, overflowY: 'auto', flex: 1 }}>{children}</div>
+      <div style={{ padding: 8, overflowY: 'visible', flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</div>
     </div>
   )
 }

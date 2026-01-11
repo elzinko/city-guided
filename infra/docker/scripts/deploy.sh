@@ -64,7 +64,7 @@ echo ""
 echo "📋 Environment: ${ENVIRONMENT}"
 echo "📦 SSM Path:    ${SSM_PATH}"
 echo "📁 Config file: ${ENV_FILE}"
-echo ""
+        echo ""
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Fetch configuration from AWS SSM Parameter Store
@@ -76,9 +76,9 @@ echo "📥 Fetching configuration from AWS SSM..."
 if ! command -v aws &> /dev/null; then
     echo "❌ AWS CLI not found!"
     echo "   Install: https://aws.amazon.com/cli/"
-    exit 1
-fi
-
+        exit 1
+    fi
+    
 # Fetch all parameters for this environment
 PARAMS=$(aws ssm get-parameters-by-path \
     --path "${SSM_PATH}" \
@@ -133,6 +133,10 @@ NEXT_PUBLIC_OSRM_URL=https://${SITE_DOMAIN}/osrm
 # Docker images from GHCR
 API_IMAGE=${API_IMAGE}
 WEB_IMAGE=${WEB_IMAGE}
+
+# Build metadata
+APP_VERSION=${IMAGE_TAG}
+APP_REPO_URL=https://github.com/elzinko/city-guided
 EOF
 
     echo "✅ ${ENV_FILE} generated from SSM"

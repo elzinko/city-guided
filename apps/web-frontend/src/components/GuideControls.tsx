@@ -1,15 +1,24 @@
 import React from 'react'
-import { Badge, ghostButtonStyle, primaryButtonStyle, secondaryButtonStyle, Toggle } from './ui'
+import { Badge, ghostButtonStyle, Toggle } from './ui'
+import { PlayerControls } from './PlayerControls'
+
+type RouteOption = {
+  id: string
+  name: string
+  description?: string
+}
 
 export function GuideControls({
-  loadOsrmRoute,
+  routeOptions,
+  selectedRouteId,
+  onRouteSelect,
+  loadRoute,
   routeStatus,
-  osrmError,
-  startSimulation,
-  stopSimulation,
-  isSimulating,
-  simStep,
-  simPath,
+	  osrmError,
+	  startSimulation,
+	  isSimulating,
+	  simStep,
+	  simPath,
   speedFactor,
   setSpeedFactor,
   zoomLevel,
@@ -25,120 +34,264 @@ export function GuideControls({
   setAutoTts,
   audioPaused,
   setAudioPaused,
+  audioGuideActive,
+  setAudioGuideActive,
   stopSpeech,
+  pauseSpeech,
+  resumeSpeech,
   centerRadiusMeters,
   setCenterRadiusMeters,
   recenterOnUser,
+  onPrevPoi,
+  onNextPoi,
 }: any) {
+  // Handle play/pause pour le simulateur GPS uniquement
+  const handleSimulationPlayPause = () => {
+    if (!isSimulating) {
+      startSimulation()
+    } else {
+      setSimPaused((v) => !v)
+    }
+  }
+
+  // Handle play/pause pour l'audio uniquement
+  const handleAudioPlayPause = () => {
+    // Si l'audio guide n'est pas activé, l'activer explicitement
+    if (!audioGuideActive) {
+      setAudioGuideActive(true)
+      setAutoTts(true)
+      setAudioPaused(false)
+      return
+    }
+
+    // Sinon, toggle pause/resume
+    const newPaused = !audioPaused
+    setAudioPaused(newPaused)
+    
+    if (newPaused) {
+      // Mettre en pause l'audio sans l'annuler
+      if (pauseSpeech) {
+        pauseSpeech()
+      }
+    } else {
+      // Reprendre l'audio au même endroit
+      try {
+        if (typeof window !== 'undefined' && (window as any).speechSynthesis) {
+          const synth = (window as any).speechSynthesis
+          // Si la synthèse est en pause, la reprendre
+          if (synth.paused) {
+            if (resumeSpeech) {
+              resumeSpeech()
+            } else {
+              synth.resume()
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+  }
+
   return (
-    <div
-      style={{
-        background: '#0f172a',
-        border: '1px solid #1f2937',
-        borderRadius: 16,
-        padding: 14,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-        color: '#f8fafc',
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* Status section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ color: osrmError ? '#fca5a5' : '#9ca3af', fontSize: 13 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {/* Status section */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div
+            style={{
+              color: osrmError ? '#dc2626' : '#64748b',
+              fontSize: 13,
+              fontWeight: 500,
+              padding: '8px 12px',
+              background: osrmError ? '#fef2f2' : '#f1f5f9',
+              borderRadius: 8,
+            }}
+          >
             {osrmError || routeStatus}
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', position: 'relative' }}>
             <Badge>{pos ? `📍 ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}` : '📍 Position en attente'}</Badge>
             <Badge>{`🚗 Étape ${Math.min(simStep + 1, simPath.length)}/${simPath.length || 1}`}</Badge>
+            {/* Bouton Éditer POIs en haut à droite */}
+            <a
+              href="/admin"
+              style={{
+                padding: '6px',
+                borderRadius: 8,
+                border: '1px solid #d4d9e1',
+                background: '#ffffff',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                transition: 'all 0.2s',
+                marginLeft: 'auto',
+              }}
+              title="Éditer les POIs"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f1f5f9'
+                e.currentTarget.style.borderColor = '#94a3b8'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#ffffff'
+                e.currentTarget.style.borderColor = '#d4d9e1'
+              }}
+            >
+              <img
+                src="/images/gear-icon.png"
+                alt="Éditer POIs"
+                width="18"
+                height="18"
+                style={{
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
+              />
+            </a>
           </div>
-        </div>
+      </div>
 
-        {/* Simulation controls - grid layout for mobile */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: 8,
-          }}
-        >
-          <button style={{ ...primaryButtonStyle, width: '100%' }} onClick={loadOsrmRoute}>
-            🗺️ Route OSRM
-          </button>
-          <button style={{ ...secondaryButtonStyle, width: '100%' }} onClick={startSimulation} disabled={isSimulating}>
-            ▶️ Simuler
-          </button>
-          <button
-            style={{ ...ghostButtonStyle, width: '100%' }}
-            onClick={() => setSimPaused((v: boolean) => !v)}
-            disabled={!isSimulating}
+      {/* Route selection */}
+      <div style={{ marginBottom: 12, position: 'relative' }}>
+          <select
+            value={selectedRouteId}
+            onChange={(e) => {
+              onRouteSelect(e.target.value)
+              loadRoute(e.target.value)
+            }}
+	            style={{
+	              width: '100%',
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid #d4d9e1',
+              background: '#ffffff',
+              color: '#0f172a',
+              fontSize: 14,
+              cursor: 'pointer',
+              fontWeight: 500,
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+	              backgroundPosition: 'right 12px center',
+	              paddingRight: '36px',
+	              position: 'relative',
+	              zIndex: 1,
+	            }}
           >
-            {simPaused ? '▶️ Reprendre' : '⏸️ Pause'}
-          </button>
-          <button style={{ ...ghostButtonStyle, width: '100%' }} onClick={stopSimulation} disabled={!isSimulating}>
-            ⏹️ Stop
-          </button>
-        </div>
+            {routeOptions.map((route: RouteOption) => (
+              <option key={route.id} value={route.id}>
+                {route.name}
+              </option>
+            ))}
+          </select>
+      </div>
 
-        {/* Toggles section - vertical on mobile */}
-        <div
+      {/* Simulation controls - Player controls avec précédent/suivant (simulateur GPS uniquement) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ 
+          fontSize: 14, 
+          color: '#0f172a', 
+          fontWeight: 600, 
+          marginBottom: 6,
+          display: 'flex',
+          alignItems: 'center',
+        }}>
+          Simulateur GPS
+        </div>
+        <PlayerControls
+          playing={isSimulating && !simPaused}
+          onPlayPause={handleSimulationPlayPause}
+          onPrevious={simPath.length > 0 && simStep > 0 ? onPrevPoi : undefined}
+          onNext={simPath.length > 0 && simStep < simPath.length - 1 ? onNextPoi : undefined}
+          variant="square"
+          size="medium"
+        />
+      </div>
+
+      {/* Contrôle audio séparé */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ 
+          fontSize: 14, 
+          color: '#0f172a', 
+          fontWeight: 600, 
+          marginBottom: 6,
+          display: 'flex',
+          alignItems: 'center',
+        }}>
+          Navigation
+        </div>
+        <PlayerControls
+          playing={audioGuideActive && !audioPaused && autoTts}
+          onPlayPause={handleAudioPlayPause}
+          variant="square"
+          size="medium"
+        />
+      </div>
+
+      {/* Toggles section - simplified audio controls */}
+      <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: 10,
-            padding: '10px 0',
-            borderTop: '1px solid #334155',
-            borderBottom: '1px solid #334155',
+            gap: 8,
+            padding: '8px 0',
+            borderTop: '1px solid #e2e8f0',
+            borderBottom: '1px solid #e2e8f0',
           }}
         >
-          <Toggle checked={godMode} onChange={(v: boolean) => setGodMode(v)} label="🔵 Zones POI" />
-          <Toggle checked={autoTts} onChange={(v: boolean) => setAutoTts(v)} label="🔊 Lecture auto" />
+          <Toggle checked={godMode} onChange={(v: boolean) => setGodMode(v)} label="Zones POI" />
           <Toggle
-            checked={!audioPaused}
+            checked={audioGuideActive && autoTts && !audioPaused}
             onChange={(v: boolean) => {
-              setAudioPaused(!v)
-              if (!v) stopSpeech()
-            }}
-            label="🎵 Audio actif"
-          />
-          <button
-            onClick={() => {
-              setAudioPaused(true)
-              stopSpeech()
-            }}
-            style={{ ...ghostButtonStyle, fontSize: 12, padding: '6px 10px' }}
-          >
-            🔇 Couper audio
-          </button>
-        </div>
-
-        {/* Sliders section - stack vertically */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <SliderControl
-            label="⚡ Vitesse"
-            value={speedFactor}
-            min={0.25}
-            max={10}
-            step={0.25}
-            displayValue={`${speedFactor.toFixed(1)}×`}
-            onChange={(v) => setSpeedFactor(Math.max(0.25, v))}
-          />
-          <SliderControl
-            label="🔍 Zoom"
-            value={zoomLevel}
-            min={11}
-            max={18}
-            step={0.5}
-            displayValue={String(zoomLevel)}
-            onChange={(v) => {
-              setZoomLevel(v)
-              try {
-                const map = (window as any)._le_map
-                if (map && map.setZoom) map.setZoom(v)
-              } catch {
-                // ignore
+              if (v) {
+                // Activer l'audio guide explicitement
+                setAudioGuideActive(true)
+                setAutoTts(true)
+                setAudioPaused(false)
+              } else {
+                // Désactiver l'audio guide
+                setAudioGuideActive(false)
+                setAutoTts(false)
+                setAudioPaused(true)
+                if (stopSpeech) stopSpeech()
               }
             }}
+            label="Lecture audio"
           />
+      </div>
+
+      {/* Sliders section */}
+      <SliderControl
+          label="⚡ Vitesse"
+          value={speedFactor}
+          min={0.25}
+          max={10}
+          step={0.25}
+          displayValue={`${speedFactor.toFixed(1)}×`}
+          onChange={(v) => setSpeedFactor(Math.max(0.25, v))}
+        />
+        <SliderControl
+          label="🔍 Zoom"
+          value={zoomLevel}
+          min={11}
+          max={18}
+          step={0.5}
+          displayValue={String(zoomLevel)}
+          onChange={(v) => {
+            setZoomLevel(v)
+            try {
+              const map = (window as any)._le_map
+              if (map && map.setZoom) map.setZoom(v)
+            } catch {
+              // ignore
+            }
+          }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <SliderControl
             label="📏 Rayon"
             value={centerRadiusMeters / 1000}
@@ -148,10 +301,13 @@ export function GuideControls({
             displayValue={`${(centerRadiusMeters / 1000).toFixed(1)} km`}
             onChange={(v) => setCenterRadiusMeters(v * 1000)}
           />
-        </div>
+          <div style={{ fontSize: 11, color: '#94a3b8', paddingLeft: 80, fontStyle: 'italic' }}>
+            Rayon de détection des POIs autour de la position
+          </div>
+      </div>
 
-        {/* Quick actions */}
-        <div
+      {/* Quick actions */}
+      <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
@@ -159,7 +315,11 @@ export function GuideControls({
           }}
         >
           <button
-            style={{ ...ghostButtonStyle, width: '100%', fontSize: 12 }}
+            style={{
+              ...ghostButtonStyle,
+              width: '100%',
+              fontSize: 12,
+            }}
             onClick={() => {
               setMapAlreadyCentered(false)
               setPos({ lat: 48.402, lng: 2.6998 })
@@ -167,24 +327,16 @@ export function GuideControls({
           >
             🏰 Fontainebleau
           </button>
-          <button style={{ ...ghostButtonStyle, width: '100%', fontSize: 12 }} onClick={recenterOnUser}>
-            📍 Ma position
-          </button>
-          <a
-            href="/admin"
+          <button
             style={{
               ...ghostButtonStyle,
               width: '100%',
               fontSize: 12,
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
+            onClick={recenterOnUser}
           >
-            ✏️ Éditer POIs
-          </a>
-        </div>
+            📍 Ma position
+          </button>
       </div>
     </div>
   )
@@ -217,7 +369,9 @@ function SliderControl({
         color: '#e2e8f0',
       }}
     >
-      <span style={{ minWidth: 70, flexShrink: 0 }}>{label}</span>
+      <span style={{ minWidth: 70, flexShrink: 0, color: '#0f172a', fontWeight: 500 }}>
+        {label}
+      </span>
       <input
         type="range"
         min={min}
@@ -237,7 +391,8 @@ function SliderControl({
           textAlign: 'right',
           fontFamily: 'monospace',
           fontSize: 12,
-          color: '#94a3b8',
+          color: '#64748b',
+          fontWeight: 600,
         }}
       >
         {displayValue}

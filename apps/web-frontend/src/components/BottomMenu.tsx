@@ -8,7 +8,7 @@ type Props = {
 }
 
 // Composant pour l'icône Découvrir (pin avec point)
-function DiscoverIcon({ size = 18 }: { size?: number }) {
+function DiscoverIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -18,7 +18,7 @@ function DiscoverIcon({ size = 18 }: { size?: number }) {
 }
 
 // Composant pour l'icône Enregistrés (signet/bookmark) - basé sur l'image fournie
-function SavedIcon({ size = 18 }: { size?: number }) {
+function SavedIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       {/* Rectangle avec bas en V inversé (comme un signet) */}
@@ -28,7 +28,7 @@ function SavedIcon({ size = 18 }: { size?: number }) {
 }
 
 // Composant pour l'icône Contribuer (+ dans un cercle)
-function ContributeIcon({ size = 18 }: { size?: number }) {
+function ContributeIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
       <circle cx="12" cy="12" r="10" />
@@ -49,13 +49,13 @@ export function BottomMenu({ activeTab, onTabChange }: Props) {
       id="bottom-menu"
       style={{
         position: 'fixed',
-        bottom: 8, // Décalé du bas pour voir que c'est un bloc
-        left: 8,
-        right: 8,
+        bottom: 0,
+        left: 0,
+        right: 0,
         zIndex: 99999,
         background: '#f0f4f8', // Gris/bleuté très léger
         borderTop: '1px solid #cbd5e1',
-        borderRadius: 16, // Bords arrondis pour le bloc
+        borderRadius: 0, // Pas de bords arrondis pour faire toute la largeur
         paddingBottom: 'env(safe-area-inset-bottom, 0)',
         boxShadow: '0 -2px 8px rgba(0,0,0,0.05)', // Ombre légère pour le décollement
       }}
@@ -91,23 +91,36 @@ export function BottomMenu({ activeTab, onTabChange }: Props) {
               aria-label={tab.label}
               aria-current={isActive ? 'page' : undefined}
             >
-              {/* Bulle ovale avec icône - largeur fixe pour les 3 onglets */}
-              <div
-                style={{
-                  width: 72, // Largeur fixe pour les 3 bulles (presque la largeur du texte "Enregistrés")
-                  minHeight: 28, // Un peu plus haut pour plus de padding
-                  borderRadius: 12,
-                  background: isActive ? '#a8e6cf' : '#e2e8f0', // Bleu/vert pâle si actif (#a8e6cf), gris très clair si inactif
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '6px 0', // Padding intérieur haut/bas
-                  transition: 'all 0.2s ease',
-                }}
-              >
+              {/* Icône avec bulle seulement si actif */}
+              {isActive ? (
                 <div
                   style={{
-                    color: isActive ? '#ffffff' : '#94a3b8', // Blanc si actif, gris moyen si inactif
+                    width: 72, // Largeur fixe pour les 3 bulles (presque la largeur du texte "Enregistrés")
+                    minHeight: 28, // Un peu plus haut pour plus de padding
+                    borderRadius: 12,
+                    background: '#a8e6cf', // Bleu/vert pâle si actif
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '6px 0', // Padding intérieur haut/bas
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div
+                    style={{
+                      color: '#ffffff', // Blanc si actif
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {tab.icon}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    color: '#64748b', // Gris moyen si inactif
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -115,7 +128,7 @@ export function BottomMenu({ activeTab, onTabChange }: Props) {
                 >
                   {tab.icon}
                 </div>
-              </div>
+              )}
               <span style={{ fontSize: 12, fontWeight: 500 }}>{tab.label}</span>
             </button>
           )

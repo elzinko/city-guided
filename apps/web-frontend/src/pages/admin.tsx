@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import type { GetServerSideProps } from 'next'
+import React, { useEffect, useState, useRef } from 'react'
 
 type Poi = {
   id?: string
@@ -9,6 +10,18 @@ type Poi = {
   category: string
   shortDescription: string
   ttsText?: string
+}
+
+type BuildInfo = {
+  appVersion: string | null
+  repoUrl: string
+  commitUrl: string | null
+  treeUrl: string
+  adminPageUrl: string
+}
+
+type AdminPageProps = {
+  buildInfo: BuildInfo
 }
 
 const API = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '') || ''
@@ -22,21 +35,52 @@ const CATEGORIES = [
   { value: 'Autre', icon: '📍', color: '#6b7280' },
 ]
 
-export default function Admin() {
+const DEFAULT_CENTER = { lat: 48.857, lng: 2.351 }
+
+export const getServerSideProps: GetServerSideProps<AdminPageProps> = async () => {
+  const repoUrl = process.env.APP_REPO_URL?.trim() || 'https://github.com/elzinko/city-guided'
+  const appVersion =
+    process.env.APP_VERSION ||
+    process.env.GIT_SHA ||
+    process.env.IMAGE_TAG ||
+    (process.env.NODE_ENV === 'development' ? 'dev' : null)
+
+  const refForLinks = appVersion && appVersion !== 'dev' ? appVersion : 'main'
+
+  return {
+    props: {
+      buildInfo: {
+        appVersion,
+        repoUrl,
+        commitUrl: appVersion && appVersion !== 'dev' ? `${repoUrl}/commit/${appVersion}` : null,
+        treeUrl: `${repoUrl}/tree/${refForLinks}`,
+        adminPageUrl: `${repoUrl}/blob/${refForLinks}/apps/web-frontend/src/pages/admin.tsx`,
+      },
+    },
+  }
+}
+
+export default function Admin({ buildInfo }: AdminPageProps) {
   const [pois, setPois] = useState<Poi[]>([])
+  const [filteredPois, setFilteredPois] = useState<Poi[]>([])
+  const [filterCategory, setFilterCategory] = useState<string>('')
+  const [filterName, setFilterName] = useState<string>('')
   const [form, setForm] = useState<Poi>({
     name: '',
-    lat: 48.857,
-    lng: 2.351,
+    lat: DEFAULT_CENTER.lat,
+    lng: DEFAULT_CENTER.lng,
     radiusMeters: 50,
     category: 'Autre',
     shortDescription: '',
     ttsText: '',
   })
+  const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [loading, setLoading] = useState(false)
+  const mapRef = useRef<any>(null)
+  const markersRef = useRef<any[]>([])
 
   useEffect(() => {
     refreshList()
@@ -49,15 +93,118 @@ export default function Admin() {
     }
   }, [status])
 
+  // Filtrer les POIs
+  useEffect(() => {
+    let filtered = pois
+    if (filterCategory) {
+      filtered = filtered.filter((p) => p.category === filterCategory)
+    }
+    if (filterName) {
+      filtered = filtered.filter((p) => p.name.toLowerCase().includes(filterName.toLowerCase()))
+    }
+    setFilteredPois(filtered)
+  }, [pois, filterCategory, filterName])
+
   async function refreshList() {
     try {
-      const res = await fetch(`${API}/api/pois?lat=48.857&lng=2.351&radius=5000`)
+      const res = await fetch(`${API}/api/pois?lat=${DEFAULT_CENTER.lat}&lng=${DEFAULT_CENTER.lng}&radius=5000`)
       const j = await res.json()
       setPois(j)
     } catch (e) {
       console.error(e)
     }
   }
+
+  // Initialiser la carte Leaflet
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    import('leaflet').then((mod) => {
+      const L = (mod as any).default || mod
+      const iconBase = 'https://unpkg.com/leaflet@1.9.4/dist/images/'
+      delete (L.Icon.Default.prototype as any)._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: `${iconBase}marker-icon-2x.png`,
+        iconUrl: `${iconBase}marker-icon.png`,
+        shadowUrl: `${iconBase}marker-shadow.png`,
+      })
+      const existingCss = document.getElementById('leaflet-css') as HTMLLinkElement | null
+      if (!existingCss) {
+        const link = document.createElement('link')
+        link.id = 'leaflet-css'
+        link.rel = 'stylesheet'
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+        document.head.appendChild(link)
+      }
+      const mapEl = document.getElementById('admin-map')
+      if (!mapEl) return
+      if ((mapEl as any)._leaflet_initialized) return
+
+      const map = L.map('admin-map', { zoomControl: true })
+      map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 13)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+      }).addTo(map)
+
+      mapRef.current = map
+      ;(mapEl as any)._leaflet_initialized = true
+
+      // Gérer les clics sur la carte pour créer un nouveau POI
+      map.on('click', (e: any) => {
+        const { lat, lng } = e.latlng
+        setForm({
+          name: '',
+          lat: lat,
+          lng: lng,
+          radiusMeters: 50,
+          category: 'Autre',
+          shortDescription: '',
+          ttsText: '',
+        })
+        setEditingId(null)
+        setErrors({})
+        setShowForm(true)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      })
+    })
+  }, [])
+
+  // Mettre à jour les marqueurs sur la carte quand les POIs changent
+  useEffect(() => {
+    if (!mapRef.current) return
+    const map = mapRef.current
+    const L = (window as any).L
+
+    // Supprimer les anciens marqueurs
+    markersRef.current.forEach((marker) => {
+      map.removeLayer(marker)
+    })
+    markersRef.current = []
+
+    // Ajouter les nouveaux marqueurs
+    pois.forEach((poi) => {
+      const cat = getCategoryInfo(poi.category)
+      const marker = L.marker([poi.lat, poi.lng], {
+        icon: L.divIcon({
+          className: 'custom-poi-marker',
+          html: `<div style="background: ${cat.color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        }),
+      })
+      marker.bindPopup(`<b>${poi.name}</b><br/>${poi.shortDescription}`)
+      marker.on('click', () => {
+        startEdit(poi)
+      })
+      marker.addTo(map)
+      markersRef.current.push(marker)
+    })
+
+    // Ajuster la vue pour inclure tous les POIs
+    if (pois.length > 0) {
+      const bounds = L.latLngBounds(pois.map((p) => [p.lat, p.lng]))
+      map.fitBounds(bounds, { padding: [50, 50] })
+    }
+  }, [pois])
 
   function headers() {
     return { 'Content-Type': 'application/json', 'X-ADMIN-TOKEN': ADMIN_TOKEN }
@@ -129,8 +276,8 @@ export default function Admin() {
   function resetForm() {
     setForm({
       name: '',
-      lat: 48.857,
-      lng: 2.351,
+      lat: DEFAULT_CENTER.lat,
+      lng: DEFAULT_CENTER.lng,
       radiusMeters: 50,
       category: 'Autre',
       shortDescription: '',
@@ -138,6 +285,7 @@ export default function Admin() {
     })
     setEditingId(null)
     setErrors({})
+    setShowForm(false)
   }
 
   function startEdit(p: Poi) {
@@ -145,7 +293,12 @@ export default function Admin() {
     setForm({ ...p })
     setErrors({})
     setStatus(null)
+    setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Centrer la carte sur le POI sélectionné
+    if (mapRef.current) {
+      mapRef.current.setView([p.lat, p.lng], 15)
+    }
   }
 
   async function deletePoi(id?: string) {
@@ -175,21 +328,46 @@ export default function Admin() {
   const getCategoryInfo = (cat: string) =>
     CATEGORIES.find((c) => c.value === cat) || CATEGORIES[4]
 
+  const displayedAppVersion = buildInfo.appVersion
+    ? buildInfo.appVersion.length > 12
+      ? `${buildInfo.appVersion.slice(0, 12)}…`
+      : buildInfo.appVersion
+    : 'unknown'
+
   return (
     <main style={styles.main}>
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
           <a href="/" style={styles.backLink}>
-            ← Retour à l'app
+            ←
           </a>
-          <h1 style={styles.title}>
-            <span style={styles.titleIcon}>🗺️</span>
-            Admin POIs
-          </h1>
+          <h1 style={styles.title}>POIs</h1>
           <div style={styles.stats}>
-            <span style={styles.statBadge}>{pois.length} POIs</span>
+            <span style={styles.statBadge}>{pois.length}</span>
           </div>
+        </div>
+        <div style={styles.headerMeta}>
+          <span style={styles.metaLabel}>Deploy:</span>
+          {buildInfo.commitUrl ? (
+            <a href={buildInfo.commitUrl} style={styles.metaCommit} target="_blank" rel="noreferrer">
+              {displayedAppVersion}
+            </a>
+          ) : (
+            <span style={styles.metaCommit}>{displayedAppVersion}</span>
+          )}
+          <span style={styles.metaSeparator}>•</span>
+          <a href={buildInfo.repoUrl} style={styles.metaLink} target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+          <span style={styles.metaSeparator}>•</span>
+          <a href={buildInfo.treeUrl} style={styles.metaLink} target="_blank" rel="noreferrer">
+            Code
+          </a>
+          <span style={styles.metaSeparator}>•</span>
+          <a href={buildInfo.adminPageUrl} style={styles.metaLink} target="_blank" rel="noreferrer">
+            Admin.tsx
+          </a>
         </div>
       </header>
 
@@ -206,126 +384,157 @@ export default function Admin() {
       )}
 
       <div style={styles.container}>
-        {/* Form Section */}
-        <section style={styles.formSection}>
-          <h2 style={styles.sectionTitle}>
-            {editingId ? '✏️ Modifier le POI' : '➕ Nouveau POI'}
-          </h2>
+        {/* Map Section */}
+        <section style={styles.mapSection}>
+          <div id="admin-map" style={styles.map} />
+          <div style={styles.mapHint}>
+            Cliquez sur la carte pour créer un nouveau POI
+          </div>
+        </section>
 
-          <div style={styles.formGrid}>
-            <FormField label="Nom du lieu" error={errors.name} required>
-              <input
-                style={styles.input}
-                placeholder="Ex: Tour Eiffel"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </FormField>
-
-            <div style={styles.row}>
-              <FormField label="Latitude" error={errors.lat} required>
-                <input
-                  style={styles.input}
-                  type="number"
-                  step="any"
-                  placeholder="48.8584"
-                  value={form.lat}
-                  onChange={(e) => setForm({ ...form, lat: Number(e.target.value) })}
-                />
-              </FormField>
-              <FormField label="Longitude" error={errors.lng} required>
-                <input
-                  style={styles.input}
-                  type="number"
-                  step="any"
-                  placeholder="2.2945"
-                  value={form.lng}
-                  onChange={(e) => setForm({ ...form, lng: Number(e.target.value) })}
-                />
-              </FormField>
-            </div>
-
-            <div style={styles.row}>
-              <FormField label="Rayon (m)" error={errors.radiusMeters} required>
-                <input
-                  style={styles.input}
-                  type="number"
-                  placeholder="50"
-                  value={form.radiusMeters}
-                  onChange={(e) => setForm({ ...form, radiusMeters: Number(e.target.value) })}
-                />
-              </FormField>
-              <FormField label="Catégorie">
-                <select
-                  style={styles.select}
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.icon} {c.value}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            </div>
-
-            <FormField label="Description courte" error={errors.shortDescription} required>
-              <input
-                style={styles.input}
-                placeholder="Brève description du lieu"
-                value={form.shortDescription}
-                onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
-              />
-            </FormField>
-
-            <FormField label="Texte TTS (audio)">
-              <textarea
-                style={styles.textarea}
-                placeholder="Texte lu par la synthèse vocale..."
-                value={form.ttsText}
-                onChange={(e) => setForm({ ...form, ttsText: e.target.value })}
-                rows={4}
-              />
-            </FormField>
-
-            <div style={styles.formActions}>
+        {/* Form Section - affiché seulement si showForm est true */}
+        {showForm && (
+          <section style={styles.formSection}>
+            <div style={styles.formHeader}>
+              <h2 style={styles.sectionTitle}>
+                {editingId ? '✏️ Modifier le POI' : '➕ Nouveau POI'}
+              </h2>
               <button
-                style={{
-                  ...styles.button,
-                  ...styles.primaryButton,
-                  opacity: loading ? 0.7 : 1,
+                style={styles.closeButton}
+                onClick={resetForm}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)'
+                  e.currentTarget.style.color = '#f8fafc'
                 }}
-                onClick={submit}
-                disabled={loading}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = '#94a3b8'
+                }}
               >
-                {loading ? '⏳' : editingId ? '💾 Enregistrer' : '➕ Créer'}
+                ✕
               </button>
-              {editingId && (
+            </div>
+
+            <div style={styles.formGrid}>
+              {/* Coordonnées affichées discrètement */}
+              <div style={styles.coordsDisplay}>
+                📍 {form.lat.toFixed(6)}, {form.lng.toFixed(6)}
+              </div>
+
+              <FormField label="Nom du lieu" error={errors.name} required>
+                <input
+                  style={styles.input}
+                  placeholder="Ex: Tour Eiffel"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </FormField>
+
+              <div style={styles.row}>
+                <FormField label="Rayon (m)" error={errors.radiusMeters} required>
+                  <input
+                    style={styles.input}
+                    type="number"
+                    placeholder="50"
+                    value={form.radiusMeters}
+                    onChange={(e) => setForm({ ...form, radiusMeters: Number(e.target.value) })}
+                  />
+                </FormField>
+                <FormField label="Catégorie">
+                  <select
+                    style={styles.select}
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.icon} {c.value}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+              </div>
+
+              <FormField label="Description courte" error={errors.shortDescription} required>
+                <input
+                  style={styles.input}
+                  placeholder="Brève description du lieu"
+                  value={form.shortDescription}
+                  onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label="Texte TTS (audio)">
+                <textarea
+                  style={styles.textarea}
+                  placeholder="Texte lu par la synthèse vocale..."
+                  value={form.ttsText}
+                  onChange={(e) => setForm({ ...form, ttsText: e.target.value })}
+                  rows={4}
+                />
+              </FormField>
+
+              <div style={styles.formActions}>
+                <button
+                  style={{
+                    ...styles.button,
+                    ...styles.primaryButton,
+                    opacity: loading ? 0.7 : 1,
+                  }}
+                  onClick={submit}
+                  disabled={loading}
+                >
+                  {loading ? '⏳' : editingId ? '💾 Enregistrer' : '➕ Créer'}
+                </button>
                 <button style={{ ...styles.button, ...styles.ghostButton }} onClick={resetForm}>
                   ✕ Annuler
                 </button>
-              )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* List Section */}
         <section style={styles.listSection}>
           <h2 style={styles.sectionTitle}>📋 Liste des POIs</h2>
 
-          {pois.length === 0 ? (
+          {/* Filtres */}
+          <div style={styles.filters}>
+            <input
+              style={styles.filterInput}
+              type="text"
+              placeholder="Rechercher par nom..."
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+            />
+            <select
+              style={styles.filterSelect}
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option value="">Toutes les catégories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.icon} {c.value}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {filteredPois.length === 0 ? (
             <div style={styles.emptyState}>
               <span style={styles.emptyIcon}>🗺️</span>
-              <p>Aucun POI pour le moment</p>
-              <p style={styles.emptyHint}>Créez votre premier point d'intérêt ci-dessus</p>
+              <p>{pois.length === 0 ? 'Aucun POI pour le moment' : 'Aucun POI ne correspond aux filtres'}</p>
+              {pois.length === 0 && (
+                <p style={styles.emptyHint}>Cliquez sur la carte pour créer votre premier point d'intérêt</p>
+              )}
             </div>
           ) : (
             <div style={styles.poiGrid}>
-              {pois.map((p: Poi) => {
+              {filteredPois.map((p: Poi) => {
                 const cat = getCategoryInfo(p.category)
                 return (
-                  <div key={p.id} style={styles.poiCard}>
+                  <div key={p.id} style={styles.poiCard} onClick={() => startEdit(p)}>
                     <div style={styles.poiHeader}>
                       <span
                         style={{
@@ -346,13 +555,19 @@ export default function Admin() {
                     <div style={styles.poiActions}>
                       <button
                         style={{ ...styles.button, ...styles.smallButton }}
-                        onClick={() => startEdit(p)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          startEdit(p)
+                        }}
                       >
                         ✏️ Éditer
                       </button>
                       <button
                         style={{ ...styles.button, ...styles.smallButton, ...styles.dangerButton }}
-                        onClick={() => deletePoi(p.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deletePoi(p.id)
+                        }}
                       >
                         🗑️
                       </button>
@@ -402,7 +617,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid #334155',
     position: 'sticky',
     top: 0,
-    zIndex: 100,
+    zIndex: 1000,
     backdropFilter: 'blur(8px)',
   },
   headerContent: {
@@ -411,7 +626,39 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '16px 24px',
     display: 'flex',
     alignItems: 'center',
-    gap: 20,
+    gap: 16,
+    justifyContent: 'space-between',
+  },
+  headerMeta: {
+    maxWidth: 1200,
+    margin: '0 auto',
+    padding: '0 24px 16px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    color: '#94a3b8',
+    fontSize: 12,
+  },
+  metaLabel: {
+    color: '#64748b',
+    fontWeight: 600,
+  },
+  metaCommit: {
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+    color: '#e2e8f0',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid #334155',
+    padding: '2px 10px',
+    borderRadius: 999,
+    textDecoration: 'none',
+  },
+  metaSeparator: {
+    color: '#334155',
+  },
+  metaLink: {
+    color: '#93c5fd',
+    textDecoration: 'none',
   },
   backLink: {
     color: '#94a3b8',
@@ -430,10 +677,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    flex: 1,
-  },
-  titleIcon: {
-    fontSize: 28,
   },
   stats: {
     display: 'flex',
@@ -463,21 +706,80 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: 1200,
     margin: '0 auto',
-    padding: '32px 24px',
-    display: 'grid',
-    gap: 32,
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
+    alignItems: 'stretch',
+  },
+  mapSection: {
+    background: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    border: '1px solid #334155',
+    width: '100%',
+    position: 'relative',
+    zIndex: 1,
+  },
+  map: {
+    width: '100%',
+    height: '500px',
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    zIndex: 1,
+  },
+  mapHint: {
+    marginTop: 12,
+    color: '#94a3b8',
+    fontSize: 13,
+    textAlign: 'center',
   },
   formSection: {
     background: '#1e293b',
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     border: '1px solid #334155',
+    width: '100%',
+  },
+  formHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  closeButton: {
+    background: 'transparent',
+    border: 'none',
+    color: '#94a3b8',
+    fontSize: 24,
+    cursor: 'pointer',
+    padding: 0,
+    width: 32,
+    height: 32,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    transition: 'background 0.2s',
+  },
+  coordsDisplay: {
+    color: '#64748b',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    padding: '8px 12px',
+    background: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    textAlign: 'center',
   },
   listSection: {
     background: '#1e293b',
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     border: '1px solid #334155',
+    width: '100%',
+    position: 'relative',
+    overflow: 'visible',
   },
   sectionTitle: {
     color: '#f8fafc',
@@ -487,6 +789,44 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
+    margin: 0,
+  },
+  filters: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    marginBottom: 20,
+    width: '100%',
+  },
+  filterInput: {
+    width: '100%',
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: '1px solid #334155',
+    background: '#0f172a',
+    color: '#f8fafc',
+    fontSize: 14,
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  filterSelect: {
+    width: '100%',
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: '1px solid #334155',
+    background: '#0f172a',
+    color: '#f8fafc',
+    fontSize: 14,
+    outline: 'none',
+    cursor: 'pointer',
+    boxSizing: 'border-box',
+    position: 'relative',
+    WebkitAppearance: 'none',
+    appearance: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 14px center',
+    paddingRight: '40px',
   },
   formGrid: {
     display: 'flex',
@@ -608,6 +948,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 10,
     transition: 'border-color 0.2s, transform 0.2s',
+    cursor: 'pointer',
   },
   poiHeader: {
     display: 'flex',

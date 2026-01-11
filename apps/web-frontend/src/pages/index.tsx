@@ -8,6 +8,8 @@ import { BottomMenu, type MenuTab } from '../components/BottomMenu'
 import { AdminSheet } from '../components/AdminSheet'
 import { NavigationOverlay } from '../components/NavigationOverlay'
 import { NavigationPanel } from '../components/NavigationPanel'
+import { PlayButton } from '../components/PlayButton'
+import { PlayerControls } from '../components/PlayerControls'
 import { distanceMeters } from '../utils/distance'
 import {
   DEFAULT_CENTER_RADIUS_METERS,
@@ -33,6 +35,53 @@ const DEFAULT_DRIVE_PATH = [
   { lat: 48.399, lng: 2.669, speedKmh: 50 },
   { lat: 48.401, lng: 2.690, speedKmh: 30 },
   { lat: 48.402, lng: 2.6998, label: 'Boucle', speedKmh: 30 }
+]
+
+// Routes prédéfinies pour les tests
+type RouteOption = {
+  id: string
+  name: string
+  description?: string
+  loadFn: () => Promise<any[]> | any[]
+}
+
+const ROUTE_OPTIONS: RouteOption[] = [
+  {
+    id: 'default',
+    name: 'Boucle Fontainebleau',
+    description: 'Route par défaut autour du château',
+    loadFn: () => Promise.resolve(DEFAULT_DRIVE_PATH),
+  },
+  {
+    id: 'osrm',
+    name: 'Route OSRM',
+    description: 'Château → Melun (calculée via OSRM)',
+    loadFn: async () => {
+      const start = { lat: 48.402, lng: 2.6998 }
+      const end = { lat: 48.4865, lng: 2.5155 }
+      // Utiliser overview=simplified pour réduire le nombre de points (au lieu de full qui retourne tous les points)
+      const url = `${OSRM_BASE}/route?startLng=${start.lng}&startLat=${start.lat}&endLng=${end.lng}&endLat=${end.lat}&overview=simplified&geometries=geojson&steps=true&annotations=distance,duration,speed`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`OSRM ${res.status}`)
+      const data = await res.json()
+      const route = data?.routes?.[0]
+      if (!route || !route.geometry?.coordinates?.length) throw new Error('Pas de géométrie retournée')
+      const coords: [number, number][] = route.geometry.coordinates
+      const ann = route.legs?.[0]?.annotation || {}
+      const distances: number[] = ann.distance || []
+      const durations: number[] = ann.duration || []
+      const speeds: number[] = ann.speed || []
+      return coords.map(([lng, lat], idx) => {
+        if (idx === 0) return { lat, lng, speedKmh: 0, durationMs: 0 }
+        const dist = distances[idx - 1] || 0
+        const dur = durations[idx - 1] || 0
+        let speedKmh = speeds[idx - 1] !== undefined ? speeds[idx - 1] * 3.6 : dist && dur ? (dist / dur) * 3.6 : 50
+        speedKmh = Math.min(Math.max(speedKmh, 15), 110)
+        const durationMs = Math.min(Math.max((dur || (dist / Math.max(speedKmh / 3.6, 1))) * 1000, 300), 8000)
+        return { lat, lng, speedKmh, durationMs }
+      })
+    },
+  },
 ]
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '')
 const OSRM_BASE =
@@ -64,15 +113,13 @@ function GpsIcon({ hasGps }: { hasGps: boolean }) {
       </svg>
     )
   }
-  // Version avec point bleu et cercle concentrique - agrandie
+  // Version avec point bleu et un seul cercle concentrique - agrandie (même taille que bouton réglages)
   return (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-      {/* Cercle extérieur bleu clair */}
-      <circle cx="12" cy="12" r="10" fill="#3b82f6" opacity="0.2" />
-      {/* Cercle moyen bleu */}
-      <circle cx="12" cy="12" r="6" fill="#3b82f6" opacity="0.4" stroke="#ffffff" strokeWidth="1" />
-      {/* Point central bleu */}
-      <circle cx="12" cy="12" r="3" fill="#2563eb" stroke="#ffffff" strokeWidth="1.5" />
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      {/* Cercle extérieur bleu clair - encore plus grand */}
+      <circle cx="12" cy="12" r="12" fill="#3b82f6" opacity="0.2" />
+      {/* Point central bleu - plus grand */}
+      <circle cx="12" cy="12" r="4" fill="#2563eb" stroke="#ffffff" strokeWidth="1.5" />
     </svg>
   )
 }
@@ -85,20 +132,23 @@ export default function Home() {
   const [mapAlreadyCentered, setMapAlreadyCentered] = useState(false)
   const [mapMoveVersion, setMapMoveVersion] = useState(0)
   const [godMode, setGodMode] = useState(false)
-  const [autoTts, setAutoTts] = useState(true)
+  const [autoTts, setAutoTts] = useState(false) // Désactivé par défaut pour éviter le lancement automatique
+  const [audioGuideActive, setAudioGuideActive] = useState(false) // État pour savoir si l'utilisateur a activé l'audio guide explicitement
   const [activeStory, setActiveStory] = useState<{ poiId: string; segmentIdx: number } | null>(null)
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({})
   const [isSimulating, setIsSimulating] = useState(false)
   const [simPaused, setSimPaused] = useState(false)
   const [simStep, setSimStep] = useState(0)
   const simTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const interpolationTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastPanRef = useRef<{ lat: number; lng: number } | null>(null)
   const [simPath, setSimPath] = useState<any[]>([])
+  const [selectedRouteId, setSelectedRouteId] = useState<string>('default')
   const [routeStatus, setRouteStatus] = useState<string>('Trajet par défaut prêt')
   const [osrmError, setOsrmError] = useState<string | null>(null)
-  const [speedFactor, setSpeedFactor] = useState(1)
+  const [speedFactor, setSpeedFactor] = useState(10) // x10 par défaut pour les tests
   const [zoomLevel, setZoomLevel] = useState(14)
-  const [audioPaused, setAudioPaused] = useState(false)
+  const [audioPaused, setAudioPaused] = useState(true) // En pause par défaut
   const [searchActive, setSearchActive] = useState(false)
   const [searchReady, setSearchReady] = useState(false)
   const [sheetLevel, setSheetLevel] = useState<'hidden' | 'peek' | 'mid' | 'full'>('hidden')
@@ -170,6 +220,13 @@ export default function Home() {
     setSimStep(0)
   }, [simPath])
 
+  // Charger la route par défaut au démarrage
+  useEffect(() => {
+    if (selectedRouteId && !simPath.length) {
+      loadRoute(selectedRouteId)
+    }
+  }, [selectedRouteId])
+
   useEffect(() => {
     if (!('geolocation' in navigator)) return
     const id = navigator.geolocation.watchPosition(
@@ -225,38 +282,42 @@ export default function Home() {
     return [p.shortDescription]
   }
 
-  async function loadOsrmRoute() {
-    const start = { lat: 48.402, lng: 2.6998 }
-    const end = { lat: 48.4865, lng: 2.5155 }
-    setRouteStatus('Calcul OSRM local en cours…')
+  async function loadRoute(routeId: string) {
+    const routeOption = ROUTE_OPTIONS.find((r) => r.id === routeId)
+    if (!routeOption) {
+      setRouteStatus('Route inconnue')
+      return
+    }
+
+    setRouteStatus(`Chargement de ${routeOption.name}...`)
     setOsrmError(null)
     try {
-      const url = `${OSRM_BASE}/route?startLng=${start.lng}&startLat=${start.lat}&endLng=${end.lng}&endLat=${end.lat}&overview=full&geometries=geojson&steps=true&annotations=distance,duration,speed`
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`OSRM ${res.status}`)
-      const data = await res.json()
-      const route = data?.routes?.[0]
-      if (!route || !route.geometry?.coordinates?.length) throw new Error('Pas de géométrie retournée')
-      const coords: [number, number][] = route.geometry.coordinates
-      const ann = route.legs?.[0]?.annotation || {}
-      const distances: number[] = ann.distance || []
-      const durations: number[] = ann.duration || []
-      const speeds: number[] = ann.speed || []
-      const path = coords.map(([lng, lat], idx) => {
-        if (idx === 0) return { lat, lng, speedKmh: 0, durationMs: 0 }
-        const dist = distances[idx - 1] || 0
-        const dur = durations[idx - 1] || 0
-        let speedKmh = speeds[idx - 1] !== undefined ? speeds[idx - 1] * 3.6 : dist && dur ? (dist / dur) * 3.6 : 50
-        speedKmh = Math.min(Math.max(speedKmh, 15), 110)
-        const durationMs = Math.min(Math.max((dur || (dist / Math.max(speedKmh / 3.6, 1))) * 1000, 300), 8000)
-        return { lat, lng, speedKmh, durationMs }
-      })
-      if (path.length < 2) throw new Error('Route trop courte')
+      const path = await routeOption.loadFn()
+      if (!path || path.length < 2) throw new Error('Route trop courte')
       setSimPath(path)
-      setRouteStatus(`Route OSRM chargée (${Math.round(route.distance / 1000)} km, ${Math.round(route.duration / 60)} min)`)
+      // Réinitialiser la position au début du nouveau trajet
+      if (path.length > 0 && path[0]) {
+        const startPoint = path[0] as any
+        if (startPoint.lat && startPoint.lng) {
+          setPos({ lat: startPoint.lat, lng: startPoint.lng })
+          setSimStep(0)
+        }
+      }
+      if (routeId === 'osrm') {
+        // Pour OSRM, on calcule la distance totale
+        let totalDist = 0
+        for (let i = 1; i < path.length; i++) {
+          const prev = path[i - 1] as any
+          const curr = path[i] as any
+          totalDist += distanceMeters(prev.lat, prev.lng, curr.lat, curr.lng)
+        }
+        setRouteStatus(`Route OSRM chargée (${Math.round(totalDist / 1000)} km)`)
+      } else {
+        setRouteStatus(`${routeOption.name} chargée (${path.length} points)`)
+      }
     } catch (e: any) {
-      setOsrmError(e?.message || 'Erreur OSRM')
-      setRouteStatus('Route OSRM indisponible, utilisation du trajet par défaut')
+      setOsrmError(e?.message || 'Erreur de chargement')
+      setRouteStatus(`Erreur: ${e?.message || 'Impossible de charger la route'}`)
       setSimPath(DEFAULT_DRIVE_PATH)
     }
   }
@@ -315,14 +376,15 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [activeStory?.poiId, activeStory?.segmentIdx, pois])
 
-  // Auto TTS sur le segment actuel
+  // Auto TTS sur le segment actuel - uniquement lorsque l'audio guide est activé explicitement par l'utilisateur
   useEffect(() => {
-    if (!autoTts || audioPaused || !activeStory) return
+    // Ne lancer l'audio que si l'utilisateur a activé l'audio guide explicitement (via le bouton play)
+    if (!audioGuideActive || !autoTts || audioPaused || !activeStory) return
     const poi = pois.find((p) => p.id === activeStory.poiId)
     if (!poi) return
     const seg = getStorySegments(poi)[activeStory.segmentIdx]
     if (seg) speak(seg)
-  }, [autoTts, audioPaused, activeStory?.poiId, activeStory?.segmentIdx, pois])
+  }, [audioGuideActive, autoTts, audioPaused, activeStory?.poiId, activeStory?.segmentIdx, pois])
 
   // Navigation time tracker
   useEffect(() => {
@@ -347,18 +409,40 @@ export default function Home() {
 
   // Simulation de trajet en voiture
   function startSimulation() {
-    if (!simPath.length) setSimPath(DEFAULT_DRIVE_PATH)
+    // Déterminer le trajet à utiliser (celui en mémoire ou le défaut)
+    const pathToUse = simPath.length > 0 ? simPath : DEFAULT_DRIVE_PATH
+    
+    // Si le trajet n'est pas chargé, le charger d'abord
+    if (!simPath.length) {
+      setSimPath(DEFAULT_DRIVE_PATH)
+    }
+    
     setMapAlreadyCentered(false)
     lastPanRef.current = null
     setSimStep(0)
     setIsSimulating(true)
     setSimPaused(false)
-    setPos((simPath[0] as any) || DEFAULT_DRIVE_PATH[0])
+    
+    // Utiliser directement le trajet déterminé, pas l'état qui n'est pas encore mis à jour
+    const startPoint = pathToUse[0] as any
+    if (startPoint && startPoint.lat && startPoint.lng) {
+      setPos({ lat: startPoint.lat, lng: startPoint.lng })
+    }
   }
   function stopSimulation() {
     setIsSimulating(false)
     if (simTimerRef.current) clearTimeout(simTimerRef.current)
+    if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
     stopSpeech()
+  }
+
+  // Handle play/pause pour le simulateur GPS sur la carte principale
+  const handleSimulationPlayPause = () => {
+    if (!isSimulating) {
+      startSimulation()
+    } else {
+      setSimPaused((v) => !v)
+    }
   }
 
   function prevSegment() {
@@ -382,6 +466,22 @@ export default function Home() {
     })
   }
 
+  function prevPoi() {
+    if (simStep > 0) {
+      if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
+      if (simTimerRef.current) clearTimeout(simTimerRef.current)
+      setSimStep((s) => s - 1)
+    }
+  }
+
+  function nextPoi() {
+    if (simStep < simPath.length - 1) {
+      if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
+      if (simTimerRef.current) clearTimeout(simTimerRef.current)
+      setSimStep((s) => s + 1)
+    }
+  }
+
   function recenterOnUser() {
     if (typeof window === 'undefined' || !pos) return
     const map = (window as any)._le_map
@@ -399,40 +499,104 @@ export default function Home() {
     setMapAlreadyCentered(true)
   }
 
+  // Interpolation progressive entre deux points du trajet
   useEffect(() => {
-    if (!isSimulating || simPaused) {
-      if (simTimerRef.current) clearTimeout(simTimerRef.current)
+    if (!isSimulating || simPaused || simStep >= simPath.length - 1) {
+      if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
       return
     }
-    if (simStep >= simPath.length - 1) {
-      setIsSimulating(false)
-      return
-    }
+
     const cur = simPath[simStep] as any
     const next = simPath[simStep + 1] as any
+    if (!cur || !next) return
+
+    // Calculer la durée totale pour cette étape
     const speedKmh = next?.speedKmh ?? cur?.speedKmh ?? 50
     const speedMs = Math.max(5, speedKmh / 3.6)
     const dist = distanceMeters(cur.lat, cur.lng, next.lat, next.lng)
     const baseDelay = (dist / speedMs) * 1000
     const delayRaw = next?.durationMs ?? baseDelay
-    const delay = Math.max(300, Math.min(8000, delayRaw / Math.max(speedFactor, 0.25)))
-    simTimerRef.current = setTimeout(() => setSimStep((s) => s + 1), delay)
+    const totalDuration = Math.max(300, Math.min(8000, delayRaw / Math.max(speedFactor, 0.25)))
+
+    // Mettre à jour la position de manière progressive (60 FPS)
+    const updateInterval = 16 // ~60 FPS
+    const steps = Math.max(1, Math.floor(totalDuration / updateInterval))
+    let currentStep = 0
+
+    interpolationTimerRef.current = setInterval(() => {
+      currentStep++
+      const progress = Math.min(1, currentStep / steps)
+
+      // Interpolation linéaire entre les deux points
+      const interpolatedLat = cur.lat + (next.lat - cur.lat) * progress
+      const interpolatedLng = cur.lng + (next.lng - cur.lng) * progress
+      setPos({ lat: interpolatedLat, lng: interpolatedLng })
+
+      // Quand on arrive au point suivant, passer à l'étape suivante
+      if (progress >= 1) {
+        if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
+        setSimStep((s) => s + 1)
+      }
+    }, updateInterval) as any
+
     return () => {
-      if (simTimerRef.current) clearTimeout(simTimerRef.current)
+      if (interpolationTimerRef.current) clearInterval(interpolationTimerRef.current)
     }
-  }, [isSimulating, simStep])
+  }, [isSimulating, simPaused, simStep, simPath, speedFactor])
+
+  // Suivre la position interpolée sur la carte pendant la simulation
+  useEffect(() => {
+    if (!isSimulating || simPaused || !pos) return
+
+    const map = (window as any)._le_map
+    if (map && map.panTo) {
+      // Suivre le point en mouvement sans animation (déjà animé par l'interpolation)
+      map.panTo([pos.lat, pos.lng], { animate: false })
+      // Garder le zoom constant pendant le mouvement
+      if (map.setZoom) map.setZoom(zoomLevel)
+    }
+  }, [pos, isSimulating, simPaused, adminLevel, zoomLevel])
 
   useEffect(() => {
-    if (!isSimulating) return
+    // Mettre à jour la position quand la simulation est en pause ou arrêtée (pour les boutons prev/next)
+    if (isSimulating && !simPaused) return // L'interpolation gère déjà la position
+
     const pt = simPath[simStep] as any
-    if (!pt) return
+    if (!pt || !pt.lat || !pt.lng || simStep < 0 || simStep >= simPath.length) return
+    
     setPos(pt)
     const map = (window as any)._le_map
     if (map && map.panTo) {
-      map.panTo([pt.lat, pt.lng], { animate: true, duration: 0.7 })
-      if (map.setZoom) map.setZoom(zoomLevel)
+      map.panTo([pt.lat, pt.lng], { animate: true, duration: 0.3 })
     }
-  }, [simStep, isSimulating, simPath, zoomLevel])
+    
+    if (adminLevel !== 'hidden' && simPath.length > 0) {
+      // En mode développeur, mettre à jour la position même si la simulation est arrêtée
+      setPos(pt)
+      const map = (window as any)._le_map
+      if (map) {
+        // Calculer le padding pour s'assurer que le point est visible
+        const viewportHeight = window.innerHeight
+        const adminHeights: Record<string, number> = {
+          peek: 0.15,
+          mid: 0.6,
+          full: 0.75,
+        }
+        const adminHeightPercent = adminHeights[adminLevel] || 0
+        const bottomPadding = viewportHeight * adminHeightPercent + 60
+        
+        // Utiliser fitBounds pour garantir la visibilité
+        const latDelta = 0.001
+        const lngDelta = 0.001
+        const bounds = [[pt.lat - latDelta, pt.lng - lngDelta], [pt.lat + latDelta, pt.lng + lngDelta]]
+        if (map.fitBounds) {
+          map.fitBounds(bounds, { padding: [24, 24, bottomPadding, 24], maxZoom: zoomLevel })
+        } else if (map.panTo) {
+          map.panTo([pt.lat, pt.lng], { animate: true, duration: 0.3 })
+        }
+      }
+    }
+  }, [simStep, isSimulating, simPath, zoomLevel, adminLevel])
 
   // use the shared tts package if available
   function speak(text?: string) {
@@ -462,6 +626,26 @@ export default function Home() {
     try {
       if (typeof window !== 'undefined' && (window as any).speechSynthesis) {
         (window as any).speechSynthesis.cancel()
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function pauseSpeech() {
+    try {
+      if (typeof window !== 'undefined' && (window as any).speechSynthesis) {
+        (window as any).speechSynthesis.pause()
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function resumeSpeech() {
+    try {
+      if (typeof window !== 'undefined' && (window as any).speechSynthesis) {
+        (window as any).speechSynthesis.resume()
       }
     } catch (e) {
       // ignore
@@ -570,7 +754,13 @@ export default function Home() {
         const last = lastPanRef.current
         const hasChanged = !last || Math.abs(last.lat - pos.lat) > 1e-6 || Math.abs(last.lng - pos.lng) > 1e-6
         if (hasChanged) {
-          map.panTo([pos.lat, pos.lng], { animate: true, duration: 0.5 })
+          // Si la simulation est active, utiliser une animation plus fluide
+          if (isSimulating && !simPaused) {
+            const animationDuration = Math.max(0.2, Math.min(1.0, 1 / Math.max(speedFactor, 0.25)))
+            map.panTo([pos.lat, pos.lng], { animate: true, duration: animationDuration })
+          } else {
+            map.panTo([pos.lat, pos.lng], { animate: true, duration: 0.5 })
+          }
           lastPanRef.current = pos
         }
         if (!mapAlreadyCentered) {
@@ -587,9 +777,40 @@ export default function Home() {
         ;(mapEl as any).__position_group = posGroup
       }
       if (pos) {
-        posGroup.addLayer(
-          L.circleMarker([pos.lat, pos.lng], { radius: 7, color: '#2563eb', weight: 2, fillColor: '#3b82f6', fillOpacity: 0.9 })
-        )
+        // Utiliser un marker avec icône personnalisée pour un meilleur contrôle du z-index
+        const customIcon = L.divIcon({
+          className: 'position-marker',
+          html: `<div style="
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            border: 3px solid #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3), 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 1000;
+          "></div>`,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        })
+        const marker = L.marker([pos.lat, pos.lng], { 
+          icon: customIcon,
+          zIndexOffset: 1000, // Z-index élevé pour être visible au-dessus de tout
+          interactive: false, // Non interactif pour éviter les conflits
+        })
+        // S'assurer que le marqueur est au-dessus de tout
+        marker.setZIndexOffset(1000)
+        posGroup.addLayer(marker)
+        
+        // Forcer la mise à jour de la vue pour s'assurer que le point est visible
+        // Même si le panneau est ouvert, on veut voir le point
+        if (adminLevel !== 'hidden' || sheetLevel !== 'hidden') {
+          // Ajuster la vue pour que le point soit visible dans la zone visible de la carte
+          const bounds = map.getBounds()
+          if (bounds && !bounds.contains([pos.lat, pos.lng])) {
+            // Le point est hors de la vue, on le centre
+            map.panTo([pos.lat, pos.lng], { animate: true, duration: 0.3 })
+          }
+        }
       }
 
       // route affichée si une simulation est chargée
@@ -620,7 +841,39 @@ export default function Home() {
       setVisiblePois(inView.slice(0, MAX_POIS_DISPLAYED))
 
       inView.forEach((p) => {
-        const marker = L.marker([p.lat, p.lng]).bindPopup(`<b>${p.name}</b><br/>${p.shortDescription}`)
+        // Vérifier si ce POI est actif (en cours de lecture)
+        const isActive = activeStory && activeStory.poiId === p.id
+        
+        // Créer une icône personnalisée pour le POI actif avec animation
+        let marker
+        if (isActive && L.divIcon) {
+          // Icône brillante et plus grande pour le POI actif
+          const customIcon = L.divIcon({
+            className: 'active-poi-marker',
+            html: `<div style="
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              background: #22c55e;
+              border: 3px solid #ffffff;
+              box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.3), 0 0 20px rgba(34, 197, 94, 0.6);
+              animation: pulse 2s ease-in-out infinite;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 14px;
+            ">📍</div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+          })
+          marker = L.marker([p.lat, p.lng], { icon: customIcon }).bindPopup(`<b>${p.name}</b><br/>${p.shortDescription}`)
+        } else {
+          // Icône standard
+          marker = L.marker([p.lat, p.lng]).bindPopup(`<b>${p.name}</b><br/>${p.shortDescription}`)
+        }
+        
         group.addLayer(marker)
       })
 
@@ -641,12 +894,112 @@ export default function Home() {
         godGroup.clearLayers()
       }
     })
-  }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath])
+  }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath, isSimulating, simPaused, speedFactor])
 
   const sheetHeightPercent = SHEET_HEIGHTS[sheetLevel] || 0
   const gpsHidden = sheetHeightPercent >= GPS_HIDE_THRESHOLD_PERCENT || searchActive
   // Position GPS button above bottom menu (64px = menu height)
   const gpsBottom = sheetLevel === 'hidden' ? '80px' : `calc(${sheetHeightPercent}vh + 80px)`
+
+  // Recadrer la carte sur la position utilisateur quand un panneau s'ouvre
+  useEffect(() => {
+    if (!pos) return
+    const map = (window as any)._le_map
+    if (!map || !map.setView) return
+
+    // Si un panneau est ouvert (sheetLevel ou adminLevel), recadrer sur la position utilisateur
+    const hasOpenPanel = sheetLevel !== 'hidden' || adminLevel !== 'hidden'
+    if (hasOpenPanel) {
+      // Calculer la hauteur du panneau en pixels pour ajuster le padding
+      const viewportHeight = window.innerHeight
+      let bottomPadding = 24 // Padding par défaut
+      
+      // Calculer la hauteur du panneau développeur
+      if (adminLevel !== 'hidden') {
+        const adminHeights: Record<string, number> = {
+          peek: 0.15, // 15% pour peek (approximation, car 'auto' dans AdminSheet)
+          mid: 0.6,   // 60vh (réduit)
+          full: 0.75, // 75vh (réduit)
+        }
+        const adminHeightPercent = adminHeights[adminLevel] || 0
+        bottomPadding = Math.max(bottomPadding, viewportHeight * adminHeightPercent + 40) // +40 pour s'assurer que le point bleu est visible
+      }
+      
+      // Calculer la hauteur du panneau sheet (si visible)
+      if (sheetLevel !== 'hidden') {
+        const sheetHeightPercent = SHEET_HEIGHTS[sheetLevel] || 0
+        const sheetHeightPx = (viewportHeight * sheetHeightPercent) / 100
+        bottomPadding = Math.max(bottomPadding, sheetHeightPx + 24)
+      }
+      
+      // En mode développeur avec une route chargée, afficher le trajet complet
+      if (adminLevel !== 'hidden' && simPath.length > 0) {
+        // Calculer les bounds de toute la route
+        const routeLats = simPath.map((p: any) => p.lat).filter((lat: any) => typeof lat === 'number')
+        const routeLngs = simPath.map((p: any) => p.lng).filter((lng: any) => typeof lng === 'number')
+        
+        if (routeLats.length > 0 && routeLngs.length > 0) {
+          const minLat = Math.min(...routeLats)
+          const maxLat = Math.max(...routeLats)
+          const minLng = Math.min(...routeLngs)
+          const maxLng = Math.max(...routeLngs)
+          
+          const bounds = [
+            [minLat, minLng],
+            [maxLat, maxLng],
+          ]
+          
+          if (map.fitBounds) {
+            // Utiliser le padding calculé pour exclure la zone du panneau et afficher toute la route
+            map.fitBounds(bounds, { padding: [24, 24, bottomPadding, 24] })
+            return
+          } else if (map.setView) {
+            const centerLat = (minLat + maxLat) / 2
+            const centerLng = (minLng + maxLng) / 2
+            map.setView([centerLat, centerLng], zoomLevel)
+            return
+          }
+        }
+      }
+      
+      // En mode développeur, inclure aussi le POI actif dans la vue (si pas de route)
+      if (adminLevel !== 'hidden' && activeStory && simPath.length === 0) {
+        const activePoi = pois.find((p) => p.id === activeStory.poiId)
+        if (activePoi) {
+          // Calculer les bounds pour inclure utilisateur ET POI actif
+          const bounds = [
+            [Math.min(pos.lat, activePoi.lat), Math.min(pos.lng, activePoi.lng)],
+            [Math.max(pos.lat, activePoi.lat), Math.max(pos.lng, activePoi.lng)],
+          ]
+          if (map.fitBounds) {
+            // Utiliser le padding calculé pour exclure la zone du panneau
+            map.fitBounds(bounds, { padding: [24, 24, bottomPadding, 24] })
+          } else if (map.setView) {
+            const centerLat = (pos.lat + activePoi.lat) / 2
+            const centerLng = (pos.lng + activePoi.lng) / 2
+            map.setView([centerLat, centerLng], zoomLevel)
+          }
+          return
+        }
+      }
+      
+      // Sinon, recadrer uniquement sur la position utilisateur
+      const r = centerRadiusMeters || DEFAULT_CENTER_RADIUS_METERS
+      const latDelta = r / 111000
+      const lngDelta = r / (111000 * Math.max(Math.cos((pos.lat * Math.PI) / 180), 0.2))
+      const southWest = [pos.lat - latDelta, pos.lng - lngDelta]
+      const northEast = [pos.lat + latDelta, pos.lng + lngDelta]
+      if (map.fitBounds) {
+        // Utiliser le padding calculé pour exclure la zone du panneau et s'assurer que le point bleu est visible
+        map.fitBounds([southWest, northEast], { padding: [24, 24, bottomPadding, 24] })
+      } else if (map.setView) {
+        // Avec setView, on ne peut pas utiliser de padding, mais on peut ajuster le zoom pour que le point soit visible
+        // Calculer un zoom qui garantit que le point est visible même avec le panneau
+        const adjustedZoom = Math.max(zoomLevel - 1, 11) // Réduire légèrement le zoom pour que le point soit visible
+        map.setView([pos.lat, pos.lng], adjustedZoom)
+      }
+    }
+  }, [sheetLevel, adminLevel, pos, centerRadiusMeters, zoomLevel, activeStory, pois, simPath, selectedRouteId])
 
   // Adaptive zoom in navigation mode
   useEffect(() => {
@@ -696,7 +1049,8 @@ export default function Home() {
   // - Pas en mode guide
   // - Pas en mode recherche active (overlay ouvert)
   // - ET (panneau fermé OU pas de résultats de recherche à afficher)
-  const shouldShowBottomMenu = !guideMode && !searchActive && (sheetLevel === 'hidden' || !(searchReady && query))
+  // - ET panneau développeur fermé
+  const shouldShowBottomMenu = !guideMode && !searchActive && adminLevel === 'hidden' && (sheetLevel === 'hidden' || !(searchReady && query))
 
   // Quand on ferme le panneau (sheetLevel = 'hidden'), réinitialiser searchReady si on avait des résultats
   // Cela permet de réafficher le menu proprement
@@ -714,14 +1068,24 @@ export default function Home() {
     <main
       data-testid="homepage"
       style={{
-        height: '100vh',
-        background: '#eef2f7',
+        minHeight: 'calc(100vh + 100px)', // Permet de scroller et voir la zone blanche en dessous
+        background: '#ffffff', // Blanc pour la zone en dessous
         color: '#0f172a',
         fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
       }}
     >
-      <div style={{ position: 'relative', height: '100%', width: '100%' }}>
-        <div id="map" data-testid="map-container" style={{ position: 'absolute', inset: 0 }} />
+      <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
+        <div 
+          id="map" 
+          data-testid="map-container" 
+          style={{ 
+            position: 'absolute', 
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))', // La carte s'arrête au niveau du bottom-menu
+          }} 
+        />
 
         {!guideMode && (
           <SearchOverlay
@@ -759,13 +1123,19 @@ export default function Home() {
           />
         )}
 
-        {guideMode && activeStory && (
-          <NavigationOverlay
-            poiName={pois.find((p) => p.id === activeStory.poiId)?.name || 'Lieu en cours'}
-            totalDuration={180} // 3 minutes par segment par défaut
-            currentTime={navigationElapsed}
-          />
-        )}
+        {guideMode && activeStory && (() => {
+          const activePoi = pois.find((p) => p.id === activeStory.poiId)
+          const segments = activePoi ? getStorySegments(activePoi) : []
+          return (
+            <NavigationOverlay
+              poiName={activePoi?.name || 'Lieu en cours'}
+              totalDuration={180} // 3 minutes par segment par défaut
+              currentTime={navigationElapsed}
+              currentSegment={activeStory.segmentIdx}
+              totalSegments={segments.length}
+            />
+          )
+        })()}
 
         {(!searchActive && !guideMode && (activeStory || searchReady)) && (
           <div
@@ -829,6 +1199,74 @@ export default function Home() {
           />
         )}
 
+        {/* Lecteur GPS sur la carte principale - visible quand un trajet est chargé */}
+        {simPath.length > 0 && !guideMode && (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: shouldShowBottomMenu ? 'calc(64px + env(safe-area-inset-bottom, 0px) + 16px)' : 'calc(16px + env(safe-area-inset-bottom, 0px))',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 12020,
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: 16,
+              padding: '10px 12px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              border: '1px solid rgba(0,0,0,0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              alignItems: 'center',
+            }}
+          >
+            {/* Numéro d'étape */}
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textAlign: 'center', marginBottom: -4 }}>
+              Étape {simStep + 1}/{simPath.length}
+            </div>
+            <PlayerControls
+              playing={isSimulating && !simPaused}
+              onPlayPause={handleSimulationPlayPause}
+              onPrevious={simPath.length > 0 && simStep > 0 ? prevPoi : undefined}
+              onNext={simPath.length > 0 && simStep < simPath.length - 1 ? nextPoi : undefined}
+              variant="square"
+              size="medium"
+            />
+            {/* Accélérateur miniaturisé */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                width: '100%',
+                maxWidth: 200,
+              }}
+            >
+              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500, minWidth: 35 }}>
+                ⚡ {speedFactor.toFixed(1)}×
+              </span>
+              <input
+                type="range"
+                min={0.25}
+                max={10}
+                step={0.25}
+                value={speedFactor}
+                onChange={(e) => setSpeedFactor(Math.max(0.25, Number(e.target.value)))}
+                style={{
+                  flex: 1,
+                  height: 4,
+                  borderRadius: 2,
+                  background: '#e2e8f0',
+                  outline: 'none',
+                  accentColor: '#22c55e',
+                  cursor: 'pointer',
+                }}
+                title={`Vitesse: ${speedFactor.toFixed(1)}×`}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Menu du bas : affiché selon la logique centralisée shouldShowBottomMenu */}
         {shouldShowBottomMenu && (
           <BottomMenu activeTab={activeTab} onTabChange={handleTabChange} />
@@ -866,8 +1304,9 @@ export default function Home() {
               <GpsIcon hasGps={!!pos} />
             </button>
           )}
-          <button
-            onClick={() => {
+          <PlayButton
+            playing={guideMode}
+            onPlayPause={() => {
               setGuideMode((v) => !v)
               if (!guideMode) {
                 setSheetLevel('mid')
@@ -875,27 +1314,13 @@ export default function Home() {
                 // Arrêter l'audio si on désactive le mode guide
                 stopSpeech()
                 setAudioPaused(true)
+                setAudioGuideActive(false) // Désactiver l'audio guide explicitement
               }
             }}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              border: '1px solid #e2e8f0',
-              background: guideMode ? '#ef4444' : '#16a34a',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              fontSize: 20,
-              fontWeight: 'bold',
-              cursor: 'pointer',
-            }}
-            aria-label={guideMode ? 'Arrêter la visite guidée' : 'Démarrer la visite guidée'}
-          >
-            {guideMode ? '⏹' : '▶'}
-          </button>
+            variant="square"
+            size="medium"
+            ariaLabel={guideMode ? 'Arrêter la visite guidée' : 'Démarrer la visite guidée'}
+          />
           {!guideMode && (
             <button
               id="developer-button"
@@ -912,12 +1337,12 @@ export default function Home() {
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 cursor: 'pointer',
               }}
-              aria-label="Panneau développeur"
+              aria-label="Développeur"
             >
               {/* Icône engrenage - image PNG */}
               <img
                 src="/images/gear-icon.png"
-                alt="Panneau développeur"
+                alt="Développeur"
                 width="28"
                 height="28"
                 style={{
@@ -931,7 +1356,10 @@ export default function Home() {
 
         <AdminSheet level={adminLevel} setLevel={setAdminLevel}>
           <GuideControls
-            loadOsrmRoute={loadOsrmRoute}
+            routeOptions={ROUTE_OPTIONS}
+            selectedRouteId={selectedRouteId}
+            onRouteSelect={setSelectedRouteId}
+            loadRoute={loadRoute}
             routeStatus={routeStatus}
             osrmError={osrmError}
             startSimulation={startSimulation}
@@ -954,10 +1382,16 @@ export default function Home() {
             setAutoTts={setAutoTts}
             audioPaused={audioPaused}
             setAudioPaused={setAudioPaused}
+            audioGuideActive={audioGuideActive}
+            setAudioGuideActive={setAudioGuideActive}
             stopSpeech={stopSpeech}
+            pauseSpeech={pauseSpeech}
+            resumeSpeech={resumeSpeech}
             centerRadiusMeters={centerRadiusMeters}
             setCenterRadiusMeters={setCenterRadiusMeters}
             recenterOnUser={recenterOnUser}
+            onPrevPoi={prevPoi}
+            onNextPoi={nextPoi}
           />
         </AdminSheet>
       </div>

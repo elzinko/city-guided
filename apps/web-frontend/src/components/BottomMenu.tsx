@@ -39,13 +39,10 @@ function ContributeIcon({ size = 24 }: { size?: number }) {
 }
 
 type BottomMenuProps = Props & {
-  devPanelOpen?: boolean // Si le panneau dev est ouvert
-  devBlockHeight?: number // Hauteur du panneau dev pour positionner au-dessus
+  devBlockHeight?: number // Hauteur du bloc dev pour ajuster la position
 }
 
-export function BottomMenu({ activeTab, onTabChange, devPanelOpen = false, devBlockHeight = 0 }: BottomMenuProps) {
-  // Le menu doit être au-dessus du panneau dev quand celui-ci est ouvert
-  const menuZIndex = devPanelOpen ? Z_INDEX.devControlBlock + 1 : Z_INDEX.bottomMenu
+export function BottomMenu({ activeTab, onTabChange, devBlockHeight = 0 }: BottomMenuProps) {
   const tabs: { id: MenuTab; label: string; icon: React.ReactNode }[] = [
     { id: 'discover', label: 'Découvrir', icon: <DiscoverIcon /> },
     { id: 'saved', label: 'Enregistrés', icon: <SavedIcon /> },
@@ -57,14 +54,14 @@ export function BottomMenu({ activeTab, onTabChange, devPanelOpen = false, devBl
       id="bottom-menu"
       style={{
         position: 'fixed',
-        bottom: devBlockHeight, // Au-dessus du panneau dev
+        bottom: devBlockHeight, // S'élève quand le panneau dev est ouvert
         left: 0,
         right: 0,
-        zIndex: menuZIndex, // Au-dessus du panneau dev
+        zIndex: Z_INDEX.bottomMenu,
         background: '#f0f4f8', // Gris/bleuté très léger
         borderTop: '1px solid #cbd5e1',
         borderRadius: 0, // Pas de bords arrondis pour faire toute la largeur
-        paddingBottom: 'env(safe-area-inset-bottom, 0)', // Toujours appliquer le safe area
+        paddingBottom: devBlockHeight === 0 ? 'env(safe-area-inset-bottom, 0)' : '0', // Safe area seulement si pas de bloc dev
         boxShadow: '0 -2px 8px rgba(0,0,0,0.05)', // Ombre légère pour le décollement
         transition: 'bottom 0.3s ease', // Transition fluide
       }}

@@ -17,8 +17,8 @@ export const Z_INDEX = {
   map: 1,
   bottomSheet: 99997, // Bottom sheet (peut être derrière le menu quand très bas)
   bottomMenu: 99998, // Menu toujours au-dessus du bottom-sheet quand ils se chevauchent
-  devControlBlock: 100000, // Dev block au-dessus du menu et du bottom-sheet
-  mapControlButtons: 100001, // Boutons au-dessus de tout
+  devControlBlock: 99999, // Dev block au-dessus du menu et du bottom-sheet
+  mapControlButtons: 100001, // Boutons au-dessus du bottom-sheet quand panneau petit, mais en dessous quand panneau grand
 } as const
 
 // Developer options visibility

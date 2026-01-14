@@ -12,7 +12,7 @@ export const BOTTOM_SHEET_HEIGHTS = {
   // Niveaux de base (utilisés pour la navigation générale)
   peek: 20, // 20% - Aperçu minimal
   mid: 50,  // 50% - Moitié de l'écran
-  full: 95, // 95% - Presque toute la hauteur
+  full: 90, // 90% - Jusqu'à la barre de recherche (au lieu de 95%)
 
   // Règles spécifiques selon le contexte
   searchResults: 66, // 2/3 de l'écran pour la liste de recherche

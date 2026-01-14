@@ -24,6 +24,18 @@ if [ "$SKIP_OSRM" != "1" ]; then
         exit 1
     fi
 
+    # Create osrm-network if it doesn't exist
+    if ! docker network inspect osrm-network >/dev/null 2>&1; then
+        echo "📡 Creating osrm-network..."
+        docker network create osrm-network
+    fi
+
+    # Create osrm-data volume if it doesn't exist
+    if ! docker volume inspect osrm-data >/dev/null 2>&1; then
+        echo "📦 Creating osrm-data volume..."
+        docker volume create osrm-data
+    fi
+
     # Check if OSRM data is loaded
     OSRM_FILES=$(docker run --rm -v osrm-data:/data alpine sh -c 'ls /data/*.osrm 2>/dev/null | wc -l' 2>/dev/null || echo "0")
 

@@ -1,9 +1,38 @@
 import { distanceMeters } from '../geo/haversine'
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { Poi, Category } from '@city-guided/domain'
 
-export function createPoiController({ poiRepo }: { poiRepo: any }) {
-  async function getNearbyPois(req: FastifyRequest, reply: FastifyReply) {
-    const q = req.query as any
+interface PoiRepository {
+  findAll(): Promise<Poi[]>
+  findById(id: string): Promise<Poi | null>
+  create(p: Omit<Poi, 'id'>): Promise<Poi>
+  update(id: string, p: Partial<Poi>): Promise<Poi | null>
+  delete(id: string): Promise<boolean>
+}
+
+interface GetNearbyPoisQuery {
+  lat: string
+  lng: string
+  radius?: string
+  category?: string
+  q?: string
+}
+
+interface CreatePoiBody {
+  name: string
+  lat: number
+  lng: number
+  radiusMeters: number
+  category: Category
+  shortDescription: string
+  ttsText?: string
+}
+
+interface UpdatePoiBody extends Partial<CreatePoiBody> {}
+
+export function createPoiController({ poiRepo }: { poiRepo: PoiRepository }) {
+  async function getNearbyPois(req: FastifyRequest<{ Querystring: GetNearbyPoisQuery }>, reply: FastifyReply) {
+    const q = req.query
     const lat = Number(q.lat)
     const lng = Number(q.lng)
     const radiusRaw = q.radius
@@ -35,9 +64,8 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
     return reply.send(nearby)
   }
 
-  async function getPoiById(req: FastifyRequest, reply: FastifyReply) {
-    const id = (req.params as any).id
-    const p = await poiRepo.findById(id)
+  async function getPoiById(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    const p = await poiRepo.findById(req.params.id)
     if (!p) {
       return reply.status(404).send({ error: 'Not found' })
     }
@@ -45,7 +73,7 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
   }
 
   async function proxyOsrmRoute(req: FastifyRequest, reply: FastifyReply) {
-    const q = req.query as any
+    const q = req.query as Record<string, string>
     const base = (process.env.OSRM_URL || 'http://localhost:5001').replace(/\/$/, '')
     const coords =
       q.coords ||
@@ -78,7 +106,7 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
     return token === expected
   }
 
-  function validatePoiPayload(body: any) {
+  function validatePoiPayload(body: any): Record<string, string> {
     const errors: Record<string, string> = {}
     if (!body) {
       errors._ = 'Body is required'
@@ -96,9 +124,9 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
     if (typeof body.radiusMeters !== 'number' || Number.isNaN(body.radiusMeters) || body.radiusMeters <= 0) {
       errors.radiusMeters = 'radiusMeters must be a positive number'
     }
-    const allowed = ['Monuments', 'Musees', 'Art', 'Insolite', 'Autre']
-    if (!body.category || typeof body.category !== 'string' || !allowed.includes(body.category)) {
-      errors.category = `category must be one of ${allowed.join(', ')}`
+    const allowedCategories: Category[] = ['Monuments', 'Musees', 'Art', 'Insolite', 'Autre']
+    if (!body.category || typeof body.category !== 'string' || !allowedCategories.includes(body.category as Category)) {
+      errors.category = `category must be one of ${allowedCategories.join(', ')}`
     }
     if (!body.shortDescription || typeof body.shortDescription !== 'string') {
       errors.shortDescription = 'shortDescription is required'
@@ -110,36 +138,29 @@ export function createPoiController({ poiRepo }: { poiRepo: any }) {
     return errors
   }
 
-  async function createPoi(req: FastifyRequest, reply: FastifyReply) {
+  async function createPoi(req: FastifyRequest<{ Body: CreatePoiBody }>, reply: FastifyReply) {
     if (!checkAdmin(req)) return reply.status(401).send({ error: 'Unauthorized' })
-    const body = req.body as any
+    const body = req.body
     const errors = validatePoiPayload(body)
     if (Object.keys(errors).length) return reply.status(400).send({ error: 'Invalid payload', details: errors })
     const created = await poiRepo.create(body)
     return reply.status(201).send(created)
   }
 
-  async function updatePoi(req: FastifyRequest, reply: FastifyReply) {
+  async function updatePoi(req: FastifyRequest<{ Params: { id: string }; Body: UpdatePoiBody }>, reply: FastifyReply) {
     if (!checkAdmin(req)) return reply.status(401).send({ error: 'Unauthorized' })
-    const id = (req.params as any).id
-    const body = req.body as any
-    const errors = validatePoiPayload({ ...body, // ensure required fields for validation
-      name: body.name ?? '',
-      lat: typeof body.lat === 'number' ? body.lat : NaN,
-      lng: typeof body.lng === 'number' ? body.lng : NaN,
-      radiusMeters: typeof body.radiusMeters === 'number' ? body.radiusMeters : NaN,
-      category: body.category ?? '',
-      shortDescription: body.shortDescription ?? '',
-    })
+    const id = req.params.id
+    const body = req.body
+    const errors = validatePoiPayload(body)
     if (Object.keys(errors).length) return reply.status(400).send({ error: 'Invalid payload', details: errors })
     const updated = await poiRepo.update(id, body)
     if (!updated) return reply.status(404).send({ error: 'Not found' })
     return reply.send(updated)
   }
 
-  async function deletePoi(req: FastifyRequest, reply: FastifyReply) {
+  async function deletePoi(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     if (!checkAdmin(req)) return reply.status(401).send({ error: 'Unauthorized' })
-    const id = (req.params as any).id
+    const id = req.params.id
     const ok = await poiRepo.delete(id)
     if (!ok) return reply.status(404).send({ error: 'Not found' })
     return reply.status(204).send()

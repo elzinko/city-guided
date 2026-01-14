@@ -7,11 +7,35 @@
     "radiusMeters": 400,
     "category": "Monuments",
     "shortDescription": "Cathédrale gothique du 12e siècle.",
+    "image": "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=400",
     "ttsText": "Voici la cathédrale Saint-Jean, construite au 12e siècle. Vous pouvez admirer son architecture gothique et ses vitraux remarquables.",
     "storySegments": [
       "Cathédrale Saint-Jean, un repère du 12e siècle au cœur de la ville.",
       "Son portail gothique et ses vitraux racontent la vie locale depuis des siècles.",
       "À l'intérieur, la nef garde la fraîcheur même l'été, parfaite halte entre deux visites."
+    ],
+    "chapters": [
+      {
+        "id": "poi_1_ch_1",
+        "title": "Introduction",
+        "text": "Cathédrale Saint-Jean, un repère du 12e siècle au cœur de la ville. Elle témoigne de l'art gothique à son apogée.",
+        "mediaUrl": "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=400",
+        "mediaCaption": "Vue de la cathédrale"
+      },
+      {
+        "id": "poi_1_ch_2",
+        "title": "Le portail",
+        "text": "Son portail gothique et ses vitraux racontent la vie locale depuis des siècles. Observez les sculptures détaillées qui ornent l'entrée.",
+        "mediaUrl": "https://images.unsplash.com/photo-1548013146-72479768bada?w=400",
+        "mediaCaption": "Détail du portail"
+      },
+      {
+        "id": "poi_1_ch_3",
+        "title": "L'intérieur",
+        "text": "À l'intérieur, la nef garde la fraîcheur même l'été, parfaite halte entre deux visites. Les colonnes s'élèvent vers une voûte majestueuse.",
+        "mediaUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
+        "mediaCaption": "La nef principale"
+      }
     ]
   },
   {
@@ -52,11 +76,35 @@
     "radiusMeters": 400,
     "category": "Monuments",
     "shortDescription": "Résidence royale classée UNESCO avec jardins.",
+    "image": "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400",
     "ttsText": "Le château de Fontainebleau fut l'une des résidences préférées des rois de France. Ses jardins et appartements reflètent huit siècles d'histoire.",
     "storySegments": [
       "À droite, le château de Fontainebleau, huit siècles d'histoire royale alignés sur la même façade.",
       "Napoléon y a signé son abdication en 1814 avant de partir pour l'île d'Elbe.",
       "Les jardins cachent des canaux et un parterre inspiré de Versailles mais plus intime."
+    ],
+    "chapters": [
+      {
+        "id": "poi_fb1_ch_1",
+        "title": "Vue d'ensemble",
+        "text": "À droite, le château de Fontainebleau, huit siècles d'histoire royale alignés sur la même façade. Un joyau architectural français.",
+        "mediaUrl": "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400",
+        "mediaCaption": "Façade du château"
+      },
+      {
+        "id": "poi_fb1_ch_2",
+        "title": "Napoléon",
+        "text": "Napoléon y a signé son abdication en 1814 avant de partir pour l'île d'Elbe. La cour des Adieux en garde le souvenir.",
+        "mediaUrl": "https://images.unsplash.com/photo-1584445584400-1a7cc5de7d95?w=400",
+        "mediaCaption": "La cour des Adieux"
+      },
+      {
+        "id": "poi_fb1_ch_3",
+        "title": "Les jardins",
+        "text": "Les jardins cachent des canaux et un parterre inspiré de Versailles mais plus intime. Un écrin de verdure propice à la promenade.",
+        "mediaUrl": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400",
+        "mediaCaption": "Les jardins à la française"
+      }
     ]
   },
   {

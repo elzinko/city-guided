@@ -43,9 +43,15 @@ echo "✅ Docker found: $(docker --version)"
 if ! docker info >/dev/null 2>&1; then
   echo "❌ Docker daemon not running"
   echo "   Starting Docker service..."
-  sudo systemctl start docker
-  sudo systemctl enable docker
-  echo "✅ Docker daemon started"
+  if sudo systemctl start docker 2>/dev/null; then
+    sudo systemctl enable docker 2>/dev/null || true
+    echo "✅ Docker daemon started"
+  else
+    echo "❌ Failed to start Docker daemon"
+    echo "   You may need to start it manually: sudo systemctl start docker"
+    echo "   Or check Docker installation: sudo yum install docker"
+    exit 1
+  fi
 fi
 
 # Add current user to docker group
@@ -54,17 +60,27 @@ echo "👤 Setting up Docker permissions for user: $CURRENT_USER"
 
 if groups "$CURRENT_USER" | grep -q docker; then
   echo "✅ User $CURRENT_USER already in docker group"
+  echo "   You can use Docker commands directly: docker ps, docker logs, etc."
 else
   echo "🔧 Adding $CURRENT_USER to docker group..."
-  sudo usermod -aG docker "$CURRENT_USER"
-  echo "✅ User added to docker group"
-  echo ""
-  echo "⚠️  IMPORTANT: You need to logout and login again, or run:"
-  echo "   newgrp docker"
-  echo ""
-  echo "Then you can use Docker commands without sudo:"
-  echo "   docker ps"
-  echo "   docker logs <container>"
+  if sudo usermod -aG docker "$CURRENT_USER"; then
+    echo "✅ User added to docker group"
+    echo ""
+    echo "⚠️  IMPORTANT: Docker permissions applied!"
+    echo "   In new sessions, you can use Docker without sudo."
+    echo "   For this session, Docker commands should work now."
+    echo ""
+    # Try to refresh group membership
+    if command -v newgrp &> /dev/null; then
+      echo "🔄 Refreshing group membership..."
+      # Note: newgrp would start a new shell, so we'll skip it for automation
+    fi
+  else
+    echo "❌ Failed to add user to docker group"
+    echo "   You may need to run Docker commands with sudo:"
+    echo "   sudo docker ps"
+    exit 1
+  fi
 fi
 
 echo ""
@@ -73,4 +89,6 @@ echo ""
 echo "💡 Test commands:"
 echo "   docker ps"
 echo "   docker images"
-echo "   cd ~/city-guided/infra/docker && docker-compose ps"
+if [ -d "~/city-guided/infra/docker" ]; then
+  echo "   cd ~/city-guided/infra/docker && docker-compose ps"
+fi

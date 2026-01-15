@@ -11,14 +11,12 @@
  */
 
 import { execSync } from 'node:child_process';
-import { writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import chalk from 'chalk';
 import {
   AWS_CONFIG,
-  GITHUB_CONFIG,
-  ENVIRONMENTS,
   getEnvironmentConfig,
   isSecret,
   getSsmPath,
@@ -196,7 +194,7 @@ async function restartDockerServices(env: EnvironmentName): Promise<void> {
             --query 'Status' \
             --output text`
         );
-      } catch (error) {
+      } catch {
         // Command might not be ready yet
         continue;
       }

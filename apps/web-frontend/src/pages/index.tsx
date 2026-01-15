@@ -810,12 +810,13 @@ export default function Home() {
     let ok = false
     try {
       // dynamic import to avoid SSR and allow packaging
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // Use require for dynamic import in non-async context
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const tts = require('@city-guided/tts')
       if (tts && typeof tts.speakBrowser === 'function') {
         ok = tts.speakBrowser(text)
       }
-    } catch (e) {
+    } catch {
       // fallback to direct API
       if (typeof window !== 'undefined' && (window as any).speechSynthesis) {
         const utter = new SpeechSynthesisUtterance(text)
@@ -833,7 +834,7 @@ export default function Home() {
       if (typeof window !== 'undefined' && (window as any).speechSynthesis) {
         (window as any).speechSynthesis.cancel()
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -843,7 +844,7 @@ export default function Home() {
       if (typeof window !== 'undefined' && (window as any).speechSynthesis) {
         (window as any).speechSynthesis.pause()
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -853,7 +854,7 @@ export default function Home() {
       if (typeof window !== 'undefined' && (window as any).speechSynthesis) {
         (window as any).speechSynthesis.resume()
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -942,7 +943,7 @@ export default function Home() {
             (mapEl as any).__markers_group.clearLayers()
             delete (mapEl as any).__markers_group
           }
-        } catch (e) {
+        } catch {
           // ignore
         }
       }

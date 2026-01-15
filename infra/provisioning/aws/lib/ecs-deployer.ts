@@ -67,8 +67,10 @@ export class ECSDeployer implements Deployer {
     }
   }
 
-  async setupDependencies(outputs: InfraOutputs): Promise<void> {
+  async setupDependencies(_outputs: InfraOutputs): Promise<void> {
     // ECS doesn't need additional setup - CDK handles everything
+    // _outputs parameter kept for interface compatibility
+    void _outputs; // Mark as intentionally unused
     console.log(chalk.blue(`\n🔧 ECS setup complete (handled by CDK)`));
   }
 

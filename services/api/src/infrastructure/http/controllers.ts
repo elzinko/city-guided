@@ -28,7 +28,8 @@ interface CreatePoiBody {
   ttsText?: string
 }
 
-interface UpdatePoiBody extends Partial<CreatePoiBody> {}
+// UpdatePoiBody: use Partial<CreatePoiBody> directly instead of empty interface
+type UpdatePoiBody = Partial<CreatePoiBody>
 
 export function createPoiController({ poiRepo }: { poiRepo: PoiRepository }) {
   async function getNearbyPois(req: FastifyRequest<{ Querystring: GetNearbyPoisQuery }>, reply: FastifyReply) {

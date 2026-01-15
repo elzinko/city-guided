@@ -23,7 +23,7 @@ export function calculateBearing(lat1: number, lon1: number, lat2: number, lon2:
   const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - 
             Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon)
   
-  let bearing = toDeg(Math.atan2(y, x))
+  const bearing = toDeg(Math.atan2(y, x))
   return (bearing + 360) % 360 // Normaliser entre 0-360
 }
 

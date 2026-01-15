@@ -17,6 +17,7 @@
  */
 
 import { execSync } from 'node:child_process';
+// exec is defined but not used - kept for potential future use
 import { writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
@@ -26,7 +27,6 @@ import chalk from 'chalk';
 import {
   AWS_CONFIG,
   GITHUB_CONFIG,
-  ENVIRONMENTS,
   getEnvironmentConfig,
   isSecret,
   getSsmPath,
@@ -79,6 +79,7 @@ function execSilent(command: string): string {
   return execSync(command, { encoding: 'utf-8', stdio: 'pipe' }).trim();
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function exec(command: string, options?: { silent?: boolean }): string {
   try {
     return execSync(command, { 
@@ -123,6 +124,7 @@ async function getAWSCredentials(): Promise<{ accessKeyId: string; secretAccessK
 // KEY PAIR
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ensureKeyPair(keyPairName: string): void {
   console.log(chalk.blue(`\n🔑 Checking SSH Key Pair: ${keyPairName}`));
 
@@ -147,6 +149,7 @@ function ensureKeyPair(keyPairName: string): void {
 // CLOUDFORMATION / CDK
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getStackOutputs(stackName: string): { instanceId: string; publicIp: string } | null {
   try {
     const outputs = execSilent(
@@ -475,6 +478,7 @@ async function main() {
 
     // Summary
     const successIcon = action === 'provision' ? '✨' : '💥';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const successTitle = action === 'provision' ? 'Complete' : 'Destroyed';
 
     console.log(chalk.bold.green('\n╔════════════════════════════════════════════════════════╗'));

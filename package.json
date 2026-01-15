@@ -9,8 +9,7 @@
   "scripts": {
     "bootstrap": "corepack enable && corepack prepare pnpm@8.8.0 --activate && pnpm install",
     "dev": "bash scripts/dev-start.sh",
-    "dev:start": "bash scripts/dev-start.sh",
-    "dev:stop": "bash scripts/dev-stop.sh",
+    "stop": "bash scripts/dev-stop.sh",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:e2e": "pnpm --filter apps-web-frontend test:e2e",
@@ -25,8 +24,8 @@
     "docker:build": "bash infra/docker/scripts/build.sh",
     "docker:deploy": "bash infra/docker/scripts/deploy.sh",
     "docker:clean": "bash infra/docker/scripts/clean.sh",
-    "docker:network": "docker network create osrm-network 2>/dev/null || true",
-    "docker:osrm:volume": "docker volume create osrm-data 2>/dev/null || true",
+    "docker:network": "bash infra/docker/scripts/network.sh",
+    "docker:osrm:volume": "bash infra/docker/scripts/data.sh",
     "provision": "cd infra/provisioning/aws && pnpm run provision",
     "update-config": "cd infra/provisioning/aws && pnpm run update-config",
     "ssh": "bash infra/scripts/ssh.sh",
@@ -40,8 +39,7 @@
     "config:push:staging": "pnpm config:push staging",
     "config:push:prod": "pnpm config:push prod",
     "config:diff:staging": "pnpm config:diff staging",
-    "config:diff:prod": "pnpm config:diff prod",
-    "docker:setup": "bash infra/scripts/docker-setup.sh"
+    "config:diff:prod": "pnpm config:diff prod"
   },
   "devDependencies": {
     "turbo": "^1.8.6",

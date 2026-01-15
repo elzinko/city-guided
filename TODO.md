@@ -17,3 +17,12 @@
 - [] Implémenter « Contribuer » (notation/signalement de lieux) dans la barre Ambiance locale.
 - [] Ajouter la notation/avis des lieux (étoiles + nombre d’avis) dans les cartes résultats.
 - [] Proposer par défaut une sélection de découvertes personnalisées sur la carte (POI suggérés) avant recherche.
+
+## Infrastructure & Déploiement
+
+- [ ] Migration vers AWS ECS Fargate : Mode de déploiement alternatif à EC2 pour scale-to-zero automatique et réduction des coûts
+  - Créer branche `feature/ecs-fargate-migration`
+  - Ajouter option `ec2|ecs` dans le script de provisioning
+  - Implémenter stack CDK ECS avec ALB + auto-scaling
+  - Maintenir compatibilité EC2 existante
+  - Voir détails : [features/ecs-fargate-migration.md](features/ecs-fargate-migration.md)

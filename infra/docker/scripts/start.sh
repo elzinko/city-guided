@@ -112,9 +112,23 @@ echo ""
 # Determine build mode:
 # - BUILD_MODE=local : build images locally (for dev/CI)
 # - API_IMAGE/WEB_IMAGE set : pull from GHCR (for staging/prod)
-# - Default: pull from GHCR
+# - Default for local: build locally (ARM64 compatibility)
+# - Default for other envs: pull from GHCR
 
+# Check if we should build locally
+# - BUILD_MODE=local explicitly set
+# - Environment is local AND no images are explicitly specified
+SHOULD_BUILD_LOCAL=false
 if [ "${BUILD_MODE:-}" = "local" ]; then
+    SHOULD_BUILD_LOCAL=true
+elif [ "$ENVIRONMENT" = "local" ]; then
+    # For local environment, build locally by default unless images are explicitly set
+    if [ -z "${API_IMAGE}" ] && [ -z "${WEB_IMAGE}" ]; then
+        SHOULD_BUILD_LOCAL=true
+    fi
+fi
+
+if [ "$SHOULD_BUILD_LOCAL" = "true" ]; then
     echo "🔨 Building images locally..."
     docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.build.yml build
     echo ""

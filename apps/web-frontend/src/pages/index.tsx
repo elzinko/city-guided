@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { SearchOverlay } from '../components/SearchOverlay'
-// ResultsPanel remplacé par BottomSheetNew pour l'affichage des résultats
+// ResultsPanel remplacé par BottomSheet pour l'affichage des résultats
 // GuideControls remplacé par DevControlBlock
-import { BottomSheetNew } from '../components/BottomSheetNew'
+import { BottomSheet } from '../components/BottomSheet'
 import { BottomMenu, type MenuTab } from '../components/BottomMenu'
 // AdminSheet remplacé par DevControlBlock
 import { DevControlBlock } from '../components/DevControlBlock'
@@ -1514,7 +1514,7 @@ export default function Home() {
           // Menu caché si on affiche des résultats de recherche (panneau ouvert)
           const menuVisible = shouldShowBottomMenu
           return (
-            <BottomSheetNew
+            <BottomSheet
               level={level}
               setLevel={setSheetLevel}
               query={title || 'Découvrir'}

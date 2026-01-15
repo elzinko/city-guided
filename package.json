@@ -8,6 +8,7 @@
   },
   "scripts": {
     "bootstrap": "corepack enable && corepack prepare pnpm@8.8.0 --activate && pnpm install",
+    "install:quiet": "pnpm install --reporter=append-only 2>&1 | grep -vE '(WARN.*deprecated|WARN.*Ignored build scripts|deprecated subdependencies)' || pnpm install --reporter=append-only",
     "dev": "bash scripts/dev-start.sh",
     "stop": "bash scripts/dev-stop.sh",
     "build": "turbo run build",
@@ -46,13 +47,13 @@
   },
   "devDependencies": {
     "turbo": "^1.8.6",
-    "eslint": "^8.50.0",
+    "eslint": "^8.57.0",
     "prettier": "^2.8.8",
     "husky": "^8.0.0",
     "typescript": "^5.2.0",
     "@types/node": "^20.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
     "eslint-config-prettier": "^9.0.0"
   }
 }

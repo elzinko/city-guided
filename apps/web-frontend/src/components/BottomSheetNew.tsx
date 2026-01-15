@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState } from 'react'
 import { distanceMeters } from '../utils/distance'
-import { SHEET_HEIGHTS, Z_INDEX } from '../config/constants'
-import { BOTTOM_SHEET_HEIGHTS, getBottomSheetHeight } from '../config/ui-rules'
+import { Z_INDEX } from '../config/constants'
+import { getBottomSheetHeight } from '../config/ui-rules'
 import type { MenuTab } from './BottomMenu'
 import { ChapterPlayer } from './ChapterPlayer'
 import { PoiHeader, PoiImage, PoiDescription } from './poi'
@@ -129,9 +129,10 @@ type Props = {
   selectedPoi?: PoiWithStory | null // POI sélectionné pour afficher les détails (avec support chapitres)
   onSelectPoi?: (poi: Poi) => void // Callback pour sélectionner un POI et voir ses détails
   onClosePoi?: () => void // Callback pour fermer les détails du POI
-  previousDiscoverLevel?: 'peek' | 'mid' | 'full' | null // Position précédente du panneau "Découvertes" (pour restauration)
+  onClose?: () => void // Callback pour fermer complètement le panneau
   onCenterOnPoi?: (poi: Poi) => void // Callback pour centrer la carte sur un POI
   onHeightChange?: (heightPx: number) => void // Callback pour notifier les changements de hauteur en temps réel (pendant le drag)
+  previousDiscoverLevel?: 'peek' | 'mid' | 'full' | null // Niveau du panneau avant l'ouverture d'un POI depuis la recherche
 }
 
 export function BottomSheetNew({
@@ -161,9 +162,10 @@ export function BottomSheetNew({
   selectedPoi = null,
   onSelectPoi,
   onClosePoi,
+  onClose: _onClose, // eslint-disable-line @typescript-eslint/no-unused-vars
   onCenterOnPoi,
   onHeightChange,
-  previousDiscoverLevel = null,
+  previousDiscoverLevel: _previousDiscoverLevel, // eslint-disable-line @typescript-eslint/no-unused-vars
 }: Props) {
   // === TOUS LES HOOKS DOIVENT ÊTRE DÉCLARÉS AU DÉBUT ===
   // État pour suivre quel POI est en cours de lecture audio
@@ -215,10 +217,13 @@ export function BottomSheetNew({
 
   // Desktop: panneau latéral gauche style Google Maps
   // Mobile: bottom sheet classique avec règles UI
-  const getHeightForLevel = (lvl: Level): string => {
-    if (lvl === 'hidden') return '0vh'
-    const heightPercent = getBottomSheetHeight(lvl)
-    return `${heightPercent}vh`
+  
+  // Helper pour convertir les niveaux contextuels en niveaux de base pour les composants
+  const getBaseLevel = (lvl: Level): 'peek' | 'mid' | 'full' => {
+    if (lvl === 'searchResults' || lvl === 'poiFromSearch' || lvl === 'poiFromMap') {
+      return 'full'
+    }
+    return lvl as 'peek' | 'mid' | 'full'
   }
   
   // Ordre des niveaux pour la navigation (sans les niveaux contextuels)
@@ -263,7 +268,8 @@ export function BottomSheetNew({
   
   // Pour mobile, utiliser getLevelHeight qui calcule dynamiquement avec limitation
   // Pour desktop, utiliser 'auto' (géré par top/bottom)
-  const height = isDesktop ? 'auto' : (level === 'hidden' ? '0px' : `${getLevelHeight(level)}px`)
+  // Note: level ne peut pas être 'hidden' ici car on a déjà fait un early return
+  const height = isDesktop ? 'auto' : `${getLevelHeight(level)}px`
 
   // Trouver le niveau le plus proche d'une hauteur donnée, avec prise en compte de la vélocité
   const findClosestLevel = (currentHeight: number, velocity: number): Level => {
@@ -448,7 +454,8 @@ export function BottomSheetNew({
   const title = query && query !== 'Découvrir' ? query : tabTitles[activeTab]
 
   // Déterminer si le panneau est grand (dépasse le milieu)
-  const isLargePanel = !isDesktop && level !== 'hidden' && level !== 'peek'
+  // Note: level ne peut pas être 'hidden' ici car on a déjà fait un early return
+  const isLargePanel = !isDesktop && level !== 'peek'
   
   // Style différent selon desktop/mobile
   const containerStyle = isDesktop ? {
@@ -628,7 +635,7 @@ export function BottomSheetNew({
               id="poi-header"
               name={selectedPoi.name}
               category={selectedPoi.category}
-              level={level}
+              level={getBaseLevel(level)}
             />
 
             {/* Image du POI - Toujours visible, affiche l'image du chapitre courant si disponible */}
@@ -649,7 +656,7 @@ export function BottomSheetNew({
             <PoiDescription
               id="poi-description"
               shortDescription={selectedPoi.shortDescription}
-              longDescription={selectedPoi.text}
+              longDescription={selectedPoi.ttsText}
             />
 
             {/* Lecteur de chapitres audio - toujours présent, accessible via scroll */}

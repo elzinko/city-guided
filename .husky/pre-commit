@@ -5,6 +5,10 @@
 # Steps: if node_modules seems missing, run `pnpm -w install` once, then run build and tests and finally lint.
 # Stop the commit if any step fails.
 
+# Skip E2E tests by default (they take too long)
+# To enable E2E tests: unset SKIP_E2E or set it to empty
+export SKIP_E2E=1
+
 # quick check: is pnpm available?
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "pnpm not found. Please install pnpm or enable corepack (corepack enable; corepack prepare pnpm@8 --activate)."

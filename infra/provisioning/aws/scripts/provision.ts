@@ -33,6 +33,7 @@ import {
   getEnvFilePath,
   type EnvironmentName,
 } from '../constants.js';
+import { createDeployer, type InfraMode } from '../lib/deployer-factory.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -165,50 +166,7 @@ function getStackOutputs(stackName: string): { instanceId: string; publicIp: str
   return null;
 }
 
-async function deployInfrastructure(env: EnvironmentName): Promise<{ instanceId: string; publicIp: string }> {
-  const config = getEnvironmentConfig(env);
-  
-  console.log(chalk.blue(`\n☁️  CloudFormation stack: ${config.STACK_NAME}`));
-
-  // Check if stack already exists with valid outputs
-  const existingOutputs = getStackOutputs(config.STACK_NAME);
-  if (existingOutputs) {
-    console.log(chalk.green(`✓ Stack already exists`));
-    console.log(chalk.dim(`   Instance: ${existingOutputs.instanceId}`));
-    console.log(chalk.dim(`   IP: ${existingOutputs.publicIp}`));
-    return existingOutputs;
-  }
-
-  // Stack doesn't exist, deploy it
-  console.log(chalk.yellow('   Stack not found, deploying...'));
-
-  // Ensure key pair exists
-  ensureKeyPair(config.KEY_PAIR_NAME);
-
-  // Bootstrap CDK if needed
-  console.log(chalk.dim('   Bootstrapping CDK...'));
-  try {
-    exec(`cdk bootstrap aws://${AWS_CONFIG.account}/${AWS_CONFIG.region}`, { silent: true });
-  } catch {
-    // Already bootstrapped
-  }
-
-  // Deploy stack
-  console.log(chalk.dim('   Deploying stack (this may take a few minutes)...'));
-  exec('cdk deploy --require-approval never');
-
-  // Get outputs
-  const outputs = getStackOutputs(config.STACK_NAME);
-  if (!outputs) {
-    throw new Error('Failed to get stack outputs after deployment');
-  }
-
-  console.log(chalk.green(`✓ Infrastructure deployed`));
-  console.log(chalk.dim(`   Instance: ${outputs.instanceId}`));
-  console.log(chalk.dim(`   IP: ${outputs.publicIp}`));
-
-  return outputs;
-}
+// Infrastructure deployment is now handled by deployer classes
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AWS SSM PARAMETER STORE
@@ -336,192 +294,18 @@ async function provisionGitHubSecrets(
 // EC2 DEPENDENCIES SETUP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function setupEc2Dependencies(instanceId: string): Promise<void> {
-  console.log(chalk.blue(`\n🔧 Setting up EC2 dependencies via SSM...`));
-
-  const commands = [
-    'set -e',
-    '',
-    '# Check if Docker Compose v2 is installed',
-    'if ! docker compose version &> /dev/null; then',
-    '  echo "📦 Installing Docker Compose v2..."',
-    '  mkdir -p /usr/local/lib/docker/cli-plugins',
-    '  curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose',
-    '  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose',
-    'else',
-    '  echo "✓ Docker Compose v2 already installed"',
-    'fi',
-    '',
-    '# Check if Docker Buildx is installed',
-    'if ! docker buildx version &> /dev/null; then',
-    '  echo "📦 Installing Docker Buildx..."',
-    '  BUILDX_URL=$(curl -s https://api.github.com/repos/docker/buildx/releases/latest | grep browser_download_url | grep linux-amd64 | head -1 | cut -d\\" -f4)',
-    '  curl -SL $BUILDX_URL -o /usr/local/lib/docker/cli-plugins/docker-buildx',
-    '  chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx',
-    'else',
-    '  echo "✓ Docker Buildx already installed"',
-    'fi',
-    '',
-    '# Install for ec2-user',
-    'mkdir -p /home/ec2-user/.docker/cli-plugins',
-    'cp /usr/local/lib/docker/cli-plugins/docker-compose /home/ec2-user/.docker/cli-plugins/ 2>/dev/null || true',
-    'cp /usr/local/lib/docker/cli-plugins/docker-buildx /home/ec2-user/.docker/cli-plugins/ 2>/dev/null || true',
-    'chown -R ec2-user:ec2-user /home/ec2-user/.docker',
-    '',
-    '# Verify',
-    'echo ""',
-    'echo "📋 Installed versions:"',
-    'docker --version',
-    'docker compose version',
-    'docker buildx version',
-  ];
-
-  try {
-    // Send command via SSM
-    const commandJson = JSON.stringify(commands);
-    const sendResult = execSilent(
-      `aws ssm send-command \
-        --instance-ids "${instanceId}" \
-        --document-name "AWS-RunShellScript" \
-        --parameters '{"commands":${commandJson}}' \
-        --region ${AWS_CONFIG.region} \
-        --query 'Command.CommandId' \
-        --output text`
-    );
-    
-    const commandId = sendResult.trim();
-    console.log(chalk.dim(`   Command ID: ${commandId}`));
-    
-    // Wait for completion (max 2 minutes)
-    console.log(chalk.dim('   Waiting for completion...'));
-    
-    let attempts = 0;
-    let status = 'InProgress';
-    
-    while (status === 'InProgress' && attempts < 24) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      attempts++;
-      
-      try {
-        status = execSilent(
-          `aws ssm get-command-invocation \
-            --command-id "${commandId}" \
-            --instance-id "${instanceId}" \
-            --region ${AWS_CONFIG.region} \
-            --query 'Status' \
-            --output text`
-        ).trim();
-      } catch {
-        // Command still in progress
-      }
-    }
-    
-    if (status === 'Success') {
-      // Get output
-      const output = execSilent(
-        `aws ssm get-command-invocation \
-          --command-id "${commandId}" \
-          --instance-id "${instanceId}" \
-          --region ${AWS_CONFIG.region} \
-          --query 'StandardOutputContent' \
-          --output text`
-      );
-      
-      // Show installed versions
-      const versions = output.split('\n')
-        .filter(line => line.includes('version') || line.includes('Version'))
-        .map(line => `   ${line}`)
-        .join('\n');
-      
-      if (versions) {
-        console.log(chalk.dim(versions));
-      }
-      
-      console.log(chalk.green(`✓ EC2 dependencies configured`));
-    } else {
-      console.log(chalk.yellow(`   ⚠️  Setup ended with status: ${status}`));
-    }
-  } catch (error: any) {
-    console.log(chalk.yellow(`   ⚠️  Setup failed: ${error.message}`));
-    console.log(chalk.dim('      This may be normal if the instance is still initializing'));
-  }
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ECS INFRASTRUCTURE DEPLOYMENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function deployEcsInfrastructure(env: EnvironmentName): Promise<void> {
-  console.log(chalk.blue(`\n🏗️  Deploying ECS infrastructure for ${env}...`));
-
-  try {
-    // Deploy CDK stack for ECS
-    execSilent(`cd ${projectRoot}/infra/provisioning/aws && npx cdk deploy CityGuidedEcsStack --require-approval never`);
-
-    console.log(chalk.green(`✓ ECS infrastructure deployed`));
-
-    // Return empty outputs (ECS doesn't need instance ID for SSM setup)
-    return {};
-
-  } catch (error: any) {
-    console.error(chalk.red(`   ❌ ECS deployment failed: ${error.message}`));
-    throw error;
-  }
-}
+// ECS deployment is now handled by ECSDeployer class
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INFRASTRUCTURE DESTRUCTION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function destroyInfrastructure(env: string, mode: InfraMode): Promise<void> {
-  console.log(chalk.blue(`\n💥 Destroying ${mode.toUpperCase()} infrastructure for ${env}...`));
-
-  try {
-    if (mode === 'ec2') {
-      // For EC2, we need to find the stack name dynamically
-      // Since we allow custom environment names, we'll try common patterns
-      const possibleStackNames = [
-        `${env.charAt(0).toUpperCase() + env.slice(1)}Stack`,
-        `CityGuided${env.charAt(0).toUpperCase() + env.slice(1)}Stack`,
-        `CityGuidedStagingStack`, // fallback for staging-like names
-      ];
-
-      let stackFound = false;
-      for (const stackName of possibleStackNames) {
-        try {
-          execSilent(`aws cloudformation describe-stacks --stack-name ${stackName} --region ${AWS_CONFIG.region} >/dev/null 2>&1`);
-          console.log(chalk.gray(`   Found stack: ${stackName}`));
-          execSilent(`aws cloudformation delete-stack --stack-name ${stackName} --region ${AWS_CONFIG.region}`);
-          console.log(chalk.green(`✓ Stack deletion initiated: ${stackName}`));
-          stackFound = true;
-          break;
-        } catch (error) {
-          // Stack not found, continue
-        }
-      }
-
-      if (!stackFound) {
-        console.log(chalk.yellow(`⚠️  No CloudFormation stack found for environment: ${env}`));
-        console.log(chalk.gray(`   Tried: ${possibleStackNames.join(', ')}`));
-      }
-
-    } else {
-      // ECS destruction
-      const ecsStackName = `CityGuidedEcsStack`; // For now, fixed name
-
-      try {
-        execSilent(`cd ${projectRoot}/infra/provisioning/aws && npx cdk destroy ${ecsStackName} --force`);
-        console.log(chalk.green(`✓ ECS infrastructure destroyed`));
-      } catch (error: any) {
-        console.log(chalk.yellow(`⚠️  ECS destruction failed: ${error.message}`));
-      }
-    }
-
-  } catch (error: any) {
-    console.error(chalk.red(`   ❌ Infrastructure destruction failed: ${error.message}`));
-    throw error;
-  }
-}
+// Infrastructure destruction is now handled by deployer classes
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DUCKDNS
@@ -564,8 +348,8 @@ async function updateDuckDNS(envVars: Record<string, string>, publicIp: string):
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Infrastructure modes
-type InfraMode = 'ec2' | 'ecs';
+// Import InfraMode from factory
+import type { InfraMode } from '../lib/deployer-factory.js';
 
 async function main() {
   // Parse arguments
@@ -661,31 +445,26 @@ async function main() {
     rl.close();
 
     if (action === 'destroy') {
-      // Direct destruction (no AWS credentials needed for destroy)
-      await destroyInfrastructure(env, mode);
+      // Direct destruction using deployer
+      const deployer = createDeployer(mode);
+      await deployer.destroy(env);
     } else {
       // Get AWS credentials for provisioning
       const awsCredentials = await getAWSCredentials();
 
-    let infraOutputs: any = {};
+      // Provisioning flow using deployer
+      const deployer = createDeployer(mode);
+      const infraOutputs = await deployer.deploy({ environment: env, envVars, awsCredentials });
 
-    if (mode === 'ec2') {
-      // 1. Deploy EC2 infrastructure
-      infraOutputs = await deployInfrastructure(env);
+      // Setup dependencies (Docker for EC2, nothing for ECS)
+      await deployer.setupDependencies(infraOutputs);
 
-      // 4. Setup EC2 dependencies (Docker Compose v2, Buildx)
-      await setupEc2Dependencies(infraOutputs.instanceId);
-
-      // 5. Update DuckDNS (needs public IP)
-      await updateDuckDNS(envVars, infraOutputs.publicIp);
-    } else {
-      // ECS mode - deploy ECS stack (no EC2 instance)
-      console.log(chalk.blue('\n🏗️  Deploying ECS infrastructure...'));
-      await deployEcsInfrastructure(env);
-
-      // Update DuckDNS with a placeholder (ECS ALB will have its own IP)
-      await updateDuckDNS(envVars, 'ecs-managed');
-    }
+      // Update DNS if needed (EC2 has public IP, ECS uses ALB)
+      if (infraOutputs.publicIp) {
+        await updateDuckDNS(envVars, infraOutputs.publicIp);
+      } else if (mode === 'ecs') {
+        await updateDuckDNS(envVars, 'ecs-managed');
+      }
 
       // 2. Store config in SSM Parameter Store (from .env file)
       await provisionSsmParameters(env, envVars, awsCredentials, infraOutputs);

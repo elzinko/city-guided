@@ -6,6 +6,7 @@
   "scripts": {
     "setup": "tsx scripts/setup.ts",
     "provision": "tsx scripts/provision.ts",
+    "destroy": "tsx scripts/provision.ts destroy",
     "update-config": "tsx scripts/update-config.ts",
     "deploy": "cdk deploy --require-approval never",
     "destroy": "cdk destroy",

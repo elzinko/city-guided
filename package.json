@@ -27,6 +27,7 @@
     "docker:network": "bash infra/docker/scripts/network.sh",
     "docker:osrm:volume": "bash infra/docker/scripts/data.sh",
     "provision": "cd infra/provisioning/aws && pnpm run provision",
+    "destroy": "cd infra/provisioning/aws && pnpm run destroy",
     "update-config": "cd infra/provisioning/aws && pnpm run update-config",
     "ssh": "bash infra/scripts/ssh.sh",
     "config:get": "bash infra/scripts/config.sh get",
@@ -39,7 +40,9 @@
     "config:push:staging": "pnpm config:push staging",
     "config:push:prod": "pnpm config:push prod",
     "config:diff:staging": "pnpm config:diff staging",
-    "config:diff:prod": "pnpm config:diff prod"
+    "config:diff:prod": "pnpm config:diff prod",
+    "destroy:staging": "pnpm destroy staging",
+    "destroy:prod": "pnpm destroy prod"
   },
   "devDependencies": {
     "turbo": "^1.8.6",

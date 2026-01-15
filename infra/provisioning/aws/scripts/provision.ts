@@ -470,6 +470,60 @@ async function deployEcsInfrastructure(env: EnvironmentName): Promise<void> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// INFRASTRUCTURE DESTRUCTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function destroyInfrastructure(env: string, mode: InfraMode): Promise<void> {
+  console.log(chalk.blue(`\n💥 Destroying ${mode.toUpperCase()} infrastructure for ${env}...`));
+
+  try {
+    if (mode === 'ec2') {
+      // For EC2, we need to find the stack name dynamically
+      // Since we allow custom environment names, we'll try common patterns
+      const possibleStackNames = [
+        `${env.charAt(0).toUpperCase() + env.slice(1)}Stack`,
+        `CityGuided${env.charAt(0).toUpperCase() + env.slice(1)}Stack`,
+        `CityGuidedStagingStack`, // fallback for staging-like names
+      ];
+
+      let stackFound = false;
+      for (const stackName of possibleStackNames) {
+        try {
+          execSilent(`aws cloudformation describe-stacks --stack-name ${stackName} --region ${AWS_CONFIG.region} >/dev/null 2>&1`);
+          console.log(chalk.gray(`   Found stack: ${stackName}`));
+          execSilent(`aws cloudformation delete-stack --stack-name ${stackName} --region ${AWS_CONFIG.region}`);
+          console.log(chalk.green(`✓ Stack deletion initiated: ${stackName}`));
+          stackFound = true;
+          break;
+        } catch (error) {
+          // Stack not found, continue
+        }
+      }
+
+      if (!stackFound) {
+        console.log(chalk.yellow(`⚠️  No CloudFormation stack found for environment: ${env}`));
+        console.log(chalk.gray(`   Tried: ${possibleStackNames.join(', ')}`));
+      }
+
+    } else {
+      // ECS destruction
+      const ecsStackName = `CityGuidedEcsStack`; // For now, fixed name
+
+      try {
+        execSilent(`cd ${projectRoot}/infra/provisioning/aws && npx cdk destroy ${ecsStackName} --force`);
+        console.log(chalk.green(`✓ ECS infrastructure destroyed`));
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️  ECS destruction failed: ${error.message}`));
+      }
+    }
+
+  } catch (error: any) {
+    console.error(chalk.red(`   ❌ Infrastructure destruction failed: ${error.message}`));
+    throw error;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DUCKDNS
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -516,8 +570,15 @@ type InfraMode = 'ec2' | 'ecs';
 async function main() {
   // Parse arguments
   const args = process.argv.slice(2);
-  let env: EnvironmentName = 'staging';
+  let env: string = 'staging'; // Now accepts any string, not just predefined environments
   let mode: InfraMode = 'ec2'; // Default to EC2 for backward compatibility
+  let action: 'provision' | 'destroy' = 'provision'; // New action parameter
+
+  // Parse action (provision/destroy)
+  if (args[0] === 'destroy') {
+    action = 'destroy';
+    args.shift();
+  }
 
   // Parse --mode flag
   const modeIndex = args.indexOf('--mode');
@@ -531,25 +592,37 @@ async function main() {
 
   // Parse environment (remaining first argument)
   if (args[0]) {
-    env = args[0] as EnvironmentName;
+    env = args[0];
   }
   
-  if (!ENVIRONMENTS[env]) {
-    console.error(chalk.red(`\n❌ Unknown environment: ${env}`));
-    console.error(chalk.yellow(`   Valid environments: ${Object.keys(ENVIRONMENTS).join(', ')}`));
+  // Validate action
+  if (action === 'destroy' && !args[0]) {
+    console.error(chalk.red(`\n❌ Environment name required for destroy`));
+    console.error(chalk.cyan(`\nUsage:`));
+    console.error(chalk.white(`   pnpm destroy <environment> [--mode ec2|ecs]`));
+    process.exit(1);
+  }
+
+  // For provision, check if it's a known environment (but allow custom names)
+  if (action === 'provision' && !env) {
+    console.error(chalk.red(`\n❌ Environment name required`));
     console.error(chalk.cyan(`\nUsage:`));
     console.error(chalk.white(`   pnpm provision <environment> [--mode ec2|ecs]`));
+    console.error(chalk.white(`   pnpm destroy <environment> [--mode ec2|ecs]`));
     console.error(chalk.white(`\nExamples:`));
     console.error(chalk.white(`   pnpm provision staging              # EC2 (default)`));
-    console.error(chalk.white(`   pnpm provision staging --mode ec2   # EC2 explicit`));
-    console.error(chalk.white(`   pnpm provision staging --mode ecs   # ECS Fargate`));
+    console.error(chalk.white(`   pnpm provision my-custom-env --mode ecs`));
+    console.error(chalk.white(`   pnpm destroy staging --mode ec2`));
     process.exit(1);
   }
 
   const awsConfig = getEnvironmentConfig(env);
 
+  const actionIcon = action === 'provision' ? '🚀' : '💥';
+  const actionTitle = action === 'provision' ? 'Provisioning' : 'Destroying';
+
   console.log(chalk.bold.cyan('\n╔════════════════════════════════════════════════════════╗'));
-  console.log(chalk.bold.cyan(`║     🚀 Provisioning: ${env.toUpperCase().padEnd(15)} Mode: ${mode.toUpperCase().padEnd(5)}    ║`));
+  console.log(chalk.bold.cyan(`║  ${actionIcon} ${actionTitle}: ${env.toUpperCase().padEnd(12)} Mode: ${mode.toUpperCase().padEnd(5)}    ║`));
   console.log(chalk.bold.cyan('╚════════════════════════════════════════════════════════╝\n'));
 
   // Load environment variables from .env file (source of truth)
@@ -575,8 +648,9 @@ async function main() {
     console.log(chalk.yellow('\n⚠️  SECRET_DUCKDNS_TOKEN not set (DNS update will be skipped)'));
   }
 
-  const proceed = await rl.question(chalk.yellow('\nProceed with provisioning? (y/n): '));
-  
+  const actionWord = action === 'provision' ? 'provisioning' : 'destroying';
+  const proceed = await rl.question(chalk.yellow(`\nProceed with ${actionWord}? (y/n): `));
+
   if (!['y', 'yes'].includes(proceed.trim().toLowerCase())) {
     console.log(chalk.yellow('\n👋 Cancelled.\n'));
     rl.close();
@@ -584,9 +658,14 @@ async function main() {
   }
 
   try {
-    // Get AWS credentials
-    const awsCredentials = await getAWSCredentials();
     rl.close();
+
+    if (action === 'destroy') {
+      // Direct destruction (no AWS credentials needed for destroy)
+      await destroyInfrastructure(env, mode);
+    } else {
+      // Get AWS credentials for provisioning
+      const awsCredentials = await getAWSCredentials();
 
     let infraOutputs: any = {};
 
@@ -608,15 +687,19 @@ async function main() {
       await updateDuckDNS(envVars, 'ecs-managed');
     }
 
-    // 2. Store config in SSM Parameter Store (from .env file)
-    await provisionSsmParameters(env, envVars, awsCredentials, infraOutputs);
+      // 2. Store config in SSM Parameter Store (from .env file)
+      await provisionSsmParameters(env, envVars, awsCredentials, infraOutputs);
 
-    // 3. Configure minimal GitHub secrets for CI
-    await provisionGitHubSecrets(env, awsCredentials, infraOutputs);
+      // 3. Configure minimal GitHub secrets for CI
+      await provisionGitHubSecrets(env, awsCredentials, infraOutputs);
+    }
 
     // Summary
+    const successIcon = action === 'provision' ? '✨' : '💥';
+    const successTitle = action === 'provision' ? 'Complete' : 'Destroyed';
+
     console.log(chalk.bold.green('\n╔════════════════════════════════════════════════════════╗'));
-    console.log(chalk.bold.green('║            ✨ Provisioning Complete! ✨                ║'));
+    console.log(chalk.bold.green(`║         ${successIcon} ${actionTitle}! ${successIcon}                        ║`));
     console.log(chalk.bold.green('╚════════════════════════════════════════════════════════╝\n'));
 
     console.log(chalk.cyan('📋 Summary:'));
@@ -650,7 +733,8 @@ async function main() {
     console.log(chalk.white(`   Access: https://${envVars.SITE_DOMAIN}\n`));
 
   } catch (error: any) {
-    console.error(chalk.red(`\n❌ Provisioning failed: ${error.message}\n`));
+    const actionWord = action === 'provision' ? 'Provisioning' : 'Destruction';
+    console.error(chalk.red(`\n❌ ${actionWord} failed: ${error.message}\n`));
     process.exit(1);
   }
 }

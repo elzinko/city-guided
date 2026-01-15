@@ -28,6 +28,7 @@
     "docker:network": "docker network create osrm-network 2>/dev/null || true",
     "docker:osrm:volume": "docker volume create osrm-data 2>/dev/null || true",
     "provision": "cd infra/provisioning/aws && pnpm run provision",
+    "update-config": "cd infra/provisioning/aws && pnpm run update-config",
     "ssh": "bash infra/scripts/ssh.sh"
   },
   "devDependencies": {

@@ -49,6 +49,31 @@ export const GITHUB_CONFIG = {
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// INFRASTRUCTURE MODES (SOURCE OF TRUTH)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Infrastructure mode per environment
+ * 
+ * This is the source of truth for deployment mode.
+ * Change here to switch between EC2 and ECS Fargate.
+ */
+export const INFRA_MODES = {
+  staging: 'ec2' as const,  // EC2 Spot instance (default)
+  prod: 'ec2' as const,     // EC2 Spot instance
+  // To migrate to ECS: change to 'ecs'
+} as const;
+
+export type InfraMode = typeof INFRA_MODES[keyof typeof INFRA_MODES];
+
+/**
+ * Get infrastructure mode for an environment
+ */
+export function getInfraMode(env: EnvironmentName): 'ec2' | 'ecs' {
+  return INFRA_MODES[env] || 'ec2';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ENVIRONMENT CONFIGURATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -106,4 +131,32 @@ export function getSsmPath(env: EnvironmentName): string {
  */
 export function getEnvFilePath(env: EnvironmentName): string {
   return `infra/docker/.env.${env}`;
+}
+
+/**
+ * Get AWS Console URLs for infrastructure resources
+ */
+export function getAwsConsoleUrls(env: EnvironmentName, mode: 'ec2' | 'ecs'): Record<string, string> {
+  const region = AWS_CONFIG.region;
+  const baseUrl = `https://${region}.console.aws.amazon.com`;
+  
+  if (mode === 'ec2') {
+    const config = getEnvironmentConfig(env);
+    return {
+      'EC2 Instance': `${baseUrl}/ec2/home?region=${region}#Instances:tag:Name=${config.STACK_NAME}`,
+      'CloudWatch Logs': `${baseUrl}/cloudwatch/home?region=${region}#logsV2:log-groups`,
+      'SSM Session Manager': `${baseUrl}/systems-manager/session-manager?region=${region}`,
+      'CloudFormation Stack': `${baseUrl}/cloudformation/home?region=${region}#/stacks/stackinfo?stackId=${config.STACK_NAME}`,
+    };
+  } else {
+    return {
+      'ECS Cluster': `${baseUrl}/ecs/v2/clusters/city-guided-cluster/services?region=${region}`,
+      'ECS Service': `${baseUrl}/ecs/v2/clusters/city-guided-cluster/services/city-guided-service?region=${region}`,
+      'Application Load Balancer': `${baseUrl}/ec2/home?region=${region}#LoadBalancers:search=city-guided-alb`,
+      'Target Groups': `${baseUrl}/ec2/home?region=${region}#TargetGroups:search=city-guided`,
+      'CloudWatch Logs (API)': `${baseUrl}/cloudwatch/home?region=${region}#logsV2:log-groups/log-group/$252Fecs$252Fcity-guided-api`,
+      'CloudWatch Logs (Web)': `${baseUrl}/cloudwatch/home?region=${region}#logsV2:log-groups/log-group/$252Fecs$252Fcity-guided-web`,
+      'CloudFormation Stack': `${baseUrl}/cloudformation/home?region=${region}#/stacks/stackinfo?stackId=CityGuidedEcsStack`,
+    };
+  }
 }

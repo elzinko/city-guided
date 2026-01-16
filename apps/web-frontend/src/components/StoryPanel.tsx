@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { convertToChapters, PoiWithStory } from '../types/story'
+import { PlayIcon, PauseIcon, StopIcon, ReplayIcon, SkipBackIcon, SkipForwardIcon } from './icons'
 
 type StoryPanelProps = {
   id?: string
@@ -17,52 +18,79 @@ type StoryPanelProps = {
 // Hauteur fixe du panneau
 const PANEL_HEIGHT = 200
 
-// Icône Play
-function PlayIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 5v14l11-7z" />
-    </svg>
-  )
+/**
+ * Composant d'indicateur de statut de lecture
+ * Affiche soit "En cours...", soit "Réécouter" selon l'état
+ */
+type PlaybackStatusProps = {
+  id?: string
+  isPlaying: boolean
+  isPaused: boolean
+  hasCompleted: boolean
+  onReplay: () => void
 }
 
-// Icône Pause
-function PauseIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <rect x="6" y="4" width="4" height="16" />
-      <rect x="14" y="4" width="4" height="16" />
-    </svg>
-  )
-}
+function PlaybackStatus({ id, isPlaying, isPaused, hasCompleted, onReplay }: PlaybackStatusProps) {
+  // Si en lecture (et pas en pause)
+  if (isPlaying && !isPaused) {
+    return (
+      <div
+        id={id ? `${id}-playing` : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          color: '#22c55e',
+          fontSize: 11,
+          fontWeight: 500,
+          padding: '6px 12px',
+          background: '#dcfce7',
+          borderRadius: 8,
+        }}
+      >
+        <div
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: '#22c55e',
+            animation: 'pulse 1s infinite',
+          }}
+        />
+        En cours...
+      </div>
+    )
+  }
 
-// Icône Previous (chapitre précédent)
-function PrevIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-    </svg>
-  )
-}
+  // Si chapitre terminé
+  if (hasCompleted && !isPlaying) {
+    return (
+      <button
+        id={id ? `${id}-replay` : undefined}
+        onClick={onReplay}
+        style={{
+          padding: '6px 12px',
+          borderRadius: 8,
+          border: 'none',
+          background: '#eff6ff',
+          color: '#3b82f6',
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+        title="Réécouter ce chapitre"
+      >
+        <ReplayIcon size={12} />
+        Réécouter
+      </button>
+    )
+  }
 
-// Icône Next (chapitre suivant)
-function NextIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 18l8.5-6L6 6v12zm2.5-6l8.5 6V6l-8.5 6z" transform="translate(-2, 0)" />
-      <rect x="16" y="6" width="2" height="12" />
-    </svg>
-  )
-}
-
-// Icône Stop (croix dans cercle)
-function StopIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  )
+  // État neutre (pas de lecture, pas terminé) - afficher un placeholder vide pour garder l'espace
+  return <div style={{ width: 80 }} />
 }
 
 export function StoryPanel({ 
@@ -371,154 +399,121 @@ export function StoryPanel({
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
             gap: 8,
             marginTop: 8,
             paddingTop: 10,
             borderTop: '1px solid #e2e8f0',
           }}
         >
-          {/* Indicateur de chapitre à gauche */}
-          {!currentChapter?.mediaUrl && (
-            <div
-              id="story-panel-chapter-indicator"
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: '#3b82f6',
-                background: '#eff6ff',
-                padding: '4px 8px',
-                borderRadius: 6,
-                marginRight: 'auto',
-              }}
-            >
-              {currentChapterIndex + 1}/{totalChapters}
-            </div>
-          )}
-
-          {/* Bouton Chapitre précédent */}
-          <button
-            id="story-panel-prev-chapter"
-            onClick={goToPrevChapter}
-            disabled={!canGoPrev}
+          {/* Groupe de gauche : contrôles de navigation (position fixe) */}
+          <div
+            id="story-panel-nav-controls"
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: 'none',
-              background: canGoPrev ? '#f1f5f9' : '#f8fafc',
-              color: canGoPrev ? '#475569' : '#cbd5e1',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              cursor: canGoPrev ? 'pointer' : 'default',
-              transition: 'all 0.15s ease',
+              gap: 8,
             }}
-            title="Chapitre précédent"
           >
-            <PrevIcon size={18} />
-          </button>
-
-          {/* Bouton Play/Pause central */}
-          <button
-            id="story-panel-play-pause"
-            onClick={handlePlayPause}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              border: 'none',
-              background: isPlaying && !isPaused ? '#3b82f6' : '#22c55e',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              transition: 'all 0.15s ease',
-            }}
-            title={isPlaying && !isPaused ? 'Pause' : (isPaused ? 'Reprendre' : 'Écouter')}
-          >
-            {isPlaying && !isPaused ? <PauseIcon size={22} /> : <PlayIcon size={22} />}
-          </button>
-
-          {/* Bouton Chapitre suivant */}
-          <button
-            id="story-panel-next-chapter"
-            onClick={goToNextChapter}
-            disabled={!canGoNext}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: 'none',
-              background: canGoNext ? '#f1f5f9' : '#f8fafc',
-              color: canGoNext ? '#475569' : '#cbd5e1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: canGoNext ? 'pointer' : 'default',
-              transition: 'all 0.15s ease',
-            }}
-            title="Chapitre suivant"
-          >
-            <NextIcon size={18} />
-          </button>
-
-          {/* Bouton Replay (visible si chapitre complété) */}
-          {hasCompletedCurrentChapter && !isPlaying && (
-            <button
-              id="story-panel-replay"
-              onClick={handleReplay}
-              style={{
-                marginLeft: 'auto',
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: 'none',
-                background: '#eff6ff',
-                color: '#3b82f6',
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-              title="Réécouter ce chapitre"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-              Réécouter
-            </button>
-          )}
-
-          {/* Indicateur lecture en cours */}
-          {isPlaying && !isPaused && (
-            <div
-              style={{
-                marginLeft: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                color: '#22c55e',
-                fontSize: 11,
-                fontWeight: 500,
-              }}
-            >
+            {/* Indicateur de chapitre */}
+            {!currentChapter?.mediaUrl && (
               <div
+                id="story-panel-chapter-indicator"
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: '#22c55e',
-                  animation: 'pulse 1s infinite',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#3b82f6',
+                  background: '#eff6ff',
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  minWidth: 40,
+                  textAlign: 'center',
                 }}
-              />
-              En cours...
-            </div>
-          )}
+              >
+                {currentChapterIndex + 1}/{totalChapters}
+              </div>
+            )}
+
+            {/* Bouton Chapitre précédent */}
+            <button
+              id="story-panel-prev-chapter"
+              onClick={goToPrevChapter}
+              disabled={!canGoPrev}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                border: 'none',
+                background: canGoPrev ? '#f1f5f9' : '#f8fafc',
+                color: canGoPrev ? '#475569' : '#cbd5e1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: canGoPrev ? 'pointer' : 'default',
+                transition: 'all 0.15s ease',
+              }}
+              title="Chapitre précédent"
+            >
+              <SkipBackIcon size={18} />
+            </button>
+
+            {/* Bouton Play/Pause central */}
+            <button
+              id="story-panel-play-pause"
+              onClick={handlePlayPause}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                border: 'none',
+                background: isPlaying && !isPaused ? '#3b82f6' : '#22c55e',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                transition: 'all 0.15s ease',
+              }}
+              title={isPlaying && !isPaused ? 'Pause' : (isPaused ? 'Reprendre' : 'Écouter')}
+            >
+              {isPlaying && !isPaused ? <PauseIcon size={22} /> : <PlayIcon size={22} />}
+            </button>
+
+            {/* Bouton Chapitre suivant (SkipBackIcon pivoté 180°) */}
+            <button
+              id="story-panel-next-chapter"
+              onClick={goToNextChapter}
+              disabled={!canGoNext}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                border: 'none',
+                background: canGoNext ? '#f1f5f9' : '#f8fafc',
+                color: canGoNext ? '#475569' : '#cbd5e1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: canGoNext ? 'pointer' : 'default',
+                transition: 'all 0.15s ease',
+              }}
+              title="Chapitre suivant"
+            >
+              <SkipForwardIcon size={18} />
+            </button>
+          </div>
+
+          {/* Spacer pour pousser l'indicateur de statut à droite */}
+          <div style={{ flex: 1 }} />
+
+          {/* Indicateur de statut à droite (position fixe) */}
+          <PlaybackStatus
+            id="story-panel-status"
+            isPlaying={isPlaying}
+            isPaused={isPaused}
+            hasCompleted={hasCompletedCurrentChapter}
+            onReplay={handleReplay}
+          />
         </div>
       </div>
 

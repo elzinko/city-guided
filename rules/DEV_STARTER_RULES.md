@@ -59,6 +59,11 @@ Exemple de commentaire attendu (à adapter) :
 
 ## 5) Scripts & exécution (source de vérité)
 
+- **DOIT** : utiliser **en priorité et au maximum** les scripts npm/pnpm définis dans les fichiers `package.json` :
+  - À la racine du projet (`package.json` principal)
+  - Dans les sous-dossiers (apps, services, packages) si des scripts spécifiques y sont définis
+- **NE DOIT PAS** : exécuter directement des commandes sous-jacentes (ex: `turbo`, `eslint`, `docker compose`) si un script npm/pnpm équivalent existe.
+
 - **DOIT** : préférer les scripts projet (ex: scripts npm/pnpm) plutôt que des commandes ad-hoc, afin d’avoir un cycle de vie reproductible.
 - Si des scripts d’exploitation existent (ex: `infra/docker/scripts/*`) :
   - **DOIVENT** être l’interface standard utilisée par les scripts npm/pnpm,

@@ -64,7 +64,7 @@ export class CityGuidedEcsStack extends cdk.Stack {
       containerName: 'api',
       environment: {
         NODE_ENV: 'production',
-        PORT: '3001',
+        PORT: '4000',
       },
       logging: new ecs.AwsLogDriver({
         streamPrefix: 'api',

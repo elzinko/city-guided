@@ -35,7 +35,7 @@ export const SECURITY_CONFIG = {
     http: 80,
     https: 443,
     frontend: 3080,
-    api: 3001,
+    api: 4000,
   },
 } as const;
 

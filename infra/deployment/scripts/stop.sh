@@ -20,11 +20,12 @@ set -e
 ENVIRONMENT="${1:-local}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCKER_DIR="$(dirname "$SCRIPT_DIR")"
+DEPLOYMENT_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$(dirname "$DEPLOYMENT_DIR")/config"
 
-cd "$DOCKER_DIR"
+cd "$DEPLOYMENT_DIR"
 
-ENV_FILE=".env.${ENVIRONMENT}"
+ENV_FILE="${CONFIG_DIR}/.env.${ENVIRONMENT}"
 
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║         🛑 Stopping ${ENVIRONMENT} environment"
@@ -48,21 +49,21 @@ echo "📦 Stopping application services..."
 
 # Use build override if BUILD_MODE=local
 if [ "${BUILD_MODE:-}" = "local" ]; then
-    docker compose -f ../compose/docker-compose.yml $ENV_FLAG -f ../compose/docker-compose.yml -f ../compose/docker-compose.build.yml down -v 2>/dev/null || true
+    docker compose -f compose/docker-compose.yml $ENV_FLAG -f compose/docker-compose.yml -f compose/docker-compose.build.yml down -v 2>/dev/null || true
 else
-    docker compose -f ../compose/docker-compose.yml $ENV_FLAG down -v 2>/dev/null || true
+    docker compose -f compose/docker-compose.yml $ENV_FLAG down -v 2>/dev/null || true
 fi
 
 # Also stop old stacks with different project names (for backward compatibility)
 if [ "$ENVIRONMENT" = "local" ]; then
     echo "🧹 Cleaning up old stack names..."
-    docker compose -f ../compose/docker-compose.yml -p city-guide-local down -v 2>/dev/null || true
-    docker compose -f ../compose/docker-compose.yml -p city-guided-local down -v 2>/dev/null || true
+    docker compose -f compose/docker-compose.yml -p city-guide-local down -v 2>/dev/null || true
+    docker compose -f compose/docker-compose.yml -p city-guided-local down -v 2>/dev/null || true
 fi
 
 echo ""
 echo "🗺️  Stopping OSRM service..."
-docker compose -f ../compose/docker-compose.yml $ENV_FLAG -f ../../docker/docker-compose.osrm.yml down 2>/dev/null || true
+docker compose -f compose/docker-compose.yml $ENV_FLAG -f ../docker/docker-compose.osrm.yml down 2>/dev/null || true
 
 # ───────────────────────────────────────────────────────────────────────────────
 # CI cleanup: also remove network and volumes

@@ -18,11 +18,12 @@ set -e
 ENVIRONMENT="${1:-local}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCKER_DIR="$(dirname "$SCRIPT_DIR")"
+DEPLOYMENT_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$(dirname "$DEPLOYMENT_DIR")/config"
 
-cd "$DOCKER_DIR"
+cd "$DEPLOYMENT_DIR"
 
-ENV_FILE=".env.${ENVIRONMENT}"
+ENV_FILE="${CONFIG_DIR}/.env.${ENVIRONMENT}"
 
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║         🔨 Building Docker images locally              ║"
@@ -38,11 +39,11 @@ fi
 
 # Build images using the build override file
 echo "🔨 Building API image..."
-docker compose -f ../compose/docker-compose.yml -f ../compose/docker-compose.yml -f ../compose/docker-compose.build.yml --env-file "$ENV_FILE" build api
+docker compose -f compose/docker-compose.yml -f compose/docker-compose.yml -f compose/docker-compose.build.yml --env-file "$ENV_FILE" build api
 
 echo ""
 echo "🔨 Building Web image..."
-docker compose -f ../compose/docker-compose.yml -f ../compose/docker-compose.yml -f ../compose/docker-compose.build.yml --env-file "$ENV_FILE" build web
+docker compose -f compose/docker-compose.yml -f compose/docker-compose.yml -f compose/docker-compose.build.yml --env-file "$ENV_FILE" build web
 
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"

@@ -21,11 +21,12 @@ SERVICE="${2:-all}"
 TIMEOUT="${WAIT_TIMEOUT:-120}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCKER_DIR="$(dirname "$SCRIPT_DIR")"
+DEPLOYMENT_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$(dirname "$DEPLOYMENT_DIR")/config"
 
-cd "$DOCKER_DIR"
+cd "$DEPLOYMENT_DIR"
 
-ENV_FILE=".env.${ENVIRONMENT}"
+ENV_FILE="${CONFIG_DIR}/.env.${ENVIRONMENT}"
 
 # Load environment if exists
 if [ -f "$ENV_FILE" ]; then

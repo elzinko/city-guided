@@ -4,7 +4,7 @@ const devProxy = process.env.NEXT_PUBLIC_API_URL
   : [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3001/api/:path*',
+        destination: 'http://localhost:4000/api/:path*',
       },
     ]
 

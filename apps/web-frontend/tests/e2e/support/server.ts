@@ -92,7 +92,7 @@ export async function startServer(
     ...process.env,
     WEB_PORT: port.toString(),
     NODE_ENV: 'test',
-  };
+  } as any as NodeJS.ProcessEnv;
 
   // Start the server using pnpm
   // Find the project root (where package.json with workspace config is)

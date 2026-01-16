@@ -6,8 +6,7 @@
   "scripts": {
     "setup": "tsx scripts/setup.ts",
     "provision": "tsx scripts/provision.ts",
-    "verify": "tsx scripts/verify.ts",
-    "deploy": "tsx scripts/deploy.ts",
+    "provision:verify": "tsx scripts/provision-verify.ts",
     "destroy": "tsx scripts/provision.ts destroy",
     "config": "tsx scripts/config.ts"
   },

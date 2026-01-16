@@ -11,13 +11,13 @@
 services:
   api:
     build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.api
+      context: ../../..
+      dockerfile: infra/deployment/compose/Dockerfile.api
     image: city-guided-api:local
 
   web:
     build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.frontend
+      context: ../../..
+      dockerfile: infra/deployment/compose/Dockerfile.frontend
     image: city-guided-web:local
 

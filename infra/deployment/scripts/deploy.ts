@@ -18,7 +18,7 @@ import {
   getInfraMode,
   getAwsConsoleUrls,
   type EnvironmentName,
-} from '../constants.js';
+} from '../../provisioning/aws/constants.js';
 
 function execSilent(command: string): string {
   try {
@@ -75,7 +75,7 @@ async function deployToEC2(env: EnvironmentName, imageTag: string): Promise<void
         "fi",
         "",
         "# Deploy using pre-built images from GHCR",
-        "cd infra/docker",
+        "cd infra/deployment",
         "chmod +x scripts/deploy.sh",
         "IMAGE_TAG=${imageTag} ./scripts/deploy.sh ${env}"
       ]' \\

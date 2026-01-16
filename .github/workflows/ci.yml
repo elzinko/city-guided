@@ -240,8 +240,8 @@ jobs:
         with:
           version: 10.27.0
 
-      - name: Install provisioning dependencies
-        working-directory: infra/provisioning/aws
+      - name: Install deployment dependencies
+        working-directory: infra/deployment
         run: pnpm install --frozen-lockfile
 
       - name: Configure AWS credentials
@@ -260,7 +260,7 @@ jobs:
           echo ""
           
           # The deploy script automatically detects the mode from constants.ts
-          cd infra/provisioning/aws
+          cd infra/deployment
           pnpm run deploy -- staging --tag "$IMAGE_TAG"
 
       - name: Get deployment info from SSM

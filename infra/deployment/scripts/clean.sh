@@ -27,7 +27,7 @@ echo ""
 # Stop all services
 echo "📦 Stopping all services..."
 docker-compose --env-file .env.local down -v 2>/dev/null || true
-docker-compose --env-file .env.local -f docker-compose.osrm.yml down 2>/dev/null || true
+docker-compose --env-file .env.local -f ../../docker/docker-compose.osrm.yml down 2>/dev/null || true
 
 echo ""
 

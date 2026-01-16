@@ -38,11 +38,11 @@ fi
 
 # Build images using the build override file
 echo "🔨 Building API image..."
-docker compose -f docker-compose.yml -f docker-compose.build.yml --env-file "$ENV_FILE" build api
+docker compose -f ../compose/docker-compose.yml -f ../compose/docker-compose.yml -f ../compose/docker-compose.build.yml --env-file "$ENV_FILE" build api
 
 echo ""
 echo "🔨 Building Web image..."
-docker compose -f docker-compose.yml -f docker-compose.build.yml --env-file "$ENV_FILE" build web
+docker compose -f ../compose/docker-compose.yml -f ../compose/docker-compose.yml -f ../compose/docker-compose.build.yml --env-file "$ENV_FILE" build web
 
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"

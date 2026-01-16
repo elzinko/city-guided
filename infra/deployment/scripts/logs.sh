@@ -185,7 +185,7 @@ show_local_logs() {
     
     # Compose files based on BUILD_MODE
     if [ "${BUILD_MODE:-}" = "local" ]; then
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.build.yml"
+        COMPOSE_FILES="-f ../compose/docker-compose.yml -f ../compose/docker-compose.build.yml"
     else
         COMPOSE_FILES=""
     fi
@@ -195,12 +195,12 @@ show_local_logs() {
         echo "📋 Showing OSRM logs (${env})..."
         [ -n "$FOLLOW_FLAG" ] && echo "   Press Ctrl+C to exit"
         echo ""
-        docker compose $ENV_FLAG -f docker-compose.osrm.yml logs $FOLLOW_FLAG
+        docker compose -f ../compose/docker-compose.yml $ENV_FLAG -f ../../docker/docker-compose.osrm.yml logs $FOLLOW_FLAG
     elif [ -n "$service" ]; then
         echo "📋 Showing logs for ${service} (${env})..."
         [ -n "$FOLLOW_FLAG" ] && echo "   Press Ctrl+C to exit"
         echo ""
-        docker compose $ENV_FLAG $COMPOSE_FILES logs $FOLLOW_FLAG "$service"
+        docker compose -f ../compose/docker-compose.yml $ENV_FLAG $COMPOSE_FILES logs $FOLLOW_FLAG "$service"
     else
         echo "📋 Showing logs for all services (${env})..."
         echo "   Usage: pnpm docker:logs ${env} [service|osrm]"
@@ -208,12 +208,12 @@ show_local_logs() {
         echo ""
         
         echo "=== Application logs ==="
-        docker compose $ENV_FLAG $COMPOSE_FILES logs $FOLLOW_FLAG &
+        docker compose -f ../compose/docker-compose.yml $ENV_FLAG $COMPOSE_FILES logs $FOLLOW_FLAG &
         APP_PID=$!
         
         echo ""
         echo "=== OSRM logs ==="
-        docker compose $ENV_FLAG -f docker-compose.osrm.yml logs $FOLLOW_FLAG &
+        docker compose -f ../compose/docker-compose.yml $ENV_FLAG -f ../../docker/docker-compose.osrm.yml logs $FOLLOW_FLAG &
         OSRM_PID=$!
         
         # Wait for both if following

@@ -204,10 +204,12 @@ jobs:
   # DEPLOY TO STAGING
   # ═══════════════════════════════════════════════════════════════════════════════
   # 
-  # This job pulls pre-built images from GHCR and deploys to EC2.
-  # Configuration is fetched from AWS SSM: /city-guided/staging/*
+  # This job uses a unified deployment script that automatically detects
+  # the infrastructure mode (EC2 or ECS) from constants.ts and deploys accordingly.
   # 
-  # Run `pnpm provision staging` to set up SSM parameters.
+  # Infrastructure mode is defined in: infra/provisioning/aws/constants.ts
+  # 
+  # Run `pnpm provision staging` to set up infrastructure.
   #
   # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -228,6 +230,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Install provisioning dependencies
+        working-directory: infra/provisioning/aws
+        run: pnpm install --frozen-lockfile
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -235,102 +251,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.SECRET_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.SECRET_AWS_REGION }}
 
-      - name: Deploy application via SSM
+      - name: Deploy application (unified script)
         env:
-          EC2_INSTANCE_ID: ${{ secrets.SECRET_EC2_INSTANCE_ID }}
           IMAGE_TAG: ${{ needs.build-images.outputs.image_tag }}
         run: |
-          echo "🚀 Deploying to AWS staging via SSM..."
-          echo "   Instance: $EC2_INSTANCE_ID"
+          echo "🚀 Deploying to AWS staging..."
           echo "   Image tag: $IMAGE_TAG"
           echo ""
           
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$EC2_INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --parameters "commands=[
-              \"set -e\",
-              \"cd /home/ec2-user\",
-              \"\",
-              \"# Clone or update repository (for docker-compose.yml and scripts)\",
-              \"if [ -d city-guided/.git ]; then\",
-              \"  echo '🔄 Updating repository...'\",
-              \"  cd city-guided\",
-              \"  git fetch origin main\",
-              \"  git reset --hard origin/main\",
-              \"else\",
-              \"  echo '📥 Cloning repository...'\",
-              \"  git clone https://github.com/${{ github.repository }}.git\",
-              \"  cd city-guided\",
-              \"fi\",
-              \"\",
-              \"# Deploy using pre-built images from GHCR\",
-              \"cd infra/docker\",
-              \"chmod +x scripts/deploy.sh\",
-              \"IMAGE_TAG=${IMAGE_TAG} ./scripts/deploy.sh staging\"
-            ]" \
-            --timeout-seconds 600 \
-            --query 'Command.CommandId' \
-            --output text)
-          
-          echo "Command ID: $COMMAND_ID"
-          
-          # Wait for command to complete (up to 5 minutes)
-          echo "⏳ Waiting for deployment to complete..."
-          FINAL_STATUS=""
-          for i in {1..60}; do
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$EC2_INSTANCE_ID" \
-              --query 'Status' \
-              --output text 2>/dev/null || echo "Pending")
-            
-            if [ "$STATUS" = "Success" ]; then
-              echo "✅ Deployment successful!"
-              FINAL_STATUS="Success"
-              break
-            elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ]; then
-              echo "❌ Deployment failed with status: $STATUS"
-              FINAL_STATUS="$STATUS"
-              # Get error output
-              aws ssm get-command-invocation \
-                --command-id "$COMMAND_ID" \
-                --instance-id "$EC2_INSTANCE_ID" \
-                --query 'StandardErrorContent' \
-                --output text
-              break
-            fi
-            
-            echo "   Status: $STATUS (attempt $i/60)..."
-            sleep 5
-          done
-          
-          # Verify final status
-          if [ -z "$FINAL_STATUS" ]; then
-            # Timeout - check final status
-            FINAL_STATUS=$(aws ssm get-command-invocation \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$EC2_INSTANCE_ID" \
-              --query 'Status' \
-              --output text 2>/dev/null || echo "Unknown")
-            echo "⚠️  Deployment timeout - final status: $FINAL_STATUS"
-          fi
-          
-          # Show deployment output
-          echo ""
-          echo "📋 Deployment output:"
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$EC2_INSTANCE_ID" \
-            --query 'StandardOutputContent' \
-            --output text | tail -50
-          
-          # Exit with error if deployment failed
-          if [ "$FINAL_STATUS" != "Success" ]; then
-            echo ""
-            echo "❌ Deployment failed with status: $FINAL_STATUS"
-            exit 1
-          fi
+          # The deploy script automatically detects the mode from constants.ts
+          cd infra/provisioning/aws
+          pnpm run deploy -- staging --tag "$IMAGE_TAG"
 
       - name: Get deployment info from SSM
         id: ssm
@@ -338,23 +269,19 @@ jobs:
           # Fetch key values from SSM for verification and summary
           SITE_DOMAIN=$(aws ssm get-parameter --name "/city-guided/staging/SITE_DOMAIN" --query "Parameter.Value" --output text 2>/dev/null || echo "")
           EC2_PUBLIC_IP=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_EC2_PUBLIC_IP" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-          WEB_PORT=$(aws ssm get-parameter --name "/city-guided/staging/WEB_PORT" --query "Parameter.Value" --output text 2>/dev/null || echo "3080")
-          API_PORT=$(aws ssm get-parameter --name "/city-guided/staging/API_PORT" --query "Parameter.Value" --output text 2>/dev/null || echo "4000")
-          DUCKDNS_TOKEN=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_DUCKDNS_TOKEN" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          INFRA_MODE=$(aws ssm get-parameter --name "/city-guided/staging/INFRA_MODE" --query "Parameter.Value" --output text 2>/dev/null || echo "ec2")
           
           echo "site_domain=$SITE_DOMAIN" >> $GITHUB_OUTPUT
           echo "public_ip=$EC2_PUBLIC_IP" >> $GITHUB_OUTPUT
-          echo "web_port=$WEB_PORT" >> $GITHUB_OUTPUT
-          echo "api_port=$API_PORT" >> $GITHUB_OUTPUT
-          echo "duckdns_token=$DUCKDNS_TOKEN" >> $GITHUB_OUTPUT
+          echo "infra_mode=$INFRA_MODE" >> $GITHUB_OUTPUT
 
-      - name: Update DuckDNS
-        if: steps.ssm.outputs.duckdns_token != ''
+      - name: Update DuckDNS (EC2 mode only)
+        if: steps.ssm.outputs.infra_mode == 'ec2' && steps.ssm.outputs.public_ip != ''
         run: |
           echo "🦆 Updating DuckDNS..."
           
           SITE_DOMAIN="${{ steps.ssm.outputs.site_domain }}"
-          DUCKDNS_TOKEN="${{ steps.ssm.outputs.duckdns_token }}"
+          DUCKDNS_TOKEN=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_DUCKDNS_TOKEN" --with-decryption --query "Parameter.Value" --output text)
           EC2_PUBLIC_IP="${{ steps.ssm.outputs.public_ip }}"
           
           DUCKDNS_SUBDOMAIN="${SITE_DOMAIN%.duckdns.org}"
@@ -365,24 +292,47 @@ jobs:
             echo "✅ DuckDNS updated: $SITE_DOMAIN → $EC2_PUBLIC_IP"
           else
             echo "⚠️ DuckDNS update failed: $RESPONSE"
-            echo "   Ensure subdomain '${DUCKDNS_SUBDOMAIN}' exists at https://www.duckdns.org"
           fi
 
-      - name: Verify deployment
+      - name: Verify deployment (EC2)
+        if: steps.ssm.outputs.infra_mode == 'ec2'
         run: |
-          echo "🔍 Verifying deployment via Caddy (port 80)..."
+          echo "🔍 Verifying EC2 deployment..."
           
           EC2_PUBLIC_IP="${{ steps.ssm.outputs.public_ip }}"
           
-          # Wait for Caddy to start and obtain SSL certificate
+          # Wait for services to start
           sleep 30
           
-          # Check via Caddy reverse proxy (HTTP on port 80)
           curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}" > /dev/null \
-            && echo "✅ Frontend OK (via Caddy)" || echo "⚠️ Frontend not responding yet"
+            && echo "✅ Frontend OK" || echo "⚠️ Frontend not responding yet"
           
           curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}/api/health" > /dev/null \
-            && echo "✅ API OK (via Caddy)" || echo "⚠️ API not responding yet"
+            && echo "✅ API OK" || echo "⚠️ API not responding yet"
+
+      - name: Verify deployment (ECS)
+        if: steps.ssm.outputs.infra_mode == 'ecs'
+        run: |
+          echo "🔍 Verifying ECS deployment..."
+          
+          # Get ALB DNS
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names city-guided-alb \
+            --query 'LoadBalancers[0].DNSName' \
+            --output text)
+          
+          echo "ALB DNS: $ALB_DNS"
+          
+          # Check target health
+          TG_ARN=$(aws elbv2 describe-target-groups \
+            --names city-guided-targets \
+            --query 'TargetGroups[0].TargetGroupArn' \
+            --output text)
+          
+          aws elbv2 describe-target-health \
+            --target-group-arn "$TG_ARN" \
+            --query 'TargetHealthDescriptions[*].TargetHealth.State' \
+            --output table
 
       - name: Deployment summary
         run: |
@@ -392,7 +342,7 @@ jobs:
           echo "╚════════════════════════════════════════════════════════╝"
           echo ""
           echo "📦 Commit:  ${{ github.sha }}"
+          echo "🏗️  Mode:    ${{ steps.ssm.outputs.infra_mode }}"
           echo "🌍 URL:     https://${{ steps.ssm.outputs.site_domain }}"
-          echo "📍 IP:      ${{ steps.ssm.outputs.public_ip }}"
           echo "🗄️ Config:  AWS SSM /city-guided/staging/*"
           echo ""

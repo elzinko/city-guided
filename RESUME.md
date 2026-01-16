@@ -8,7 +8,7 @@ CityGuided is a fluid, segmented audio guide tailored for taxi passengers and pe
 
 **Tech Stack:**
 - Frontend: Next.js 13 (React 18) on port 3080
-- API: Fastify with TypeScript on port 3001
+- API: Fastify with TypeScript on port 4000
 - Testing: Vitest (unit), Cucumber + Playwright (E2E/BDD)
 - Orchestration: Turborepo, Docker Compose, GitHub Actions
 - Infrastructure: AWS CDK (staging), Docker with Caddy reverse proxy, GHCR for images
@@ -76,7 +76,7 @@ apps/
   web-frontend/          # Next.js app (port 3080)
     tests/e2e/          # Cucumber features + Playwright steps
 services/
-  api/                   # Fastify API (port 3001)
+  api/                   # Fastify API (port 4000)
     src/
       domain/           # Entities and use cases (hexagonal)
       infrastructure/   # HTTP routes, persistence, geo utilities
@@ -136,14 +136,14 @@ Next.js 13 app with:
 
 **Frontend** (`apps/web-frontend/.env.local`):
 ```
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:4000
 NEXT_PUBLIC_OSRM_URL=http://localhost:5000  # or via API proxy
 NEXT_PUBLIC_ADMIN_TOKEN=dev-secret
 ```
 
 **API** (reads from `process.env` in `main.ts`):
 ```
-PORT=3001
+PORT=4000
 OSRM_URL=http://osrm:5000
 NODE_ENV=development
 ```
@@ -266,8 +266,8 @@ pnpm --filter services-api add <pkg>  # Specific service
 ```
 
 ### Port Configuration
-- Frontend: 3080 (avoids Next.js fallback to 3001)
-- API: 3001
+- Frontend: 3080 (avoids Next.js fallback to 3000)
+- API: 4000
 - OSRM: 5001 (host), 5000 (container)
 - Caddy HTTP: 80
 - Caddy HTTPS: 443

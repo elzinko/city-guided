@@ -95,7 +95,7 @@ export class CityGuidedEcsStack extends cdk.Stack {
       ),
       environment: {
         NODE_ENV: 'production',
-        PORT: '3001',
+        PORT: '4000',
         // ... autres vars d'env depuis SSM
       },
       logging: new ecs.AwsLogDriver({
@@ -112,7 +112,7 @@ export class CityGuidedEcsStack extends cdk.Stack {
       environment: {
         NODE_ENV: 'production',
         PORT: '3000',
-        NEXT_PUBLIC_API_URL: `http://localhost:3001`
+        NEXT_PUBLIC_API_URL: `http://localhost:4000`
       }
     });
 

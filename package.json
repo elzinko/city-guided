@@ -22,6 +22,7 @@
     "docker:start": "bash infra/deployment/scripts/start.sh",
     "docker:stop": "bash infra/deployment/scripts/stop.sh",
     "docker:logs": "bash infra/deployment/scripts/logs.sh",
+    "docker:status": "bash infra/deployment/scripts/status.sh",
     "docker:wait": "bash infra/deployment/scripts/wait.sh",
     "docker:build": "bash infra/deployment/scripts/build.sh",
     "docker:deploy": "bash infra/deployment/scripts/deploy.sh",

@@ -111,7 +111,7 @@ jobs:
           EOF
 
       - name: Start all services (using .env.ci)
-        run: pnpm docker:start ci
+        run: SKIP_OSRM_DATA_LOAD=true pnpm docker:start ci
         timeout-minutes: 15
 
       - name: Check container status
@@ -125,7 +125,7 @@ jobs:
           docker logs city-guided-ci-caddy --tail 20 2>&1 || echo "Caddy container not found"
 
       - name: Wait for all services
-        run: pnpm docker:wait ci all
+        run: SKIP_OSRM_DATA_LOAD=true pnpm docker:wait ci all
         timeout-minutes: 5
 
       - name: Run E2E tests

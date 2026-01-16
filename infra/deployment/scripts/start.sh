@@ -76,10 +76,19 @@ docker network create osrm-network 2>/dev/null || true
 # Check and load OSRM data
 # ───────────────────────────────────────────────────────────────────────────────
 
-if ! docker volume inspect osrm-data >/dev/null 2>&1; then
+# Skip OSRM data loading if SKIP_OSRM_DATA_LOAD is set (useful for CI)
+if [ "${SKIP_OSRM_DATA_LOAD:-false}" = "true" ]; then
+    echo "⏭️  Skipping OSRM data loading (SKIP_OSRM_DATA_LOAD=true)"
+    echo ""
+elif ! docker volume inspect osrm-data >/dev/null 2>&1; then
     echo "📥 OSRM data volume not found, creating and loading data..."
+    echo "   ⚠️  This may take a while (download + extraction + partition + customize)..."
     docker volume create osrm-data
-    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm-data.yml up
+    # Add timeout to prevent infinite blocking (30 minutes max)
+    timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm-data.yml up || {
+        echo "⚠️  OSRM data loading timed out or failed"
+        echo "   Continuing anyway - OSRM service may not work until data is loaded"
+    }
     echo ""
 else
     # Check if OSRM data is loaded
@@ -88,7 +97,11 @@ else
     if [ "$OSRM_FILES" = "0" ]; then
         echo "⚠️  OSRM data not loaded yet"
         echo "   Loading OSRM data (this may take a while)..."
-        docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm-data.yml up
+        # Add timeout to prevent infinite blocking (30 minutes max)
+        timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm-data.yml up || {
+            echo "⚠️  OSRM data loading timed out or failed"
+            echo "   Continuing anyway - OSRM service may not work until data is loaded"
+        }
         echo ""
     else
         echo "✅ OSRM data volume exists with data"
@@ -99,25 +112,31 @@ fi
 # Start OSRM service
 # ───────────────────────────────────────────────────────────────────────────────
 
-echo "🗺️  Starting OSRM service..."
-docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm.yml up -d --remove-orphans
+# Skip OSRM service if SKIP_OSRM_DATA_LOAD is set (useful for CI)
+if [ "${SKIP_OSRM_DATA_LOAD:-false}" = "true" ]; then
+    echo "⏭️  Skipping OSRM service (SKIP_OSRM_DATA_LOAD=true)"
+    echo ""
+else
+    echo "🗺️  Starting OSRM service..."
+    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm.yml up -d --remove-orphans
 
-# Wait for OSRM to be ready
-echo "⏳ Waiting for OSRM to be ready..."
-OSRM_CHECK_PORT="${OSRM_PORT:-5001}"
+    # Wait for OSRM to be ready
+    echo "⏳ Waiting for OSRM to be ready..."
+    OSRM_CHECK_PORT="${OSRM_PORT:-5001}"
 
-for i in {1..30}; do
-    if curl -sf "http://localhost:${OSRM_CHECK_PORT}/nearest/v1/driving/2.3522,48.8566" > /dev/null 2>&1; then
-        echo "✅ OSRM is ready"
-        break
-    fi
-    if [ $i -eq 30 ]; then
-        echo "⚠️  OSRM not responding yet, continuing anyway..."
-        echo "   Check logs: ./scripts/logs.sh ${ENVIRONMENT} osrm"
-    fi
-    sleep 2
-done
-echo ""
+    for i in {1..30}; do
+        if curl -sf "http://localhost:${OSRM_CHECK_PORT}/nearest/v1/driving/2.3522,48.8566" > /dev/null 2>&1; then
+            echo "✅ OSRM is ready"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            echo "⚠️  OSRM not responding yet, continuing anyway..."
+            echo "   Check logs: ./scripts/logs.sh ${ENVIRONMENT} osrm"
+        fi
+        sleep 2
+    done
+    echo ""
+fi
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Start application

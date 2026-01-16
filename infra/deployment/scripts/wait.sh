@@ -158,7 +158,12 @@ case "$SERVICE" in
         wait_for_caddy
         ;;
     all)
-        wait_for_osrm
+        # Skip OSRM wait if SKIP_OSRM_DATA_LOAD is set (useful for CI)
+        if [ "${SKIP_OSRM_DATA_LOAD:-false}" != "true" ]; then
+            wait_for_osrm
+        else
+            echo "⏭️  Skipping OSRM wait (SKIP_OSRM_DATA_LOAD=true)"
+        fi
         wait_for_caddy  # Caddy proxies both web and API
         ;;
     *)

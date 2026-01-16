@@ -289,42 +289,16 @@ export function DevControlBlock({
             overflowY: 'auto',
           }}
         >
-          {/* Bloc 1 : Sélection de trajet virtuel (toujours visible, désactivé si non actif) */}
+          {/* Bloc 1 : Bouton édition des trajets */}
           <div
             id="dev-virtual-route-block"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              opacity: virtualRouteActive ? 1 : 0.5,
-              transition: 'opacity 0.2s ease',
+              justifyContent: 'flex-end',
             }}
           >
-            {/* Sélecteur de route avec nombre de points intégré */}
-            <select
-              id="dev-route-selector"
-              value={selectedRouteId}
-              disabled={!virtualRouteActive}
-              onChange={(e) => {
-                onRouteSelect(e.target.value)
-                loadRoute(e.target.value)
-              }}
-              style={{
-                ...compactSelectStyle,
-                flex: 1,
-                background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
-                border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #cbd5e1',
-                color: virtualRouteActive ? '#166534' : '#94a3b8',
-                cursor: virtualRouteActive ? 'pointer' : 'not-allowed',
-              }}
-            >
-              {routeOptions.map((route: RouteOption) => (
-                <option key={route.id} value={route.id}>
-                  ({route.pointsCount || simPath.length} pts) {route.name}
-                </option>
-              ))}
-            </select>
-
             {/* Bouton édition des trajets */}
             <a
               id="dev-edit-routes-link"
@@ -596,7 +570,6 @@ export function DevControlBlock({
           }}
           title={virtualRouteActive ? 'Désactiver le trajet virtuel' : 'Activer le trajet virtuel'}
         >
-          <GpsSimIcon size={16} />
           <div
             id="dev-virtual-route-switch"
             style={{
@@ -626,6 +599,32 @@ export function DevControlBlock({
             />
           </div>
         </div>
+
+        {/* Sélecteur de route avec nombre de points intégré */}
+        <select
+          id="dev-route-selector"
+          value={selectedRouteId}
+          disabled={!virtualRouteActive}
+          onChange={(e) => {
+            onRouteSelect(e.target.value)
+            loadRoute(e.target.value)
+          }}
+          style={{
+            ...compactSelectStyle,
+            flex: 1,
+            maxWidth: 300,
+            background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
+            border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #cbd5e1',
+            color: virtualRouteActive ? '#166534' : '#94a3b8',
+            cursor: virtualRouteActive ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {routeOptions.map((route: RouteOption) => (
+            <option key={route.id} value={route.id}>
+              ({route.pointsCount || simPath.length} pts) {route.name}
+            </option>
+          ))}
+        </select>
 
         {/* Contrôles du simulateur GPS - visible uniquement si virtualRouteActive */}
         {virtualRouteActive && (

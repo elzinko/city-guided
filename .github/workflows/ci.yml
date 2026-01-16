@@ -255,7 +255,13 @@ jobs:
       )
     environment:
       name: staging
-      url: https://cityguided.duckdns.org
+      urls:
+        - label: Application
+          url: https://cityguided.duckdns.org
+        - label: AWS Console (CloudFormation)
+          url: https://eu-west-3.console.aws.amazon.com/cloudformation/home?region=eu-west-3#/stacks/stackinfo?stackId=CityGuidedStagingStack
+        - label: AWS Console (EC2)
+          url: https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#Instances:tag:Name=CityGuidedStagingStack
     steps:
       - name: Checkout
         uses: actions/checkout@v4

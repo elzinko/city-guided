@@ -5,9 +5,11 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCKER_DIR="$(dirname "$SCRIPT_DIR")"
+DEPLOYMENT_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$(dirname "$DEPLOYMENT_DIR")/config"
+DOCKER_DIR="$(dirname "$DEPLOYMENT_DIR")/docker"
 
-cd "$DOCKER_DIR"
+cd "$DEPLOYMENT_DIR"
 
 echo "⚠️  WARNING: This will remove all containers, volumes, and networks!"
 echo "   Including OSRM data (you'll need to re-download)"
@@ -26,14 +28,14 @@ echo ""
 
 # Stop all services
 echo "📦 Stopping all services..."
-docker-compose --env-file .env.local down -v 2>/dev/null || true
-docker-compose --env-file .env.local -f ../docker/docker-compose.osrm.yml down 2>/dev/null || true
+docker-compose --env-file "$CONFIG_DIR/.env.local" -f compose/docker-compose.yml down -v 2>/dev/null || true
+docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm.yml" down 2>/dev/null || true
 
 echo ""
 
 # Remove images (optional - uncomment if you want to remove images too)
 echo "🖼️  Removing images..."
-docker-compose --env-file .env.local down --rmi local 2>/dev/null || true
+docker-compose --env-file "$CONFIG_DIR/.env.local" -f compose/docker-compose.yml down --rmi local 2>/dev/null || true
 
 echo ""
 

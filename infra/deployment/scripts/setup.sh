@@ -5,7 +5,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCKER_DIR="$(dirname "$SCRIPT_DIR")"
+DEPLOYMENT_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$(dirname "$DEPLOYMENT_DIR")/config"
 
 echo "🚀 Setting up Docker infrastructure..."
 echo ""
@@ -33,10 +34,15 @@ fi
 echo ""
 
 # Check if .env.local exists
-if [ ! -f "$DOCKER_DIR/.env.local" ]; then
+if [ ! -f "$CONFIG_DIR/.env.local" ]; then
     echo "⚠️  .env.local not found. Creating from template..."
-    cp "$DOCKER_DIR/.env.example" "$DOCKER_DIR/.env.local"
-    echo "✅ Created .env.local - please review and adjust if needed"
+    if [ -f "$CONFIG_DIR/.env.example" ]; then
+        cp "$CONFIG_DIR/.env.example" "$CONFIG_DIR/.env.local"
+        echo "✅ Created .env.local - please review and adjust if needed"
+    else
+        echo "❌ .env.example not found in $CONFIG_DIR"
+        exit 1
+    fi
 else
     echo "✅ .env.local already exists"
 fi
@@ -45,6 +51,6 @@ echo ""
 echo "✨ Setup complete!"
 echo ""
 echo "📝 Next steps:"
-echo "   1. Load OSRM data: cd infra/docker && docker-compose --env-file .env.local -f ../docker/docker-compose.osrm-data.yml up"
+echo "   1. Load OSRM data: cd infra/docker && docker-compose --env-file ../config/.env.local -f docker-compose.osrm-data.yml up"
 echo "   2. Start OSRM: npm run docker:local:start (or use scripts/local-start.sh)"
 echo ""

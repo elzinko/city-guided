@@ -270,6 +270,11 @@ jobs:
         with:
           version: 10.27.0
 
+      - name: Install deployment dependencies
+        run: |
+          cd infra/provisioning/aws
+          pnpm install --frozen-lockfile
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -286,9 +291,9 @@ jobs:
           echo ""
           
           # The deploy script automatically detects the mode from constants.ts
-          # Use npx tsx from root (same pattern as app:deploy in package.json)
+          # Use pnpm from infra/provisioning/aws (has chalk and tsx installed)
           cd infra/provisioning/aws
-          npx tsx ../../../infra/deployment/scripts/deploy.ts staging --tag "$IMAGE_TAG"
+          pnpm exec tsx ../../../infra/deployment/scripts/deploy.ts staging --tag "$IMAGE_TAG"
 
       - name: Get deployment info from SSM
         id: ssm

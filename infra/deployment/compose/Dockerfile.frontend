@@ -39,6 +39,20 @@ COPY --from=deps /app/node_modules ./node_modules
 # Install dependencies (pnpm will use cached modules)
 RUN pnpm install --frozen-lockfile
 
+# Accept build arguments for Next.js public env vars
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_OSRM_URL
+ARG NEXT_PUBLIC_SHOW_DEV_OPTIONS
+ARG DOCKER_ENV=true
+ARG API_PORT=4000
+
+# Make them available during build
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_OSRM_URL=$NEXT_PUBLIC_OSRM_URL
+ENV NEXT_PUBLIC_SHOW_DEV_OPTIONS=$NEXT_PUBLIC_SHOW_DEV_OPTIONS
+ENV DOCKER_ENV=$DOCKER_ENV
+ENV API_PORT=$API_PORT
+
 # Build the application
 RUN pnpm run build --filter apps-web-frontend
 

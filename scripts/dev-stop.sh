@@ -13,12 +13,12 @@ echo ""
 
 # Stop dev servers (API + Frontend)
 echo "📦 Stopping API and Frontend servers..."
-PIDS=$(lsof -ti:3001,3080 2>/dev/null || true)
+PIDS=$(lsof -ti:4000,3080 2>/dev/null || true)
 if [ -n "$PIDS" ]; then
     echo "$PIDS" | xargs kill -9 2>/dev/null || true
     echo "✅ Dev servers stopped"
 else
-    echo "ℹ️  No dev servers running on ports 3001/3080"
+    echo "ℹ️  No dev servers running on ports 4000/3080"
 fi
 echo ""
 

@@ -11,7 +11,7 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$ROOT_DIR/infra/docker"
 
 SKIP_OSRM="${SKIP_OSRM:-0}"
-API_PORT="${API_PORT:-3001}"
+API_PORT="${API_PORT:-4000}"
 WEB_PORT="${WEB_PORT:-3080}"
 
 # Start OSRM (unless skipped)

@@ -1,5 +1,5 @@
-# CLAUDE.md
+# .cursorrules - Point d'entrée pour Cursor
 
-Point d'entrée spécifique pour Claude Code (claude.ai/code).
+Point d'entrée spécifique pour Cursor IDE.
 
 - **DOIT** : Lire [LLM.md](./LLM.md) pour le contexte complet du projet et toutes les règles à appliquer

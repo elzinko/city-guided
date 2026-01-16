@@ -65,7 +65,13 @@ Exemple de commentaire attendu (à adapter) :
 - **DEVRAIT** : faire des changements petits et réversibles (PRs/commits focalisés).
 - **NE DOIT PAS** : mélanger refactor massif + fix comportemental sans nécessité (difficile à reviewer et à débug).
 
-## 7) Règles déjà appliquées dans ce repo (si présentes)
+## 7) Utilisation de Playwright MCP
+
+- **DOIT** : Utiliser Playwright MCP uniquement si nécessaire (coût en tokens élevé).
+- **DOIT** : Demander l'approbation de l'utilisateur avant d'utiliser Playwright MCP.
+- **DOIT** : L'utiliser de manière minimale (le plus léger possible), sauf si c'est vraiment nécessaire et approuvé par l'utilisateur.
+
+## 8) Règles déjà appliquées dans ce repo (si présentes)
 
 Ces points reflètent des garde-fous/outils typiquement présents dans un projet comme celui-ci :
 

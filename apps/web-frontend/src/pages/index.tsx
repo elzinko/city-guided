@@ -94,7 +94,6 @@ export default function Home() {
   const lastPanRef = useRef<{ lat: number; lng: number } | null>(null)
   const [simPath, setSimPath] = useState<any[]>([])
   const [devBlockHeight, setDevBlockHeight] = useState(0) // Hauteur du bloc dev pour ajuster le menu
-  const [devBarHeight, setDevBarHeight] = useState(0) // Hauteur de la barre dev uniquement (pour le bottom-menu)
   const [selectedRouteId, setSelectedRouteId] = useState<string>('default')
   const [virtualRouteActive, setVirtualRouteActive] = useState(false) // Toggle trajet virtuel
   const [userHasPanned, setUserHasPanned] = useState(false) // Pour éviter les recadrages automatiques après pan manuel
@@ -1673,7 +1672,6 @@ export default function Home() {
             centerRadiusMeters={centerRadiusMeters}
             setCenterRadiusMeters={setCenterRadiusMeters}
             onHeightChange={setDevBlockHeight}
-            onBarHeightChange={setDevBarHeight}
             panelOpen={devPanelOpen}
             setPanelOpen={setDevPanelOpen}
           />

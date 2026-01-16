@@ -14,7 +14,7 @@ async function bootstrap() {
   const routes = createRoutes({ poiRepo })
   routes.forEach((r) => server.route(r))
 
-  const port = process.env.PORT ? Number(process.env.PORT) : 3001
+  const port = process.env.PORT ? Number(process.env.PORT) : 4000
   const host = process.env.HOST || '0.0.0.0'
   await server.listen({ port, host })
   console.log(`API listening on ${host}:${port}`)

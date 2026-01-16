@@ -17,7 +17,7 @@ export const BOTTOM_SHEET_HEIGHTS = {
   // Règles spécifiques selon le contexte
   searchResults: 66, // 2/3 de l'écran pour la liste de recherche
   poiFromSearch: 75, // 75% - S'arrête avant la barre de recherche (réduit de 90%)
-  poiFromMap: 50,    // Moitié de l'écran quand cliqué depuis la carte
+  poiFromMap: 60,    // 60% pour voir le carousel + lecteur dès l'ouverture
 } as const
 
 /**

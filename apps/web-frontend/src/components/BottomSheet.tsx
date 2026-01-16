@@ -276,29 +276,22 @@ export function BottomSheet({
     const BOTTOM_MENU_HEIGHT = 64
     const minSheetHeight = menuVisible ? devBlockHeight + BOTTOM_MENU_HEIGHT : 0
     
-    // Hauteur minimale pour garder le poi-header visible (environ 120px)
-    const poiHeaderMinHeight = selectedPoi ? 120 : 0
-    
-    // Si on approche très près du bas (près du menu), fermer le panneau
-    // Pour les POI, on permet aussi de fermer en tirant vers le bas
-    const threshold = 80 // pixels de tolérance
-    if (currentHeight <= minSheetHeight + threshold) {
+    // Pour les résultats de recherche, permettre de fermer en tirant vers le bas
+    if (!selectedPoi && currentHeight <= minSheetHeight + 80) {
       return 'hidden'
     }
     
-    // Si vélocité forte vers le bas (positive) et on est sur un niveau contextuel POI
-    // Permettre de fermer le panneau POI en tirant vers le bas
-    if (velocity > 600 && (level === 'poiFromSearch' || level === 'poiFromMap')) {
+    // Si vélocité forte vers le bas (positive) et on est sur les résultats de recherche
+    // Permettre de fermer le panneau en tirant vers le bas
+    if (velocity > 600 && level === 'searchResults') {
       return 'hidden'
     }
     
     // Si on est sur un niveau contextuel POI
     if (level === 'poiFromSearch' || level === 'poiFromMap') {
-      // Calculer la hauteur minimale (poi-header visible)
-      if (currentHeight < poiHeaderMinHeight + minSheetHeight) {
-        return 'hidden' // Trop bas, fermer
-      }
-      // Garder le niveau actuel si on est au-dessus du minimum
+      // Pour les POI, NE PAS fermer en tirant vers le bas
+      // Le panneau reste au minimum à la hauteur du poi-header
+      // L'utilisateur doit utiliser le bouton X pour fermer
       return level
     }
     
@@ -429,7 +422,11 @@ export function BottomSheet({
           : 12 // Fallback si le search-overlay n'est pas trouvé
         const maxHeight = vh - (menuVisible ? (devBlockHeight + 64) : 0) - searchOverlayTop
         const startHeight = getLevelHeight(startLevelRef.current)
-        const newHeight = Math.max(0, Math.min(startHeight + dragOffset, maxHeight))
+        
+        // Hauteur minimale pour garder le poi-header visible (environ 140px = header + padding)
+        // Uniquement si un POI est sélectionné
+        const poiMinHeight = selectedPoi ? 140 : 0
+        const newHeight = Math.max(poiMinHeight, Math.min(startHeight + dragOffset, maxHeight))
         sheetRef.current.style.height = `${newHeight}px`
         
         // Notifier le parent de la nouvelle hauteur en temps réel

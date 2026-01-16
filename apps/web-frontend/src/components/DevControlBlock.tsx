@@ -71,6 +71,8 @@ const compactButtonStyle: React.CSSProperties = {
 }
 
 // Style commun pour les selects compacts
+// Note: Sur mobile, les dropdowns fixed peuvent mal se positionner
+// transform: translateZ(0) crée un nouveau contexte de stacking pour corriger ce problème
 const compactSelectStyle: React.CSSProperties = {
   height: BUTTON_HEIGHT,
   padding: '0 8px',
@@ -84,6 +86,9 @@ const compactSelectStyle: React.CSSProperties = {
   WebkitAppearance: 'menulist', // Préserver l'apparence native sur Safari/Chrome
   MozAppearance: 'menulist', // Préserver l'apparence native sur Firefox
   appearance: 'menulist',
+  // Forcer un nouveau contexte de stacking pour corriger les dropdowns sur mobile
+  transform: 'translateZ(0)',
+  WebkitTransform: 'translateZ(0)',
 }
 
 // Icône GPS/Navigation pour le simulateur

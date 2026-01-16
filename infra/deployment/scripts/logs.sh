@@ -26,9 +26,8 @@ SERVICE="${2:-}"
 LINES="${3:-50}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCKER_DIR="$(dirname "$SCRIPT_DIR")"
-
-cd "$DOCKER_DIR"
+DEPLOYMENT_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_DIR="$(dirname "$DEPLOYMENT_DIR")/config"
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Check if remote environment
@@ -165,10 +164,7 @@ show_local_logs() {
     local env="$1"
     local service="$2"
     
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    DEPLOYMENT_DIR="$(dirname "$SCRIPT_DIR")"
-    CONFIG_DIR="$(dirname "$DEPLOYMENT_DIR")/config"
-    
+    # Use global variables defined at script start
     ENV_FILE="${CONFIG_DIR}/.env.${env}"
     
     # Check if env file exists
@@ -193,6 +189,9 @@ show_local_logs() {
     else
         COMPOSE_FILES=""
     fi
+    
+    # Change to deployment directory for docker compose commands
+    cd "$DEPLOYMENT_DIR"
     
     # Show logs
     if [ "$service" = "osrm" ]; then

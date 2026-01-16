@@ -23,9 +23,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOYMENT_DIR="$(dirname "$SCRIPT_DIR")"
 CONFIG_DIR="$(dirname "$DEPLOYMENT_DIR")/config"
 
-cd "$DEPLOYMENT_DIR"
+echo "[DEBUG] SCRIPT_DIR=$SCRIPT_DIR"
+echo "[DEBUG] DEPLOYMENT_DIR=$DEPLOYMENT_DIR"
+echo "[DEBUG] CONFIG_DIR=$CONFIG_DIR"
+echo "[DEBUG] Current directory before cd: $(pwd)"
+
+cd "$DEPLOYMENT_DIR" || {
+    echo "❌ Failed to cd to $DEPLOYMENT_DIR"
+    exit 1
+}
+
+echo "[DEBUG] Current directory after cd: $(pwd)"
 
 ENV_FILE="${CONFIG_DIR}/.env.${ENVIRONMENT}"
+
+echo "[DEBUG] ENV_FILE=$ENV_FILE"
 
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║         🚀 Starting ${ENVIRONMENT} environment"
@@ -43,18 +55,24 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
+echo "[DEBUG] Loading environment file: $ENV_FILE"
 # Load environment variables
 source "$ENV_FILE"
+echo "[DEBUG] Environment file loaded successfully"
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Stop existing containers first (to avoid port conflicts)
 # ───────────────────────────────────────────────────────────────────────────────
 
 echo "🛑 Stopping existing containers (if any)..."
+echo "[DEBUG] Running docker compose down commands..."
 # Stop application services - try both with and without build override to catch all containers
+echo "[DEBUG] Command 1: docker compose down (app services)"
 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+echo "[DEBUG] Command 2: docker compose down (app services with build)"
 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.yml -f compose/docker-compose.build.yml down --remove-orphans 2>/dev/null || true
 # Stop OSRM service
+echo "[DEBUG] Command 3: docker compose down (OSRM)"
 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm.yml down --remove-orphans 2>/dev/null || true
 echo "✅ Existing containers stopped"
 echo ""

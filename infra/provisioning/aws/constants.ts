@@ -59,7 +59,7 @@ export const GITHUB_CONFIG = {
  * Change here to switch between EC2 and ECS Fargate.
  */
 export const INFRA_MODES = {
-  staging: 'ec2' as const,  // EC2 Spot instance (default)
+  staging: 'ecs' as const,  // ECS Fargate (migrated from EC2)
   prod: 'ec2' as const,     // EC2 Spot instance
   // To migrate to ECS: change to 'ecs'
 } as const;

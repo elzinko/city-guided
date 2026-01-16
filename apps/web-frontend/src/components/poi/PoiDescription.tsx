@@ -6,7 +6,7 @@ type PoiDescriptionProps = {
   longDescription?: string
 }
 
-export function PoiDescription({ id, shortDescription, longDescription }: PoiDescriptionProps) {
+export function PoiDescription({ id, shortDescription }: PoiDescriptionProps) {
   return (
     <div id={id} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Description courte */}
@@ -24,8 +24,8 @@ export function PoiDescription({ id, shortDescription, longDescription }: PoiDes
         </p>
       )}
 
-      {/* Description longue (si disponible) */}
-      {longDescription && (
+      {/* Description longue (poi-description-long) - masquée selon les spécifications */}
+      {/* {longDescription && (
         <div
           id={id ? `${id}-long` : undefined}
           style={{
@@ -46,7 +46,7 @@ export function PoiDescription({ id, shortDescription, longDescription }: PoiDes
             {longDescription}
           </p>
         </div>
-      )}
+      )} */}
     </div>
   )
 }

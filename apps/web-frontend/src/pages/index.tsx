@@ -47,14 +47,16 @@ type RouteOption = {
   name: string
   description?: string
   loadFn: () => Promise<any[]> | any[]
+  pointsCount?: number
 }
 
-const ROUTE_OPTIONS: RouteOption[] = [
+const DEFAULT_ROUTE_OPTIONS: RouteOption[] = [
   {
     id: 'default',
     name: 'Boucle Fontainebleau',
     description: 'Route par défaut autour du château',
     loadFn: () => Promise.resolve(DEFAULT_DRIVE_PATH),
+    pointsCount: DEFAULT_DRIVE_PATH.length,
   },
 ]
 
@@ -95,6 +97,10 @@ export default function Home() {
   const [simPath, setSimPath] = useState<any[]>([])
   const [devBlockHeight, setDevBlockHeight] = useState(0) // Hauteur du bloc dev pour ajuster le menu
   const [selectedRouteId, setSelectedRouteId] = useState<string>('default')
+  const [customRouteOptions, setCustomRouteOptions] = useState<RouteOption[]>([])
+  
+  // Combiner les routes par défaut avec les routes personnalisées
+  const ROUTE_OPTIONS = [...DEFAULT_ROUTE_OPTIONS, ...customRouteOptions]
   const [virtualRouteActive, setVirtualRouteActive] = useState(false) // Toggle trajet virtuel
   const [userHasPanned, setUserHasPanned] = useState(false) // Pour éviter les recadrages automatiques après pan manuel
   const userHasPannedRef = useRef(false) // Ref synchrone pour vérifications immédiates dans les effets
@@ -141,6 +147,27 @@ export default function Home() {
   // Clé localStorage pour les options dev
   const DEV_OPTIONS_KEY = 'cityguided_dev_options'
   const devOptionsLoadedRef = useRef(false) // Pour éviter d'écraser les options avant le chargement initial
+
+  // Charger les routes personnalisées depuis localStorage
+  useEffect(() => {
+    try {
+      const ROUTES_STORAGE_KEY = 'cityguided_custom_routes'
+      const saved = localStorage.getItem(ROUTES_STORAGE_KEY)
+      if (saved) {
+        const customRoutes = JSON.parse(saved)
+        const routeOptions = customRoutes.map((route: any) => ({
+          id: route.id,
+          name: route.name,
+          description: route.description,
+          pointsCount: route.points?.length || 0,
+          loadFn: () => Promise.resolve(route.points || []),
+        }))
+        setCustomRouteOptions(routeOptions)
+      }
+    } catch (e) {
+      console.error('Erreur chargement routes personnalisées:', e)
+    }
+  }, [])
 
   // Charger les options dev depuis localStorage au montage
   useEffect(() => {
@@ -1395,9 +1422,10 @@ export default function Home() {
   // - Pas en mode recherche active (overlay ouvert)
   // - ET (panneau fermé OU pas de résultats de recherche à afficher)
   // - ET pas en desktop (Google Maps style: pas de menu en bas sur desktop)
+  // - ET pas de POI sélectionné (pour gagner de la place dans poi-details)
   // - Le panneau développeur peut être ouvert, le menu reste visible au-dessus
   // Si searchActive est false ET query est vide, le menu doit être visible même si searchReady est true
-  const shouldShowBottomMenu = !isDesktop && !guideMode && !searchActive && (sheetLevel === 'hidden' || !(searchReady && query && query.trim() !== ''))
+  const shouldShowBottomMenu = !isDesktop && !guideMode && !searchActive && !selectedPoi && (sheetLevel === 'hidden' || !(searchReady && query && query.trim() !== ''))
 
   // Quand on ferme le panneau (sheetLevel = 'hidden'), réinitialiser searchReady si on avait des résultats
   // Cela permet de réafficher le menu proprement
@@ -1628,12 +1656,27 @@ export default function Home() {
               setSheetLevel('mid')
               setVisitedPoiIds(new Set())
               setCurrentNavigationPoiIndex(-1)
+              // Initialiser activeStory avec le POI le plus proche
+              if (pos && pois.length > 0) {
+                const withDistance = pois.map((p) => ({
+                  p,
+                  distance: distanceMeters(pos.lat, pos.lng, p.lat, p.lng),
+                  radius: p.radiusMeters || DEFAULT_RADIUS_METERS
+                }))
+                const closest = withDistance.sort((a, b) => a.distance - b.distance)[0]
+                if (closest) {
+                  const segs = getStorySegments(closest.p)
+                  const startIdx = segs.length ? 0 : 0
+                  setActiveStory({ poiId: closest.p.id, segmentIdx: startIdx })
+                }
+              }
             } else {
               setGuideMode(false)
               stopSpeech()
               setAudioPaused(true)
               setAudioGuideActive(false)
               setNavigationPois([])
+              setActiveStory(null) // Réinitialiser activeStory quand on quitte le mode navigation
               setSheetLevel('hidden')
             }
           }}

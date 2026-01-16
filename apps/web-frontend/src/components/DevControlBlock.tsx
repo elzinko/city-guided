@@ -276,7 +276,6 @@ export function DevControlBlock({
               alignItems: 'center',
               gap: 8,
               opacity: virtualRouteActive ? 1 : 0.5,
-              pointerEvents: virtualRouteActive ? 'auto' : 'none',
               transition: 'opacity 0.2s ease',
             }}
           >
@@ -292,9 +291,10 @@ export function DevControlBlock({
               style={{
                 ...compactSelectStyle,
                 flex: 1,
-                background: virtualRouteActive ? '#dcfce7' : '#f1f5f9',
-                border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #cbd5e1',
+                background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
+                border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #e2e8f0',
                 color: virtualRouteActive ? '#166534' : '#94a3b8',
+                cursor: virtualRouteActive ? 'pointer' : 'not-allowed',
               }}
             >
               {routeOptions.map((route: RouteOption) => (
@@ -313,10 +313,9 @@ export function DevControlBlock({
                 textDecoration: 'none',
                 width: BUTTON_HEIGHT,
                 padding: 0,
-                border: virtualRouteActive ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
-                background: virtualRouteActive ? '#f5f3ff' : '#f1f5f9',
+                border: virtualRouteActive ? '1px solid #8b5cf6' : '1px solid #e2e8f0',
+                background: virtualRouteActive ? '#f5f3ff' : '#f8fafc',
                 color: virtualRouteActive ? '#7c3aed' : '#94a3b8',
-                pointerEvents: 'auto', // Toujours cliquable pour éditer les routes
               }}
               title="Éditer les trajets virtuels"
             >
@@ -570,7 +569,7 @@ export function DevControlBlock({
             ...compactButtonStyle,
             gap: 6,
             padding: '0 10px',
-            background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
+            background: virtualRouteActive ? '#dcfce7' : '#ffffff',
             border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #e2e8f0',
             cursor: 'pointer',
           }}
@@ -605,43 +604,44 @@ export function DevControlBlock({
           </div>
         </div>
 
-        {/* Contrôles du simulateur GPS */}
-        <>
-          {/* Séparateur */}
-          <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
+        {/* Contrôles du simulateur GPS - visible uniquement si virtualRouteActive */}
+        {virtualRouteActive && (
+          <>
+            {/* Séparateur */}
+            <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
 
-          {/* Indicateur de position sur le trajet (si trajet virtuel actif) */}
-          {virtualRouteActive && simPath.length > 0 && (
-            <div
-              id="dev-route-indicator"
-              style={{
-                ...compactButtonStyle,
-                background: '#dcfce7',
-                border: '1px solid #22c55e',
-                color: '#166534',
-                minWidth: 50,
+            {/* Indicateur de position sur le trajet (si trajet virtuel actif) */}
+            {simPath.length > 0 && (
+              <div
+                id="dev-route-indicator"
+                style={{
+                  ...compactButtonStyle,
+                  background: '#dcfce7',
+                  border: '1px solid #22c55e',
+                  color: '#166534',
+                  minWidth: 50,
+                }}
+              >
+                {simStep + 1}/{simPath.length}
+              </div>
+            )}
+
+            {/* Contrôles de lecture */}
+            <PlayerControls
+              playing={isSimulating && !simPaused}
+              onPlayPause={onPlayPause}
+              onPrevious={onPrevious}
+              onNext={onNext}
+              variant="square"
+              size="small"
+              buttonStyle={{
+                height: BUTTON_HEIGHT,
+                width: BUTTON_HEIGHT,
+                borderRadius: 8,
               }}
-            >
-              {simStep + 1}/{simPath.length}
-            </div>
-          )}
+            />
 
-          {/* Contrôles de lecture */}
-          <PlayerControls
-            playing={isSimulating && !simPaused}
-            onPlayPause={onPlayPause}
-            onPrevious={onPrevious}
-            onNext={onNext}
-            variant="square"
-            size="small"
-            buttonStyle={{
-              height: BUTTON_HEIGHT,
-              width: BUTTON_HEIGHT,
-              borderRadius: 8,
-            }}
-          />
-
-          {/* Vitesse */}
+            {/* Vitesse */}
             <select
               id="dev-speed-select"
               value={speedFactor}
@@ -658,7 +658,8 @@ export function DevControlBlock({
 
             {/* Séparateur */}
             <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
-        </>
+          </>
+        )}
 
         {/* Spacer pour pousser le bouton à droite */}
         <div style={{ flex: 1 }} />

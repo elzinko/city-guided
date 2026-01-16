@@ -667,7 +667,7 @@ export function BottomSheet({
               stopSpeech={stopSpeech}
               pauseSpeech={pauseSpeech}
               resumeSpeech={resumeSpeech}
-              compact={true}
+              compact={false}
               onChapterChange={(index) => setCurrentChapterIndex(index)}
             />
 

@@ -14,12 +14,28 @@ export function PoiImage({ id, name, imageUrl, chapterImageUrl }: PoiImageProps)
   // Utiliser l'image du chapitre courant en priorité
   const displayImageUrl = chapterImageUrl || imageUrl
 
+  // Calculer la hauteur de l'image selon le device
+  // Mobile : 40% de la hauteur du viewport, avec min 280px et max 400px
+  // Desktop : 35% de la hauteur du viewport, avec min 300px et max 450px
+  const getImageHeight = () => {
+    if (typeof window === 'undefined') return 350 // Fallback SSR
+    const vh = window.innerHeight
+    const isMobile = window.innerWidth < 768
+    const percentage = isMobile ? 0.4 : 0.35
+    const calculatedHeight = vh * percentage
+    const minHeight = isMobile ? 280 : 300
+    const maxHeight = isMobile ? 400 : 450
+    return Math.max(minHeight, Math.min(maxHeight, calculatedHeight))
+  }
+
+  const imageHeight = getImageHeight()
+
   return (
     <div
       id={id}
       style={{
         width: '100%',
-        height: 180,
+        height: `${imageHeight}px`,
         borderRadius: 12,
         overflow: 'hidden',
         background: displayImageUrl
@@ -31,6 +47,7 @@ export function PoiImage({ id, name, imageUrl, chapterImageUrl }: PoiImageProps)
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
+        flexShrink: 0, // Empêcher la réduction de taille
       }}
     >
       {!displayImageUrl && (

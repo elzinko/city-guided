@@ -32,20 +32,7 @@ echo "╚═══════════════════════�
 echo ""
 
 # ───────────────────────────────────────────────────────────────────────────────
-# Stop existing containers first (to avoid port conflicts)
-# ───────────────────────────────────────────────────────────────────────────────
-
-echo "🛑 Stopping existing containers (if any)..."
-# Stop application services - try both with and without build override to catch all containers
-docker compose --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
-docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.build.yml down --remove-orphans 2>/dev/null || true
-# Stop OSRM service
-docker compose --env-file "$ENV_FILE" -f docker-compose.osrm.yml down --remove-orphans 2>/dev/null || true
-echo "✅ Existing containers stopped"
-echo ""
-
-# ───────────────────────────────────────────────────────────────────────────────
-# Check prerequisites
+# Check prerequisites FIRST (before using ENV_FILE)
 # ───────────────────────────────────────────────────────────────────────────────
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -57,6 +44,19 @@ fi
 
 # Load environment variables
 source "$ENV_FILE"
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Stop existing containers first (to avoid port conflicts)
+# ───────────────────────────────────────────────────────────────────────────────
+
+echo "🛑 Stopping existing containers (if any)..."
+# Stop application services - try both with and without build override to catch all containers
+docker compose --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.build.yml down --remove-orphans 2>/dev/null || true
+# Stop OSRM service
+docker compose --env-file "$ENV_FILE" -f docker-compose.osrm.yml down --remove-orphans 2>/dev/null || true
+echo "✅ Existing containers stopped"
+echo ""
 
 echo "📋 Configuration:"
 echo "   Environment: ${ENVIRONMENT}"

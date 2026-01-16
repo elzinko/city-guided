@@ -160,18 +160,15 @@ fi
 echo "🔐 Connecting via SSM Session Manager..."
 echo "   No SSH key required - authenticated via IAM"
 echo ""
-echo "🔧 Setting up Docker permissions automatically..."
-echo ""
-
-# Execute Docker setup automatically
-~/city-guided/infra/scripts/docker-setup.sh
-
-echo ""
 echo "💡 Ready! Common commands:"
 echo "   cd city-guided/infra/docker"
 echo "   docker ps"
 echo "   docker logs city-guided-${ENVIRONMENT}-api -f"
-echo "   docker-compose ps"
+echo "   docker compose ps"
+echo ""
+echo "⚠️  Note: If you get 'permission denied' for Docker, run:"
+echo "   newgrp docker"
+echo "   (or use 'sg docker -c \"command\"' for single commands)"
 echo ""
 
 exec aws ssm start-session \

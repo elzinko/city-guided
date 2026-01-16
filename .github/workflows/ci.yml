@@ -114,8 +114,19 @@ jobs:
         run: pnpm docker:start ci
         timeout-minutes: 15
 
+      - name: Check container status
+        run: |
+          echo "📋 Container status:"
+          docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          echo ""
+          echo "📋 Container logs (last 20 lines each):"
+          docker logs city-guided-ci-api --tail 20 2>&1 || echo "API container not found"
+          docker logs city-guided-ci-web --tail 20 2>&1 || echo "Web container not found"
+          docker logs city-guided-ci-caddy --tail 20 2>&1 || echo "Caddy container not found"
+
       - name: Wait for all services
         run: pnpm docker:wait ci all
+        timeout-minutes: 5
 
       - name: Run E2E tests
         run: pnpm run test:e2e

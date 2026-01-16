@@ -45,6 +45,7 @@ type DevControlBlockProps = {
   setCenterRadiusMeters: (v: number) => void
   // UI callbacks
   onHeightChange?: (height: number) => void
+  onBarHeightChange?: (height: number) => void // Hauteur de la barre uniquement (pour le bottom-menu)
   // Panel state (lifted from parent for persistence)
   panelOpen: boolean
   setPanelOpen: (v: boolean) => void
@@ -178,6 +179,7 @@ export function DevControlBlock({
   centerRadiusMeters,
   setCenterRadiusMeters,
   onHeightChange,
+  onBarHeightChange,
   panelOpen,
   setPanelOpen,
 }: DevControlBlockProps) {
@@ -192,6 +194,24 @@ export function DevControlBlock({
       onHeightChange(height)
     }
   }, [panelOpen, virtualRouteActive]) // Retirer onHeightChange des dépendances
+
+  // Mesurer la hauteur de la barre uniquement (pour le bottom-menu)
+  useEffect(() => {
+    const measureBarHeight = () => {
+      if (barRef.current && onBarHeightChange) {
+        const height = barRef.current.offsetHeight
+        onBarHeightChange(height)
+      }
+    }
+    
+    // Mesurer immédiatement
+    measureBarHeight()
+    
+    // Mesurer après un court délai pour s'assurer que le DOM est rendu
+    const timeoutId = setTimeout(measureBarHeight, 0)
+    
+    return () => clearTimeout(timeoutId)
+  }, [onBarHeightChange, panelOpen, virtualRouteActive]) // Mesurer quand la barre change ou quand le panneau s'ouvre/ferme
 
   // Copier les coordonnées dans le presse-papier
   const copyCoordinates = () => {
@@ -234,147 +254,6 @@ export function DevControlBlock({
         paddingBottom: 'env(safe-area-inset-bottom, 0)',
       }}
     >
-      {/* Barre principale : toggle trajet virtuel + contrôles GPS + bouton dev */}
-      <div
-        ref={barRef}
-        id="dev-control-bar"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '8px 12px',
-          minHeight: 52,
-        }}
-      >
-        {/* Toggle trajet virtuel (toujours visible, remplace l'ancienne icône GPS) */}
-        <div
-          id="dev-virtual-route-toggle"
-          onClick={() => {
-            const newValue = !virtualRouteActive
-            setVirtualRouteActive(newValue)
-            setPanelOpen(newValue) // Ouvrir le panneau si trajets activés, fermer si désactivés
-            if (!newValue && isSimulating) stopSimulation()
-          }}
-          style={{
-            ...compactButtonStyle,
-            gap: 6,
-            padding: '0 10px',
-            background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
-            border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #e2e8f0',
-            cursor: 'pointer',
-          }}
-          title={virtualRouteActive ? 'Désactiver le trajet virtuel' : 'Activer le trajet virtuel'}
-        >
-          <GpsSimIcon size={16} />
-          <div
-            id="dev-virtual-route-switch"
-            style={{
-              width: 36,
-              height: 20,
-              borderRadius: 10,
-              background: virtualRouteActive ? '#22c55e' : '#94a3b8',
-              position: 'relative',
-              transition: 'background 0.2s ease',
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                top: 2,
-                left: virtualRouteActive ? 18 : 2,
-                width: 16,
-                height: 16,
-                borderRadius: 8,
-                background: '#fff',
-                transition: 'left 0.2s ease',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Contrôles du simulateur GPS */}
-        <>
-          {/* Séparateur */}
-          <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
-
-          {/* Indicateur de position sur le trajet (si trajet virtuel actif) */}
-          {virtualRouteActive && simPath.length > 0 && (
-            <div
-              id="dev-route-indicator"
-              style={{
-                ...compactButtonStyle,
-                background: '#dcfce7',
-                border: '1px solid #22c55e',
-                color: '#166534',
-                minWidth: 50,
-              }}
-            >
-              {simStep + 1}/{simPath.length}
-            </div>
-          )}
-
-          {/* Contrôles de lecture */}
-          <PlayerControls
-            playing={isSimulating && !simPaused}
-            onPlayPause={onPlayPause}
-            onPrevious={onPrevious}
-            onNext={onNext}
-            variant="square"
-            size="small"
-            buttonStyle={{
-              height: BUTTON_HEIGHT,
-              width: BUTTON_HEIGHT,
-              borderRadius: 8,
-            }}
-          />
-
-          {/* Vitesse */}
-            <select
-              id="dev-speed-select"
-              value={speedFactor}
-              onChange={(e) => setSpeedFactor(Number(e.target.value))}
-              style={{ ...compactSelectStyle, minWidth: 55 }}
-            >
-              <option value={0.5}>0.5×</option>
-              <option value={1}>1×</option>
-              <option value={2}>2×</option>
-              <option value={5}>5×</option>
-              <option value={10}>10×</option>
-              <option value={20}>20×</option>
-            </select>
-
-            {/* Séparateur */}
-            <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
-        </>
-
-        {/* Spacer pour pousser le bouton à droite */}
-        <div style={{ flex: 1 }} />
-
-        {/* Bouton engrenage */}
-        <button
-          id="dev-gear-button"
-          onClick={() => setPanelOpen(!panelOpen)}
-          style={{
-            ...compactButtonStyle,
-            width: BUTTON_HEIGHT,
-            padding: 0,
-            border: panelOpen ? '2px solid #3b82f6' : '1px solid #e2e8f0',
-            background: panelOpen ? '#eff6ff' : '#ffffff',
-          }}
-          aria-label="Développeur"
-        >
-          <img
-            src="/images/gear-icon.png"
-            alt="Développeur"
-            width="20"
-            height="20"
-            style={{ display: 'block', objectFit: 'contain' }}
-          />
-        </button>
-      </div>
-
       {/* Panneau développeur (dépliable) */}
       {panelOpen && (
         <div
@@ -665,6 +544,147 @@ export function DevControlBlock({
           </div>
         </div>
       )}
+
+      {/* Barre principale : toggle trajet virtuel + contrôles GPS + bouton dev */}
+      <div
+        ref={barRef}
+        id="dev-control-bar"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '8px 12px',
+          minHeight: 52,
+        }}
+      >
+        {/* Toggle trajet virtuel (toujours visible, remplace l'ancienne icône GPS) */}
+        <div
+          id="dev-virtual-route-toggle"
+          onClick={() => {
+            const newValue = !virtualRouteActive
+            setVirtualRouteActive(newValue)
+            setPanelOpen(newValue) // Ouvrir le panneau si trajets activés, fermer si désactivés
+            if (!newValue && isSimulating) stopSimulation()
+          }}
+          style={{
+            ...compactButtonStyle,
+            gap: 6,
+            padding: '0 10px',
+            background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
+            border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #e2e8f0',
+            cursor: 'pointer',
+          }}
+          title={virtualRouteActive ? 'Désactiver le trajet virtuel' : 'Activer le trajet virtuel'}
+        >
+          <GpsSimIcon size={16} />
+          <div
+            id="dev-virtual-route-switch"
+            style={{
+              width: 36,
+              height: 20,
+              borderRadius: 10,
+              background: virtualRouteActive ? '#22c55e' : '#94a3b8',
+              position: 'relative',
+              transition: 'background 0.2s ease',
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: 2,
+                left: virtualRouteActive ? 18 : 2,
+                width: 16,
+                height: 16,
+                borderRadius: 8,
+                background: '#fff',
+                transition: 'left 0.2s ease',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Contrôles du simulateur GPS */}
+        <>
+          {/* Séparateur */}
+          <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
+
+          {/* Indicateur de position sur le trajet (si trajet virtuel actif) */}
+          {virtualRouteActive && simPath.length > 0 && (
+            <div
+              id="dev-route-indicator"
+              style={{
+                ...compactButtonStyle,
+                background: '#dcfce7',
+                border: '1px solid #22c55e',
+                color: '#166534',
+                minWidth: 50,
+              }}
+            >
+              {simStep + 1}/{simPath.length}
+            </div>
+          )}
+
+          {/* Contrôles de lecture */}
+          <PlayerControls
+            playing={isSimulating && !simPaused}
+            onPlayPause={onPlayPause}
+            onPrevious={onPrevious}
+            onNext={onNext}
+            variant="square"
+            size="small"
+            buttonStyle={{
+              height: BUTTON_HEIGHT,
+              width: BUTTON_HEIGHT,
+              borderRadius: 8,
+            }}
+          />
+
+          {/* Vitesse */}
+            <select
+              id="dev-speed-select"
+              value={speedFactor}
+              onChange={(e) => setSpeedFactor(Number(e.target.value))}
+              style={{ ...compactSelectStyle, minWidth: 55 }}
+            >
+              <option value={0.5}>0.5×</option>
+              <option value={1}>1×</option>
+              <option value={2}>2×</option>
+              <option value={5}>5×</option>
+              <option value={10}>10×</option>
+              <option value={20}>20×</option>
+            </select>
+
+            {/* Séparateur */}
+            <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
+        </>
+
+        {/* Spacer pour pousser le bouton à droite */}
+        <div style={{ flex: 1 }} />
+
+        {/* Bouton engrenage */}
+        <button
+          id="dev-gear-button"
+          onClick={() => setPanelOpen(!panelOpen)}
+          style={{
+            ...compactButtonStyle,
+            width: BUTTON_HEIGHT,
+            padding: 0,
+            border: panelOpen ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+            background: panelOpen ? '#eff6ff' : '#ffffff',
+          }}
+          aria-label="Développeur"
+        >
+          <img
+            src="/images/gear-icon.png"
+            alt="Développeur"
+            width="20"
+            height="20"
+            style={{ display: 'block', objectFit: 'contain' }}
+          />
+        </button>
+      </div>
     </div>
   )
 }

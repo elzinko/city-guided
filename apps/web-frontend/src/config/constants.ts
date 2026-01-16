@@ -13,12 +13,15 @@ export const GPS_BUTTON_MARGIN_PX = 12
 export const GPS_HIDE_THRESHOLD_PERCENT = 50
 
 // Z-index hierarchy (higher = on top)
+// Ordre visuel du bas vers le haut : dev-control-block < bottom-menu < map-control-buttons
+// Le dev-control-block est en bas (bottom: 0), le bottom-menu est au-dessus (bottom: 52px), 
+// donc le bottom-menu doit avoir un z-index plus élevé pour être visible au-dessus
 export const Z_INDEX = {
   map: 1,
   bottomSheet: 99997, // Bottom sheet (peut être derrière le menu quand très bas)
-  bottomMenu: 99998, // Menu toujours au-dessus du bottom-sheet quand ils se chevauchent
-  devControlBlock: 99999, // Dev block au-dessus du menu et du bottom-sheet
-  mapControlButtons: 100001, // Boutons au-dessus du bottom-sheet quand panneau petit, mais en dessous quand panneau grand
+  devControlBlock: 99998, // Dev block en bas (bottom: 0)
+  bottomMenu: 99999, // Menu au-dessus du dev-control-block (bottom: 52px)
+  mapControlButtons: 100001, // Boutons au-dessus de tout (en haut)
 } as const
 
 // Developer options visibility

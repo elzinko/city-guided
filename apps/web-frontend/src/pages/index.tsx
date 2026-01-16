@@ -94,6 +94,7 @@ export default function Home() {
   const lastPanRef = useRef<{ lat: number; lng: number } | null>(null)
   const [simPath, setSimPath] = useState<any[]>([])
   const [devBlockHeight, setDevBlockHeight] = useState(0) // Hauteur du bloc dev pour ajuster le menu
+  const [devBarHeight, setDevBarHeight] = useState(0) // Hauteur de la barre dev uniquement (pour le bottom-menu)
   const [selectedRouteId, setSelectedRouteId] = useState<string>('default')
   const [virtualRouteActive, setVirtualRouteActive] = useState(false) // Toggle trajet virtuel
   const [userHasPanned, setUserHasPanned] = useState(false) // Pour éviter les recadrages automatiques après pan manuel
@@ -1394,10 +1395,10 @@ export default function Home() {
   // - Pas en mode guide
   // - Pas en mode recherche active (overlay ouvert)
   // - ET (panneau fermé OU pas de résultats de recherche à afficher)
-  // - ET panneau développeur fermé
   // - ET pas en desktop (Google Maps style: pas de menu en bas sur desktop)
+  // - Le panneau développeur peut être ouvert, le menu reste visible au-dessus
   // Si searchActive est false ET query est vide, le menu doit être visible même si searchReady est true
-  const shouldShowBottomMenu = !isDesktop && !guideMode && !searchActive && !devPanelOpen && (sheetLevel === 'hidden' || !(searchReady && query && query.trim() !== ''))
+  const shouldShowBottomMenu = !isDesktop && !guideMode && !searchActive && (sheetLevel === 'hidden' || !(searchReady && query && query.trim() !== ''))
 
   // Quand on ferme le panneau (sheetLevel = 'hidden'), réinitialiser searchReady si on avait des résultats
   // Cela permet de réafficher le menu proprement
@@ -1672,6 +1673,7 @@ export default function Home() {
             centerRadiusMeters={centerRadiusMeters}
             setCenterRadiusMeters={setCenterRadiusMeters}
             onHeightChange={setDevBlockHeight}
+            onBarHeightChange={setDevBarHeight}
             panelOpen={devPanelOpen}
             setPanelOpen={setDevPanelOpen}
           />

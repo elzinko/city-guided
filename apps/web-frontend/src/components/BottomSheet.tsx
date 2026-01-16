@@ -677,8 +677,8 @@ export function BottomSheet({
               onChapterChange={(index) => setCurrentChapterIndex(index)}
             />
 
-            {/* Espacement pour éviter le chevauchement avec le DevControlBlock */}
-            <div id="poi-details-spacer" style={{ height: 100 }} />
+            {/* Petit espacement en bas pour le confort de scroll */}
+            <div id="poi-details-spacer" style={{ height: 16 }} />
           </div>
         ) : (
           <>

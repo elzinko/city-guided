@@ -278,6 +278,7 @@ jobs:
           
           # Wait for command to complete (up to 5 minutes)
           echo "⏳ Waiting for deployment to complete..."
+          FINAL_STATUS=""
           for i in {1..60}; do
             STATUS=$(aws ssm get-command-invocation \
               --command-id "$COMMAND_ID" \
@@ -287,21 +288,34 @@ jobs:
             
             if [ "$STATUS" = "Success" ]; then
               echo "✅ Deployment successful!"
+              FINAL_STATUS="Success"
               break
             elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ]; then
               echo "❌ Deployment failed with status: $STATUS"
+              FINAL_STATUS="$STATUS"
               # Get error output
               aws ssm get-command-invocation \
                 --command-id "$COMMAND_ID" \
                 --instance-id "$EC2_INSTANCE_ID" \
                 --query 'StandardErrorContent' \
                 --output text
-              exit 1
+              break
             fi
             
             echo "   Status: $STATUS (attempt $i/60)..."
             sleep 5
           done
+          
+          # Verify final status
+          if [ -z "$FINAL_STATUS" ]; then
+            # Timeout - check final status
+            FINAL_STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --query 'Status' \
+              --output text 2>/dev/null || echo "Unknown")
+            echo "⚠️  Deployment timeout - final status: $FINAL_STATUS"
+          fi
           
           # Show deployment output
           echo ""
@@ -311,6 +325,13 @@ jobs:
             --instance-id "$EC2_INSTANCE_ID" \
             --query 'StandardOutputContent' \
             --output text | tail -50
+          
+          # Exit with error if deployment failed
+          if [ "$FINAL_STATUS" != "Success" ]; then
+            echo ""
+            echo "❌ Deployment failed with status: $FINAL_STATUS"
+            exit 1
+          fi
 
       - name: Get deployment info from SSM
         id: ssm

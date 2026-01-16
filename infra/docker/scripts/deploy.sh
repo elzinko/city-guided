@@ -64,7 +64,7 @@ echo ""
 echo "📋 Environment: ${ENVIRONMENT}"
 echo "📦 SSM Path:    ${SSM_PATH}"
 echo "📁 Config file: ${ENV_FILE}"
-        echo ""
+echo ""
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Fetch configuration from AWS SSM Parameter Store
@@ -76,8 +76,8 @@ echo "📥 Fetching configuration from AWS SSM..."
 if ! command -v aws &> /dev/null; then
     echo "❌ AWS CLI not found!"
     echo "   Install: https://aws.amazon.com/cli/"
-        exit 1
-    fi
+    exit 1
+fi
     
 # Fetch all parameters for this environment
 PARAMS=$(aws ssm get-parameters-by-path \
@@ -156,8 +156,18 @@ echo "   API: ${API_IMAGE}"
 echo "   Web: ${WEB_IMAGE}"
 echo ""
 
-docker pull "${API_IMAGE}" || { echo "❌ Failed to pull API image"; exit 1; }
-docker pull "${WEB_IMAGE}" || { echo "❌ Failed to pull Web image"; exit 1; }
+# Detect local architecture
+LOCAL_ARCH=$(uname -m)
+if [ "$LOCAL_ARCH" = "arm64" ]; then
+    # On ARM64 (Apple Silicon), force linux/amd64 platform for images built on GitHub Actions
+    echo "⚠️  Detected ARM64 architecture, forcing linux/amd64 platform for compatibility"
+    PLATFORM_FLAG="--platform linux/amd64"
+else
+    PLATFORM_FLAG=""
+fi
+
+docker pull ${PLATFORM_FLAG} "${API_IMAGE}" || { echo "❌ Failed to pull API image"; exit 1; }
+docker pull ${PLATFORM_FLAG} "${WEB_IMAGE}" || { echo "❌ Failed to pull Web image"; exit 1; }
 
 echo "✅ Images pulled successfully"
 echo ""
@@ -171,4 +181,4 @@ echo ""
 
 # Use the generic start script
 chmod +x "$SCRIPT_DIR/start.sh"
-exec "$SCRIPT_DIR/start.sh" "$ENVIRONMENT"
+"$SCRIPT_DIR/start.sh" "$ENVIRONMENT"

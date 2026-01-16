@@ -32,6 +32,19 @@ echo "╚═══════════════════════�
 echo ""
 
 # ───────────────────────────────────────────────────────────────────────────────
+# Stop existing containers first (to avoid port conflicts)
+# ───────────────────────────────────────────────────────────────────────────────
+
+echo "🛑 Stopping existing containers (if any)..."
+# Stop application services - try both with and without build override to catch all containers
+docker compose --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.build.yml down --remove-orphans 2>/dev/null || true
+# Stop OSRM service
+docker compose --env-file "$ENV_FILE" -f docker-compose.osrm.yml down --remove-orphans 2>/dev/null || true
+echo "✅ Existing containers stopped"
+echo ""
+
+# ───────────────────────────────────────────────────────────────────────────────
 # Check prerequisites
 # ───────────────────────────────────────────────────────────────────────────────
 
@@ -86,7 +99,7 @@ fi
 # ───────────────────────────────────────────────────────────────────────────────
 
 echo "🗺️  Starting OSRM service..."
-docker compose --env-file "$ENV_FILE" -f docker-compose.osrm.yml up -d
+docker compose --env-file "$ENV_FILE" -f docker-compose.osrm.yml up -d --remove-orphans
 
 # Wait for OSRM to be ready
 echo "⏳ Waiting for OSRM to be ready..."
@@ -133,18 +146,18 @@ if [ "$SHOULD_BUILD_LOCAL" = "true" ]; then
     docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.build.yml build
     echo ""
     echo "🚀 Starting application services..."
-    docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.build.yml up -d
+    docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.build.yml up -d --remove-orphans
 elif [ -n "${API_IMAGE:-}" ] && [ -n "${WEB_IMAGE:-}" ]; then
     echo "🐳 Using pre-built images:"
     echo "   API: ${API_IMAGE}"
     echo "   Web: ${WEB_IMAGE}"
     echo ""
     echo "🚀 Starting application services..."
-    docker compose --env-file "$ENV_FILE" up -d
+    docker compose --env-file "$ENV_FILE" up -d --remove-orphans
 else
     echo "🐳 Using default GHCR images (latest)..."
     echo "🚀 Starting application services..."
-    docker compose --env-file "$ENV_FILE" up -d
+    docker compose --env-file "$ENV_FILE" up -d --remove-orphans
 fi
 
 # ───────────────────────────────────────────────────────────────────────────────

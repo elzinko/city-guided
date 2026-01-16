@@ -29,11 +29,11 @@
     "docker:osrm:volume": "bash infra/docker/scripts/data.sh",
     "provision": "cd infra/provisioning/aws && pnpm run provision",
     "destroy": "cd infra/provisioning/aws && pnpm run destroy",
-    "update-config": "cd infra/provisioning/aws && pnpm run update-config",
+    "deploy": "cd infra/provisioning/aws && pnpm run deploy",
     "ssh": "bash infra/scripts/ssh.sh",
-    "config:get": "bash infra/scripts/config.sh get",
-    "config:push": "bash infra/scripts/config.sh push",
-    "config:diff": "bash infra/scripts/config.sh diff"
+    "config:get": "cd infra/provisioning/aws && pnpm run config get",
+    "config:push": "cd infra/provisioning/aws && pnpm run config push",
+    "config:diff": "cd infra/provisioning/aws && pnpm run config diff"
   },
   "devDependencies": {
     "turbo": "^1.8.6",

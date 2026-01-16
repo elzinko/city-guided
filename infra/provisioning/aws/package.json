@@ -7,11 +7,8 @@
     "setup": "tsx scripts/setup.ts",
     "provision": "tsx scripts/provision.ts",
     "destroy": "tsx scripts/provision.ts destroy",
-    "update-config": "tsx scripts/update-config.ts",
-    "deploy": "cdk deploy --require-approval never",
-    "destroy": "cdk destroy",
-    "synth": "cdk synth",
-    "diff": "cdk diff"
+    "config": "tsx scripts/config.ts",
+    "deploy": "tsx scripts/deploy.ts"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",

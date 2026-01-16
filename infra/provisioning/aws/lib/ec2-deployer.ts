@@ -33,14 +33,9 @@ export class EC2Deployer implements Deployer {
 
     console.log(chalk.blue(`\n🏗️  Deploying EC2 infrastructure for ${environment}...`));
 
-    // Deploy CloudFormation stack
+    // Deploy CloudFormation stack using CDK
     execSilent(
-      `aws cloudformation deploy ` +
-      `--template-file infra/provisioning/aws/lib/staging-stack.ts ` +
-      `--stack-name ${awsConfig.STACK_NAME} ` +
-      `--parameter-overrides Environment=${environment} ` +
-      `--capabilities CAPABILITY_NAMED_IAM ` +
-      `--region eu-west-3`
+      `cd infra/provisioning/aws && npx cdk deploy ${awsConfig.STACK_NAME} --require-approval never`
     );
 
     // Get outputs
@@ -68,11 +63,9 @@ export class EC2Deployer implements Deployer {
     try {
       const awsConfig = getEnvironmentConfig(environment as any);
 
-      // Delete CloudFormation stack
+      // Delete CloudFormation stack using CDK
       execSilent(
-        `aws cloudformation delete-stack ` +
-        `--stack-name ${awsConfig.STACK_NAME} ` +
-        `--region eu-west-3`
+        `cd infra/provisioning/aws && npx cdk destroy ${awsConfig.STACK_NAME} --force`
       );
 
       console.log(chalk.green(`✓ EC2 stack deletion initiated: ${awsConfig.STACK_NAME}`));
@@ -135,7 +128,20 @@ export class EC2Deployer implements Deployer {
       'chmod +x /home/ec2-user/.docker-activate.sh',
       'chown ec2-user:ec2-user /home/ec2-user/.docker-activate.sh',
       '# Setup complete',
-      'touch /home/ec2-user/init-complete'
+      'touch /home/ec2-user/init-complete',
+      '# Clone repository if not already present',
+      'if [ ! -d /home/ec2-user/city-guided/.git ]; then',
+      '  echo "📥 Cloning repository..."',
+      '  cd /home/ec2-user',
+      '  git clone https://github.com/elzinko/city-guided.git || true',
+      'fi',
+      '# Initial deployment with latest images',
+      'if [ -d /home/ec2-user/city-guided ]; then',
+      '  echo "🚀 Starting initial deployment..."',
+      '  cd /home/ec2-user/city-guided/infra/docker',
+      '  chmod +x scripts/deploy.sh || true',
+      '  IMAGE_TAG=latest ./scripts/deploy.sh staging || echo "⚠️  Initial deployment failed - will be done by GitHub Actions"',
+      'fi'
     ];
 
     const commandJson = JSON.stringify(commands);
@@ -150,7 +156,8 @@ export class EC2Deployer implements Deployer {
       `--output text`
     );
 
-    console.log(chalk.green(`✓ EC2 dependencies setup initiated`));
+    console.log(chalk.green(`✓ EC2 dependencies setup and initial deployment initiated`));
+    console.log(chalk.gray(`   Note: Services will start with 'latest' images. GitHub Actions will deploy specific tags.`));
   }
 
   getResourceNames(environment: string) {

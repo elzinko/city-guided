@@ -34,6 +34,7 @@ import {
   type EnvironmentName,
 } from '../constants.js';
 import { createDeployer, type InfraMode } from '../lib/deployer-factory.js';
+import type { InfraOutputs } from '../lib/deployer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -447,6 +448,8 @@ async function main() {
   try {
     rl.close();
 
+    let infraOutputs: InfraOutputs | undefined;
+
     if (action === 'destroy') {
       // Direct destruction using deployer
       const deployer = createDeployer(mode);
@@ -457,7 +460,7 @@ async function main() {
 
       // Provisioning flow using deployer
       const deployer = createDeployer(mode);
-      const infraOutputs = await deployer.deploy({ environment: env, envVars, awsCredentials });
+      infraOutputs = await deployer.deploy({ environment: env, envVars, awsCredentials });
 
       // Setup dependencies (Docker for EC2, nothing for ECS)
       await deployer.setupDependencies(infraOutputs);
@@ -478,42 +481,50 @@ async function main() {
 
     // Summary
     const successIcon = action === 'provision' ? '✨' : '💥';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const successTitle = action === 'provision' ? 'Complete' : 'Destroyed';
 
     console.log(chalk.bold.green('\n╔════════════════════════════════════════════════════════╗'));
-    console.log(chalk.bold.green(`║         ${successIcon} ${actionTitle}! ${successIcon}                        ║`));
+    console.log(chalk.bold.green(`║         ${successIcon} ${successTitle}! ${successIcon}                        ║`));
     console.log(chalk.bold.green('╚════════════════════════════════════════════════════════╝\n'));
 
     console.log(chalk.cyan('📋 Summary:'));
     console.log(chalk.white(`   Environment: ${env}`));
     console.log(chalk.white(`   Mode:        ${mode}`));
 
-    if (mode === 'ec2') {
-      console.log(chalk.white(`   Instance:    ${infraOutputs.instanceId}`));
-      console.log(chalk.white(`   IP:          ${infraOutputs.publicIp}`));
-    } else {
-      console.log(chalk.white(`   Cluster:     city-guided-${env}`));
-      console.log(chalk.white(`   Service:     city-guided-${env}-service`));
+    if (action === 'provision' && infraOutputs) {
+      // Only show infrastructure details after provisioning
+      if (mode === 'ec2') {
+        console.log(chalk.white(`   Instance:    ${infraOutputs.instanceId}`));
+        console.log(chalk.white(`   IP:          ${infraOutputs.publicIp}`));
+      } else {
+        console.log(chalk.white(`   Cluster:     city-guided-${env}`));
+        console.log(chalk.white(`   Service:     city-guided-${env}-service`));
+      }
+
+      console.log(chalk.white(`   Domain:      https://${envVars.SITE_DOMAIN}`));
+      console.log(chalk.white(`   SSM:         ${getSsmPath(env)}/*`));
+
+      console.log(chalk.cyan('\n🔗 Next steps:'));
+
+      if (mode === 'ec2' && infraOutputs.publicIp) {
+        console.log(chalk.white(`   1. SSH: ssh -i ~/.ssh/${awsConfig.KEY_PAIR_NAME}.pem ec2-user@${infraOutputs.publicIp}`));
+        console.log(chalk.white('   2. Deploy: git push origin main (triggers CI)'));
+        console.log(chalk.white('   3. Manual: gh workflow run ci.yml --ref main -f deploy_staging=true'));
+      } else if (mode === 'ecs') {
+        console.log(chalk.white('   1. Check ECS service status'));
+        console.log(chalk.white(`   aws ecs describe-services --cluster city-guided-${env} --services city-guided-${env}-service`));
+        console.log(chalk.white('   2. Check ALB health'));
+        console.log(chalk.white(`   aws elbv2 describe-target-health --load-balancer-arn $(aws elbv2 describe-load-balancers --names city-guided-${env}-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)`));
+      }
+
+      console.log(chalk.white(`   Access: https://${envVars.SITE_DOMAIN}\n`));
+    } else if (action === 'destroy') {
+      // Destroy summary
+      console.log(chalk.white(`   Stack:       ${awsConfig.STACK_NAME}`));
+      console.log(chalk.white(`   SSM Path:    ${getSsmPath(env)}/*`));
+      console.log(chalk.gray('\n   Note: CloudFormation stack deletion is in progress.'));
+      console.log(chalk.gray('   Check status: aws cloudformation describe-stacks --stack-name ' + awsConfig.STACK_NAME + '\n'));
     }
-
-    console.log(chalk.white(`   Domain:      https://${envVars.SITE_DOMAIN}`));
-    console.log(chalk.white(`   SSM:         ${getSsmPath(env)}/*`));
-
-    console.log(chalk.cyan('\n🔗 Next steps:'));
-
-    if (mode === 'ec2') {
-      console.log(chalk.white(`   1. SSH: ssh -i ~/.ssh/${awsConfig.KEY_PAIR_NAME}.pem ec2-user@${infraOutputs.publicIp}`));
-      console.log(chalk.white('   2. Deploy: git push origin main (triggers CI)'));
-      console.log(chalk.white('   3. Manual: gh workflow run ci.yml --ref main -f deploy_staging=true'));
-    } else {
-      console.log(chalk.white('   1. Check ECS service status'));
-      console.log(chalk.white(`   aws ecs describe-services --cluster city-guided-${env} --services city-guided-${env}-service`));
-      console.log(chalk.white('   2. Check ALB health'));
-      console.log(chalk.white(`   aws elbv2 describe-target-health --load-balancer-arn $(aws elbv2 describe-load-balancers --names city-guided-${env}-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)`));
-    }
-
-    console.log(chalk.white(`   Access: https://${envVars.SITE_DOMAIN}\n`));
 
   } catch (error: any) {
     const actionWord = action === 'provision' ? 'Provisioning' : 'Destruction';

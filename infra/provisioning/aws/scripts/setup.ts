@@ -6,11 +6,12 @@ import chalk from 'chalk';
 
 const rl = createInterface({ input, output });
 
-function runScript(script: string): Promise<void> {
+function runScript(script: string, args: string[] = []): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn('npm', ['run', script], {
+    const child = spawn('pnpm', ['run', script, ...args], {
       stdio: 'inherit',
       shell: true,
+      cwd: process.cwd(),
     });
 
     child.on('close', (code) => {
@@ -59,13 +60,16 @@ async function main() {
   rl.close();
 
   try {
-    // Step 1: Provision Infrastructure
-    console.log(chalk.bold.blue('\n\n━━━ Step 1/2: Infrastructure Provisioning ━━━\n'));
-    await runScript('provision:infra');
-
-    // Step 2: Configure CICD
-    console.log(chalk.bold.blue('\n\n━━━ Step 2/2: CICD Configuration ━━━\n'));
-    await runScript('provision:cicd');
+    // Provision everything using the unified provisioning script
+    console.log(chalk.bold.blue('\n\n━━━ Provisioning Infrastructure & Configuration ━━━\n'));
+    console.log(chalk.gray('This will provision:'));
+    console.log(chalk.gray('  • AWS infrastructure (EC2, Security Groups, IAM)'));
+    console.log(chalk.gray('  • SSM Parameter Store configuration'));
+    console.log(chalk.gray('  • GitHub Actions secrets (if authenticated)'));
+    console.log(chalk.gray('  • EC2 dependencies (Docker, etc.)'));
+    console.log(chalk.gray('  • DuckDNS update\n'));
+    
+    await runScript('provision', ['staging']);
 
     console.log(chalk.bold.green('\n\n╔════════════════════════════════════════════════╗'));
     console.log(chalk.bold.green('║     ✨ Setup Complete Successfully! ✨        ║'));

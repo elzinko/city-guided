@@ -7,6 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$ROOT_DIR/infra/docker"
+CONFIG_DIR="$ROOT_DIR/infra/config"
 
 echo "🛑 Stopping development environment..."
 echo ""
@@ -25,7 +26,7 @@ echo ""
 # Stop OSRM service
 echo "🗺️  Stopping OSRM service..."
 if command -v docker &> /dev/null; then
-    docker-compose --env-file "$DOCKER_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm.yml" down 2>/dev/null || true
+    docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm.yml" down 2>/dev/null || true
     echo "✅ OSRM stopped"
 else
     echo "⚠️  Docker not found, skipping OSRM stop"

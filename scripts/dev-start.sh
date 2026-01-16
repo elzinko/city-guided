@@ -9,6 +9,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$ROOT_DIR/infra/docker"
+CONFIG_DIR="$ROOT_DIR/infra/config"
 
 SKIP_OSRM="${SKIP_OSRM:-0}"
 API_PORT="${API_PORT:-4000}"
@@ -43,11 +44,11 @@ if [ "$SKIP_OSRM" != "1" ]; then
         echo "📥 OSRM data not found. Loading Monaco data (fast for local dev)..."
         echo "   This is a one-time setup. Data will be persisted."
         echo ""
-        docker-compose --env-file "$DOCKER_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm-data.yml" up
+        docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm-data.yml" up
     fi
 
     # Start OSRM service
-    docker-compose --env-file "$DOCKER_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm.yml" up -d
+    docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm.yml" up -d
 
     # Wait for OSRM to be healthy
     echo "⏳ Waiting for OSRM to be ready..."

@@ -2,7 +2,7 @@
  * AWS Provisioning Constants
  * 
  * This file contains ONLY AWS infrastructure configuration.
- * Environment variables are defined in: infra/docker/.env.*
+ * Environment variables are defined in: infra/config/.env.*
  * 
  * Usage:
  *   pnpm provision staging
@@ -80,7 +80,7 @@ export function getInfraMode(env: EnvironmentName): 'ec2' | 'ecs' {
 /**
  * Environment-specific AWS/infra configuration
  * 
- * Note: Application variables are in infra/docker/.env.<environment>
+ * Note: Application variables are in infra/config/.env.<environment>
  * This only contains infrastructure-specific values (CloudFormation, key pairs)
  */
 export const ENVIRONMENTS = {
@@ -130,7 +130,7 @@ export function getSsmPath(env: EnvironmentName): string {
  * Get path to .env file for an environment
  */
 export function getEnvFilePath(env: EnvironmentName): string {
-  return `infra/docker/.env.${env}`;
+  return `infra/config/.env.${env}`;
 }
 
 /**
@@ -150,6 +150,7 @@ export function getAwsConsoleUrls(env: EnvironmentName, mode: 'ec2' | 'ecs'): Re
     };
   } else {
     return {
+      'CloudWatch Dashboard': `${baseUrl}/cloudwatch/home?region=${region}#dashboards:name=CityGuided-ECS-ScaleToZero`,
       'ECS Cluster': `${baseUrl}/ecs/v2/clusters/city-guided-cluster/services?region=${region}`,
       'ECS Service': `${baseUrl}/ecs/v2/clusters/city-guided-cluster/services/city-guided-service?region=${region}`,
       'Application Load Balancer': `${baseUrl}/ec2/home?region=${region}#LoadBalancers:search=city-guided-alb`,

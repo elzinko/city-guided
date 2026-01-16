@@ -9,7 +9,7 @@
  * 4. EC2 dependencies (Docker Compose v2, Docker Buildx)
  * 5. DuckDNS update
  * 
- * Source of truth: infra/docker/.env.<environment>
+ * Source of truth: infra/config/.env.<environment>
  * 
  * Usage:
  *   pnpm provision staging
@@ -52,7 +52,7 @@ function loadEnvFile(env: EnvironmentName): Record<string, string> {
   
   if (!existsSync(envFilePath)) {
     console.error(chalk.red(`\n❌ Environment file not found: ${envFilePath}`));
-    console.error(chalk.yellow(`   Create it from template: cp infra/docker/.env.template ${getEnvFilePath(env)}`));
+    console.error(chalk.yellow(`   Create it from template: cp infra/config/.env.template ${getEnvFilePath(env)}`));
     process.exit(1);
   }
 
@@ -369,13 +369,24 @@ async function main() {
     args.shift();
   }
 
-  // Parse --mode flag
-  const modeIndex = args.indexOf('--mode');
-  if (modeIndex !== -1 && modeIndex + 1 < args.length) {
-    const modeValue = args[modeIndex + 1];
-    if (modeValue === 'ec2' || modeValue === 'ecs') {
-      mode = modeValue as InfraMode;
+  // Parse --mode flag (supports both --mode ecs and --mode=ecs)
+  const modeIndex = args.findIndex(arg => arg.startsWith('--mode'));
+  if (modeIndex !== -1) {
+    const modeArg = args[modeIndex];
+    let modeValue: string | undefined;
+    
+    // Check if it's --mode=value format
+    if (modeArg.includes('=')) {
+      modeValue = modeArg.split('=')[1];
+      args.splice(modeIndex, 1); // Remove --mode=value
+    } else if (modeIndex + 1 < args.length) {
+      // Check if it's --mode value format
+      modeValue = args[modeIndex + 1];
       args.splice(modeIndex, 2); // Remove --mode and its value
+    }
+    
+    if (modeValue && (modeValue === 'ec2' || modeValue === 'ecs')) {
+      mode = modeValue as InfraMode;
     }
   }
 
@@ -397,10 +408,12 @@ async function main() {
     console.error(chalk.red(`\n❌ Environment name required`));
     console.error(chalk.cyan(`\nUsage:`));
     console.error(chalk.white(`   pnpm provision <environment> [--mode ec2|ecs]`));
+    console.error(chalk.white(`   pnpm provision <environment> [--mode=ec2|ecs]`));
     console.error(chalk.white(`   pnpm destroy <environment> [--mode ec2|ecs]`));
     console.error(chalk.white(`\nExamples:`));
     console.error(chalk.white(`   pnpm provision staging              # EC2 (default)`));
-    console.error(chalk.white(`   pnpm provision my-custom-env --mode ecs`));
+    console.error(chalk.white(`   pnpm provision staging --mode ecs`));
+    console.error(chalk.white(`   pnpm provision staging --mode=ecs`));
     console.error(chalk.white(`   pnpm destroy staging --mode ec2`));
     process.exit(1);
   }

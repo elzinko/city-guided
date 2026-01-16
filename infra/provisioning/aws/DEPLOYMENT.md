@@ -58,7 +58,7 @@ You can trigger a deployment manually from GitHub Actions UI:
 
 ## Environment Configuration
 
-The staging environment uses `/infra/docker/.env.staging` for configuration.
+The staging environment uses `infra/config/.env.staging` for configuration.
 
 ## Accessing the Deployment
 

@@ -2,7 +2,7 @@
 
 This folder contains Infrastructure as Code (AWS CDK) and a unified provisioning script to deploy City-Guided on an AWS EC2 Spot instance, with configuration stored in AWS SSM Parameter Store and deployments performed via GitHub Actions.
 
-Key idea: the source of truth for application configuration is `infra/docker/.env.<environment>`. Provisioning pushes those values to SSM, and the deployment script regenerates the `.env.<environment>` on the EC2 host from SSM before starting containers.
+Key idea: the source of truth for application configuration is `infra/config/.env.<environment>`. Provisioning pushes those values to SSM, and the deployment script regenerates the `.env.<environment>` on the EC2 host from SSM before starting containers.
 
 ## Estimated monthly cost
 
@@ -25,10 +25,10 @@ Key idea: the source of truth for application configuration is `infra/docker/.en
 From the repo root:
 
 ```bash
-cp infra/docker/.env.template infra/docker/.env.staging
+cp infra/config/.env.template infra/config/.env.staging
 ```
 
-Edit `infra/docker/.env.staging`:
+Edit `infra/config/.env.staging`:
 
 - `ENVIRONMENT=staging`
 - `NODE_ENV=production`
@@ -70,7 +70,7 @@ What it does:
 ### AWS SSM Parameter Store
 
 - Stored under: `/city-guided/<env>/*` (e.g. `/city-guided/staging/*`)
-- Values come from `infra/docker/.env.<env>` plus a few infra outputs (instance ID, public IP, etc.)
+- Values come from `infra/config/.env.<env>` plus a few infra outputs (instance ID, public IP, etc.)
 - Secrets are keys that start with `SECRET_`
 
 ### GitHub Actions environment secrets (minimal)
@@ -131,7 +131,7 @@ docker compose logs -n 200
 
 ## Common operations
 
-### Re-provision SSM after changing `.env.staging`
+### Re-provision SSM after changing `infra/config/.env.staging`
 
 ```bash
 cd infra/provisioning/aws

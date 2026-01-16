@@ -49,13 +49,15 @@ class CustomWorld extends World implements CityGuidedWorld {
   }
 
   /**
-   * Create a new page
+   * Create a new page with mobile viewport (mobile-first testing)
    */
   async createPage(): Promise<Page> {
     if (!this.browser) {
       await this.initBrowser();
     }
-    this.page = await this.browser!.newPage();
+    this.page = await this.browser!.newPage({
+      viewport: { width: 375, height: 812 }, // iPhone 12/13/14 Pro - mobile-first
+    });
     return this.page;
   }
 
@@ -67,7 +69,10 @@ class CustomWorld extends World implements CityGuidedWorld {
       await this.createPage();
     }
     const fullUrl = url.startsWith('http') ? url : `${this.baseUrl}${url}`;
-    await this.page!.goto(fullUrl, { waitUntil: 'networkidle' });
+    await this.page!.goto(fullUrl, { 
+      waitUntil: 'networkidle',
+      timeout: 30000 
+    });
   }
 
   /**

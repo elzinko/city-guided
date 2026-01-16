@@ -167,8 +167,8 @@ echo "   docker logs city-guided-${ENVIRONMENT}-api -f"
 echo "   docker compose ps"
 echo ""
 echo "⚠️  Note: If you get 'permission denied' for Docker, run:"
-echo "   newgrp docker"
-echo "   (or use 'sg docker -c \"command\"' for single commands)"
+echo "   source ~/.docker-activate.sh"
+echo "   (or use 'newgrp docker' or 'sg docker -c \"command\"')"
 echo ""
 
 exec aws ssm start-session \

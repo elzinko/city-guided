@@ -1,0 +1,56 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Caddyfile - Production Environment
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Production: HTTPS with automatic Let's Encrypt certificate
+# Domain: {$SITE_DOMAIN}
+#
+# Caddy automatically:
+# - Obtains SSL certificate from Let's Encrypt
+# - Redirects HTTP → HTTPS
+# - Renews certificate before expiry
+#
+# Environment variables:
+#   SITE_DOMAIN (required for HTTPS)
+#   API_PORT (default: 4000)
+#   WEB_PORT (default: 3080)
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+{$SITE_DOMAIN:localhost} {
+    # API routes
+    handle /api/* {
+        reverse_proxy api:{$API_PORT:4000}
+    }
+    
+    # OSRM proxy
+    handle /osrm/* {
+        uri strip_prefix /osrm
+        reverse_proxy osrm:5000
+    }
+    
+    # Frontend (default)
+    handle {
+        reverse_proxy web:{$WEB_PORT:3080}
+    }
+    
+    # Security headers (stricter for production)
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        -Server
+    }
+    
+    # Compression
+    encode gzip zstd
+    
+    # Logging
+    log {
+        output stdout
+        format json
+    }
+}
+

@@ -1,0 +1,37 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Caddyfile - Local Development
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Local: HTTP only (no HTTPS), localhost
+# Access: http://localhost
+#
+# Environment variables:
+#   API_PORT (default: 4000)
+#   WEB_PORT (default: 3080)
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+:80 {
+    # API routes
+    handle /api/* {
+        reverse_proxy api:{$API_PORT:4000}
+    }
+    
+    # OSRM proxy
+    handle /osrm/* {
+        uri strip_prefix /osrm
+        reverse_proxy osrm:5000
+    }
+    
+    # Frontend (default)
+    handle {
+        reverse_proxy web:{$WEB_PORT:3080}
+    }
+    
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
+

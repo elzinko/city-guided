@@ -112,7 +112,7 @@ jobs:
 
       - name: Start all services (using .env.ci)
         run: SKIP_OSRM_DATA_LOAD=true pnpm docker:start ci
-        timeout-minutes: 15
+        timeout-minutes: 5
 
       - name: Check container status
         run: |

@@ -91,6 +91,25 @@ jobs:
             services/*/dist
           key: build-${{ github.sha }}
 
+      - name: Generate .env.ci file
+        run: |
+          mkdir -p infra/config
+          cat > infra/config/.env.ci << 'EOF'
+          ENVIRONMENT=ci
+          COMPOSE_PROJECT_NAME=city-guided-ci
+          SITE_DOMAIN=localhost
+          API_PORT=4000
+          WEB_PORT=3080
+          OSRM_PORT=5001
+          OSRM_URL=http://osrm:5000
+          BUILD_MODE=local
+          SHOULD_BUILD_LOCAL=true
+          RESTART_POLICY=no
+          NODE_ENV=test
+          NEXT_PUBLIC_SHOW_DEV_OPTIONS=false
+          DOCKER_ENV=true
+          EOF
+
       - name: Start all services (using .env.ci)
         run: pnpm docker:start ci
         timeout-minutes: 15

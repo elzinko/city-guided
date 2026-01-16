@@ -12,12 +12,12 @@ export const BOTTOM_SHEET_HEIGHTS = {
   // Niveaux de base (utilisés pour la navigation générale)
   peek: 20, // 20% - Aperçu minimal
   mid: 50,  // 50% - Moitié de l'écran
-  full: 90, // 90% - Jusqu'à la barre de recherche (au lieu de 95%)
+  full: 75, // 75% - S'arrête avant la barre de recherche (réduit de 90%)
 
   // Règles spécifiques selon le contexte
   searchResults: 66, // 2/3 de l'écran pour la liste de recherche
-  poiFromSearch: 90,  // Presque toute la hauteur (jusqu'au niveau haut de la barre de recherche)
-  poiFromMap: 50,     // Moitié de l'écran quand cliqué depuis la carte
+  poiFromSearch: 75, // 75% - S'arrête avant la barre de recherche (réduit de 90%)
+  poiFromMap: 50,    // Moitié de l'écran quand cliqué depuis la carte
 } as const
 
 /**

@@ -87,6 +87,7 @@ type ChapterPlayerProps = {
   pauseSpeech?: () => void
   resumeSpeech?: () => void
   compact?: boolean // Mode compact pour le bottom sheet
+  currentChapterIndex?: number // Index contrôlé par le parent (pour synchronisation avec le carousel)
   onChapterChange?: (chapterIndex: number) => void
 }
 
@@ -98,9 +99,13 @@ export function ChapterPlayer({
   pauseSpeech,
   resumeSpeech,
   compact = false,
+  currentChapterIndex: controlledChapterIndex,
   onChapterChange,
 }: ChapterPlayerProps) {
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(0)
+  const [internalChapterIndex, setInternalChapterIndex] = useState(0)
+  
+  // Utiliser l'index contrôlé par le parent si fourni, sinon l'index interne
+  const currentChapterIndex = controlledChapterIndex !== undefined ? controlledChapterIndex : internalChapterIndex
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [hasCompletedChapter, setHasCompletedChapter] = useState(false)
@@ -134,15 +139,10 @@ export function ChapterPlayer({
 
   // Réinitialiser quand le POI change
   useEffect(() => {
-    setCurrentChapterIndex(0)
+    setInternalChapterIndex(0)
     setHasCompletedChapter(false)
     if (onChapterChange) onChapterChange(0)
-  }, [poi.id, onChapterChange])
-
-  // Notifier le parent quand le chapitre change
-  useEffect(() => {
-    if (onChapterChange) onChapterChange(currentChapterIndex)
-  }, [currentChapterIndex, onChapterChange])
+  }, [poi.id]) // Retirer onChapterChange des dépendances pour éviter les boucles
 
   const handlePlayPause = useCallback(() => {
     if (isPlaying && !isPaused) {
@@ -165,15 +165,19 @@ export function ChapterPlayer({
     if (currentChapterIndex <= 0) return
     if (stopSpeech) stopSpeech()
     setHasCompletedChapter(false)
-    setCurrentChapterIndex(currentChapterIndex - 1)
-  }, [currentChapterIndex, stopSpeech])
+    const newIndex = currentChapterIndex - 1
+    setInternalChapterIndex(newIndex)
+    if (onChapterChange) onChapterChange(newIndex)
+  }, [currentChapterIndex, stopSpeech, onChapterChange])
 
   const goToNextChapter = useCallback(() => {
     if (currentChapterIndex >= totalChapters - 1) return
     if (stopSpeech) stopSpeech()
     setHasCompletedChapter(false)
-    setCurrentChapterIndex(currentChapterIndex + 1)
-  }, [currentChapterIndex, totalChapters, stopSpeech])
+    const newIndex = currentChapterIndex + 1
+    setInternalChapterIndex(newIndex)
+    if (onChapterChange) onChapterChange(newIndex)
+  }, [currentChapterIndex, totalChapters, stopSpeech, onChapterChange])
 
   const handleReplay = useCallback(() => {
     if (currentChapter) {

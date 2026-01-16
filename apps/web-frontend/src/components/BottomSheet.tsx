@@ -4,9 +4,8 @@ import { Z_INDEX } from '../config/constants'
 import { getBottomSheetHeight } from '../config/ui-rules'
 import type { MenuTab } from './BottomMenu'
 import { ChapterPlayer } from './ChapterPlayer'
-import { PoiHeader, PoiImage, PoiDescription } from './poi'
+import { PoiHeader, PoiCarousel } from './poi'
 import type { PoiWithStory } from '../types/story'
-import { convertToChapters } from '../types/story'
 
 // Composant bouton Play/Pause avec bordure pointillée (rappel visuel)
 function PlayPauseButton({ 
@@ -273,20 +272,42 @@ export function BottomSheet({
 
   // Trouver le niveau le plus proche d'une hauteur donnée, avec prise en compte de la vélocité
   const findClosestLevel = (currentHeight: number, velocity: number): Level => {
-    // Si on est sur un niveau contextuel, ne pas permettre le drag vers d'autres niveaux
-    // (on garde le niveau actuel)
-    if (level === 'searchResults' || level === 'poiFromSearch' || level === 'poiFromMap') {
-      return level
-    }
-    
     const vh = typeof window !== 'undefined' ? window.innerHeight : 800
     const BOTTOM_MENU_HEIGHT = 64
     const minSheetHeight = menuVisible ? devBlockHeight + BOTTOM_MENU_HEIGHT : 0
     
+    // Hauteur minimale pour garder le poi-header visible (environ 120px)
+    const poiHeaderMinHeight = selectedPoi ? 120 : 0
+    
     // Si on approche très près du bas (près du menu), fermer le panneau
-    const threshold = 50 // pixels de tolérance
+    // Pour les POI, on permet aussi de fermer en tirant vers le bas
+    const threshold = 80 // pixels de tolérance
     if (currentHeight <= minSheetHeight + threshold) {
       return 'hidden'
+    }
+    
+    // Si vélocité forte vers le bas (positive) et on est sur un niveau contextuel POI
+    // Permettre de fermer le panneau POI en tirant vers le bas
+    if (velocity > 600 && (level === 'poiFromSearch' || level === 'poiFromMap')) {
+      return 'hidden'
+    }
+    
+    // Si on est sur un niveau contextuel POI
+    if (level === 'poiFromSearch' || level === 'poiFromMap') {
+      // Calculer la hauteur minimale (poi-header visible)
+      if (currentHeight < poiHeaderMinHeight + minSheetHeight) {
+        return 'hidden' // Trop bas, fermer
+      }
+      // Garder le niveau actuel si on est au-dessus du minimum
+      return level
+    }
+    
+    // Si on est sur searchResults, permettre de descendre mais pas de fermer
+    if (level === 'searchResults') {
+      if (velocity > 600) {
+        return 'hidden'
+      }
+      return level
     }
     
     // Si vélocité forte vers le haut (négative), aller au niveau supérieur
@@ -638,28 +659,15 @@ export function BottomSheet({
               level={getBaseLevel(level)}
             />
 
-            {/* Image du POI - Toujours visible, affiche l'image du chapitre courant si disponible */}
-            {(() => {
-              const chapters = convertToChapters(selectedPoi)
-              const currentChapter = chapters[currentChapterIndex]
-              return (
-                <PoiImage
-                  id="poi-image"
-                  name={selectedPoi.name}
-                  imageUrl={selectedPoi.image}
-                  chapterImageUrl={currentChapter?.mediaUrl}
-                />
-              )
-            })()}
-
-            {/* Description - toujours présente, accessible via scroll */}
-            <PoiDescription
-              id="poi-description"
-              shortDescription={selectedPoi.shortDescription}
-              longDescription={selectedPoi.ttsText}
+            {/* Carousel horizontal des chapitres (images + textes) */}
+            <PoiCarousel
+              id="poi-carousel"
+              poi={selectedPoi}
+              currentChapterIndex={currentChapterIndex}
+              onChapterChange={(index) => setCurrentChapterIndex(index)}
             />
 
-            {/* Lecteur de chapitres audio - toujours présent, accessible via scroll */}
+            {/* Lecteur de chapitres audio - contrôles de navigation */}
             <ChapterPlayer
               id="poi-chapter-player"
               poi={selectedPoi}
@@ -667,12 +675,13 @@ export function BottomSheet({
               stopSpeech={stopSpeech}
               pauseSpeech={pauseSpeech}
               resumeSpeech={resumeSpeech}
-              compact={false}
+              compact={true}
+              currentChapterIndex={currentChapterIndex}
               onChapterChange={(index) => setCurrentChapterIndex(index)}
             />
 
             {/* Espacement pour éviter le chevauchement avec le DevControlBlock */}
-            <div id="poi-details-spacer" style={{ height: 200 }} />
+            <div id="poi-details-spacer" style={{ height: 100 }} />
           </div>
         ) : (
           <>

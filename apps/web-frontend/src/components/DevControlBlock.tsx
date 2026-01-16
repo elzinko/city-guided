@@ -81,6 +81,9 @@ const compactSelectStyle: React.CSSProperties = {
   fontWeight: 600,
   color: '#0f172a',
   cursor: 'pointer',
+  WebkitAppearance: 'menulist', // Préserver l'apparence native sur Safari/Chrome
+  MozAppearance: 'menulist', // Préserver l'apparence native sur Firefox
+  appearance: 'menulist',
 }
 
 // Icône GPS/Navigation pour le simulateur
@@ -211,7 +214,20 @@ export function DevControlBlock({
     const timeoutId = setTimeout(measureBarHeight, 0)
     
     return () => clearTimeout(timeoutId)
-  }, [onBarHeightChange, panelOpen, virtualRouteActive]) // Mesurer quand la barre change ou quand le panneau s'ouvre/ferme
+  }, [onBarHeightChange, panelOpen, virtualRouteActive])
+
+  // Mesurer la hauteur totale au montage et après tout changement
+  useEffect(() => {
+    if (containerRef.current && onHeightChange) {
+      // Mesurer après le rendu initial
+      const timeoutId = setTimeout(() => {
+        if (containerRef.current) {
+          onHeightChange(containerRef.current.offsetHeight)
+        }
+      }, 50)
+      return () => clearTimeout(timeoutId)
+    }
+  }, []) // Exécuter une seule fois au montage
 
   // Copier les coordonnées dans le presse-papier
   const copyCoordinates = () => {
@@ -582,10 +598,12 @@ export function DevControlBlock({
               width: 36,
               height: 20,
               borderRadius: 10,
-              background: virtualRouteActive ? '#22c55e' : '#94a3b8',
+              background: virtualRouteActive ? '#22c55e' : '#e2e8f0',
+              border: virtualRouteActive ? '1px solid #16a34a' : '1px solid #cbd5e1',
               position: 'relative',
-              transition: 'background 0.2s ease',
+              transition: 'all 0.2s ease',
               flexShrink: 0,
+              boxSizing: 'border-box',
             }}
           >
             <div

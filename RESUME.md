@@ -163,11 +163,18 @@ NODE_ENV=development
 - Steps: `steps/*-steps.ts` (Cucumber step definitions)
 - Runner: Playwright via Cucumber.js
 - Configuration: `tsconfig.json` in tests directory
+- **Prerequisite**: Start all services before running tests (`pnpm docker:start local` or `pnpm dev`)
 
-**Running a single E2E test:**
+**Running E2E tests:**
 ```bash
-cd apps/web-frontend
-TS_NODE_PROJECT=tests/tsconfig.json npx cucumber-js tests/e2e/features/homepage.feature
+# Start services first
+pnpm docker:start local  # or pnpm dev
+
+# Run tests
+pnpm test:e2e
+
+# Stop services
+pnpm docker:stop local
 ```
 
 ## Key Implementation Details

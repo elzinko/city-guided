@@ -145,21 +145,23 @@ export function PoiCarousel({ id, poi, currentChapterIndex, onChapterChange }: P
               </div>
             </div>
 
-            {/* Texte du chapitre */}
-            <p
+            {/* Texte du chapitre - taille adaptée pour 15-20s de lecture */}
+            <div
               style={{
                 margin: 0,
-                color: '#334155',
-                fontSize: 13,
-                lineHeight: 1.5,
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
+                color: '#1e293b',
+                fontSize: 15,
+                lineHeight: 1.6,
+                fontWeight: 400,
+                maxHeight: 120, // ~5-6 lignes pour 15-20s de lecture
                 overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 5,
+                WebkitBoxOrient: 'vertical',
               } as React.CSSProperties}
             >
               {chapter.text}
-            </p>
+            </div>
           </div>
         ))}
         {/* Padding de fin pour permettre de voir la dernière carte */}

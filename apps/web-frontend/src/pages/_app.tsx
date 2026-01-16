@@ -1,4 +1,5 @@
 import '../styles.css'
+import '../styles/utility.css'
 import 'leaflet/dist/leaflet.css'
 import type { AppProps } from 'next/app'
 

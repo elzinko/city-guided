@@ -115,7 +115,7 @@ export function ChapterPlayer({
   const totalChapters = chapters.length
   const currentChapter = chapters[currentChapterIndex]
 
-  // Écouter l'état du speech synthesis
+  // Écouter l'état du speech synthesis et auto-avancer à la fin du chapitre
   useEffect(() => {
     if (typeof window === 'undefined') return
     const synth = window.speechSynthesis
@@ -129,13 +129,29 @@ export function ChapterPlayer({
 
       // Détecter la fin de lecture
       if (!speaking && wasSpeaking && !synth.paused) {
-        setHasCompletedChapter(true)
+        // Auto-advance : passer au chapitre suivant si possible
+        if (currentChapterIndex < totalChapters - 1) {
+          // Passer au chapitre suivant après un court délai
+          setTimeout(() => {
+            const newIndex = currentChapterIndex + 1
+            setInternalChapterIndex(newIndex)
+            if (onChapterChange) onChapterChange(newIndex)
+            // Lancer automatiquement la lecture du chapitre suivant
+            const nextChapter = chapters[newIndex]
+            if (nextChapter) {
+              speak(nextChapter.text)
+            }
+          }, 500) // Délai de 500ms entre les chapitres
+        } else {
+          // Dernier chapitre terminé
+          setHasCompletedChapter(true)
+        }
       }
     }
 
     const interval = setInterval(checkPlaying, 200)
     return () => clearInterval(interval)
-  }, [isPlaying])
+  }, [isPlaying, currentChapterIndex, totalChapters, chapters, speak, onChapterChange])
 
   // Réinitialiser quand le POI change
   useEffect(() => {
@@ -343,57 +359,86 @@ export function ChapterPlayer({
 
       {/* Contenu du chapitre */}
       <div id={id ? `${id}-content` : undefined} style={{ padding: compact ? 12 : 14 }}>
-        {/* Titre du chapitre */}
-        {currentChapter?.title && (
-          <div
-            id={id ? `${id}-title` : undefined}
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: '#1e293b',
-              marginBottom: 6,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            {!currentChapter.mediaUrl && (
-              <span
+        {/* En mode compact, ne pas afficher le texte (déjà dans le carousel) */}
+        {!compact && (
+          <>
+            {/* Titre du chapitre */}
+            {currentChapter?.title && (
+              <div
+                id={id ? `${id}-title` : undefined}
                 style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: '#3b82f6',
-                  background: '#eff6ff',
-                  padding: '2px 6px',
-                  borderRadius: 4,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#1e293b',
+                  marginBottom: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                {currentChapterIndex + 1}/{totalChapters}
-              </span>
+                {!currentChapter.mediaUrl && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: '#3b82f6',
+                      background: '#eff6ff',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    {currentChapterIndex + 1}/{totalChapters}
+                  </span>
+                )}
+                {currentChapter.title}
+              </div>
             )}
-            {currentChapter.title}
-          </div>
+
+            {/* Texte du chapitre */}
+            <p
+              id={id ? `${id}-text` : undefined}
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: '#475569',
+                lineHeight: 1.5,
+                marginBottom: 12,
+                maxHeight: 100,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 5,
+                WebkitBoxOrient: 'vertical',
+              }}
+            >
+              {currentChapter?.text}
+            </p>
+          </>
         )}
 
-        {/* Texte du chapitre */}
-        <p
-          id={id ? `${id}-text` : undefined}
-          style={{
-            margin: 0,
-            fontSize: 13,
-            color: '#475569',
-            lineHeight: 1.5,
-            marginBottom: 12,
-            maxHeight: compact ? 60 : 100,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: compact ? 3 : 5,
-            WebkitBoxOrient: 'vertical',
-          }}
-        >
-          {currentChapter?.text}
-        </p>
+        {/* Indicateur de chapitre en mode compact */}
+        {compact && totalChapters > 1 && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              marginBottom: 8,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#3b82f6',
+                background: '#eff6ff',
+                padding: '4px 10px',
+                borderRadius: 6,
+              }}
+            >
+              Chapitre {currentChapterIndex + 1}/{totalChapters}
+            </span>
+          </div>
+        )}
 
         {/* Contrôles de lecture - Largeur fixe pour éviter les mouvements */}
         <div

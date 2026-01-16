@@ -54,11 +54,11 @@ type DevControlBlockProps = {
 // Hauteur standard pour tous les boutons (comme dev-gear-button)
 const BUTTON_HEIGHT = 36
 
-// Style commun pour les boutons compacts
+// Style commun pour les boutons compacts - bordure visible #cbd5e1 (gris moyen)
 const compactButtonStyle: React.CSSProperties = {
   height: BUTTON_HEIGHT,
   borderRadius: 8,
-  border: '1px solid #e2e8f0',
+  border: '1px solid #cbd5e1', // Bordure plus visible (gris moyen au lieu de gris clair)
   background: '#ffffff',
   display: 'flex',
   alignItems: 'center',
@@ -75,7 +75,7 @@ const compactSelectStyle: React.CSSProperties = {
   height: BUTTON_HEIGHT,
   padding: '0 8px',
   borderRadius: 8,
-  border: '1px solid #e2e8f0',
+  border: '1px solid #cbd5e1', // Bordure plus visible
   background: '#ffffff',
   fontSize: 11,
   fontWeight: 600,
@@ -308,7 +308,7 @@ export function DevControlBlock({
                 ...compactSelectStyle,
                 flex: 1,
                 background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
-                border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #e2e8f0',
+                border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #cbd5e1',
                 color: virtualRouteActive ? '#166534' : '#94a3b8',
                 cursor: virtualRouteActive ? 'pointer' : 'not-allowed',
               }}
@@ -329,7 +329,7 @@ export function DevControlBlock({
                 textDecoration: 'none',
                 width: BUTTON_HEIGHT,
                 padding: 0,
-                border: virtualRouteActive ? '1px solid #8b5cf6' : '1px solid #e2e8f0',
+                border: virtualRouteActive ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
                 background: virtualRouteActive ? '#f5f3ff' : '#f8fafc',
                 color: virtualRouteActive ? '#7c3aed' : '#94a3b8',
               }}
@@ -375,7 +375,7 @@ export function DevControlBlock({
                 ...compactButtonStyle,
                 width: BUTTON_HEIGHT,
                 padding: 0,
-                border: godMode ? '1px solid #ef4444' : '1px solid #e2e8f0',
+                border: godMode ? '1px solid #ef4444' : '1px solid #cbd5e1',
                 background: godMode ? '#fef2f2' : '#ffffff',
               }}
               title={godMode ? 'Masquer les zones POI' : 'Afficher les zones POI'}
@@ -396,8 +396,8 @@ export function DevControlBlock({
                 ...compactButtonStyle,
                 width: BUTTON_HEIGHT,
                 padding: 0,
-                border: audioPaused ? '1px solid #e2e8f0' : '1px solid #22c55e',
-                background: audioPaused ? '#f8fafc' : '#dcfce7',
+                border: audioPaused ? '1px solid #cbd5e1' : '1px solid #22c55e',
+                background: audioPaused ? '#ffffff' : '#dcfce7',
               }}
               title={audioPaused ? 'Activer l\'audio' : 'Couper l\'audio'}
             >
@@ -690,7 +690,7 @@ export function DevControlBlock({
             ...compactButtonStyle,
             width: BUTTON_HEIGHT,
             padding: 0,
-            border: panelOpen ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+            border: panelOpen ? '2px solid #3b82f6' : '1px solid #cbd5e1',
             background: panelOpen ? '#eff6ff' : '#ffffff',
           }}
           aria-label="Développeur"

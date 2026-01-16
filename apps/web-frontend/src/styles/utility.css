@@ -1,0 +1,28 @@
+/**
+ * Utility CSS classes
+ * Classes utilitaires globales pour l'application
+ */
+
+/**
+ * Classe pour les composants "incertains" - éléments susceptibles d'être supprimés
+ * Ajoute une bordure en tirets discrets (orange ou bleu selon la variante)
+ */
+.uncertain {
+  border: 2px dashed #f59e0b !important; /* Orange par défaut */
+  border-radius: 8px;
+}
+
+.uncertain--blue {
+  border: 2px dashed #3b82f6 !important; /* Bleu */
+  border-radius: 8px;
+}
+
+.uncertain--subtle {
+  border: 1px dashed #fbbf24 !important; /* Orange plus clair et plus fin */
+  border-radius: 6px;
+}
+
+.uncertain--subtle-blue {
+  border: 1px dashed #60a5fa !important; /* Bleu plus clair et plus fin */
+  border-radius: 6px;
+}

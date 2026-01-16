@@ -1184,14 +1184,14 @@ export default function Home() {
           ;(mapEl as any).__god_group = godGroup
         }
         pois.forEach((p) => {
-          const r = p.radiusMeters || DEFAULT_RADIUS_METERS
+          const r = centerRadiusMeters || DEFAULT_CENTER_RADIUS_METERS
           godGroup.addLayer(L.circle([p.lat, p.lng], { radius: r, color: '#10b981', fillOpacity: 0.07, weight: 1 }))
         })
       } else if (godGroup) {
         godGroup.clearLayers()
       }
     })
-  }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath, isSimulating, simPaused, speedFactor, userHasPanned, virtualRouteActive])
+  }, [pois, pos, mapAlreadyCentered, mapMoveVersion, godMode, simPath, isSimulating, simPaused, speedFactor, userHasPanned, virtualRouteActive, centerRadiusMeters])
 
   // Utiliser getBottomSheetHeight pour gérer tous les niveaux (y compris contextuels)
   const sheetHeightPercent = getBottomSheetHeight(sheetLevel)

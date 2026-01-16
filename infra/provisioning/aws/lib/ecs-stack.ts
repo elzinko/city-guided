@@ -34,23 +34,6 @@ export class CityGuidedEcsStack extends cdk.Stack {
     });
 
     // ============================================
-    // Target Group
-    // ============================================
-    const targetGroup = new elbv2.ApplicationTargetGroup(this, 'TargetGroup', {
-      vpc,
-      port: 80,
-      protocol: elbv2.ApplicationProtocol.HTTP,
-      targetGroupName: 'city-guided-targets',
-      healthCheck: {
-        path: '/api/health',
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        healthyThresholdCount: 2,
-        unhealthyThresholdCount: 2,
-      },
-    });
-
-    // ============================================
     // ECS Task Definition (Fargate)
     // ============================================
     const taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef', {
@@ -59,7 +42,7 @@ export class CityGuidedEcsStack extends cdk.Stack {
     });
 
     // API Container
-    taskDefinition.addContainer('api', {
+    const apiContainer = taskDefinition.addContainer('api', {
       image: ecs.ContainerImage.fromRegistry('nginx:latest'), // Placeholder
       containerName: 'api',
       environment: {
@@ -74,9 +57,13 @@ export class CityGuidedEcsStack extends cdk.Stack {
         }),
       }),
     });
+    apiContainer.addPortMappings({
+      containerPort: 4000,
+      protocol: ecs.Protocol.TCP,
+    });
 
-    // Web Container
-    taskDefinition.addContainer('web', {
+    // Web Container (main entry point via ALB)
+    const webContainer = taskDefinition.addContainer('web', {
       image: ecs.ContainerImage.fromRegistry('nginx:latest'), // Placeholder
       containerName: 'web',
       environment: {
@@ -90,6 +77,10 @@ export class CityGuidedEcsStack extends cdk.Stack {
           retention: logs.RetentionDays.ONE_WEEK,
         }),
       }),
+    });
+    webContainer.addPortMappings({
+      containerPort: 80,
+      protocol: ecs.Protocol.TCP,
     });
 
     // ============================================
@@ -105,8 +96,30 @@ export class CityGuidedEcsStack extends cdk.Stack {
       enableExecuteCommand: true,  // For debugging
     });
 
-    // Attach service to target group
-    service.attachToApplicationTargetGroup(targetGroup);
+    // ============================================
+    // ALB Listener with Target Group
+    // (Create listener first, then attach service)
+    // ============================================
+    const listener = alb.addListener('Listener', {
+      port: 80,
+      open: true,
+    });
+
+    // Add ECS service as target (this creates the target group automatically)
+    listener.addTargets('EcsTargets', {
+      port: 80,
+      targets: [service.loadBalancerTarget({
+        containerName: 'web',
+        containerPort: 80,
+      })],
+      healthCheck: {
+        path: '/',  // Simple health check for nginx placeholder
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        healthyThresholdCount: 2,
+        unhealthyThresholdCount: 2,
+      },
+    });
 
     // ============================================
     // Auto-scaling (basic demo)
@@ -116,20 +129,11 @@ export class CityGuidedEcsStack extends cdk.Stack {
       maxCapacity: 5,
     });
 
-    // Scale up on requests
-    scaling.scaleOnRequestCount('ScaleUp', {
-      requestsPerTarget: 1,  // Very sensitive for demo
-      targetGroup: targetGroup,
+    // Scale based on CPU utilization (simpler than request-based)
+    scaling.scaleOnCpuUtilization('ScaleOnCpu', {
+      targetUtilizationPercent: 50,
+      scaleInCooldown: cdk.Duration.seconds(60),
       scaleOutCooldown: cdk.Duration.seconds(30),
-    });
-
-    // ============================================
-    // ALB Listener
-    // ============================================
-    new elbv2.ApplicationListener(this, 'Listener', {
-      loadBalancer: alb,
-      port: 80,
-      defaultTargetGroups: [targetGroup],
     });
 
     // ============================================

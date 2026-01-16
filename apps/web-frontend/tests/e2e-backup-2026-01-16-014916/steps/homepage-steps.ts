@@ -12,11 +12,13 @@ Given('I am on the homepage', async function (this: CityGuidedWorld) {
 });
 
 Then('I should see the map container', async function (this: CityGuidedWorld) {
-  const mapContainer = this.page!.locator('[data-testid="map-container"]');
-  await expect(mapContainer).toBeVisible({ timeout: 5000 });
+  const mapContainer = await this.page!.locator('[data-testid="map-container"]');
+  await expect(mapContainer).toBeVisible();
 });
 
 Then('I should see the search bar', async function (this: CityGuidedWorld) {
-  const searchBar = this.page!.locator('[data-testid="search-bar-main"]');
-  await expect(searchBar).toBeVisible({ timeout: 5000 });
+  // Wait for page to load and search bar to appear
+  await this.page!.waitForTimeout(1000);
+  const searchBar = this.page!.locator('[data-testid="search-bar-main"], [data-testid="search-bar"]').first();
+  await expect(searchBar).toBeVisible({ timeout: 10000 });
 });

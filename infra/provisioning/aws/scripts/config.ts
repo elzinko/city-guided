@@ -12,7 +12,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import chalk from 'chalk';
@@ -117,7 +117,7 @@ function getSsmParameters(env: EnvironmentName): SsmParameter[] {
     }
 
     return params;
-  } catch (error: any) {
+  } catch {
     return [];
   }
 }
@@ -350,7 +350,7 @@ function cmdDiff(env: EnvironmentName): void {
   let localVars: Record<string, string>;
   try {
     localVars = loadEnvFile(env);
-  } catch (error: any) {
+  } catch {
     console.error(chalk.red(`❌ Environment file not found: ${envFilePath}`));
     process.exit(1);
   }

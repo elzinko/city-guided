@@ -33,17 +33,7 @@
     "ssh": "bash infra/scripts/ssh.sh",
     "config:get": "bash infra/scripts/config.sh get",
     "config:push": "bash infra/scripts/config.sh push",
-    "config:diff": "bash infra/scripts/config.sh diff",
-    "ssh:staging": "pnpm ssh staging",
-    "ssh:prod": "pnpm ssh prod",
-    "config:get:staging": "pnpm config:get staging",
-    "config:get:prod": "pnpm config:get prod",
-    "config:push:staging": "pnpm config:push staging",
-    "config:push:prod": "pnpm config:push prod",
-    "config:diff:staging": "pnpm config:diff staging",
-    "config:diff:prod": "pnpm config:diff prod",
-    "destroy:staging": "pnpm destroy staging",
-    "destroy:prod": "pnpm destroy prod"
+    "config:diff": "bash infra/scripts/config.sh diff"
   },
   "devDependencies": {
     "turbo": "^1.8.6",

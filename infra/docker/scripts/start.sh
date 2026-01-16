@@ -169,7 +169,7 @@ if [ "$ENVIRONMENT" = "local" ] || [ "$ENVIRONMENT" = "ci" ]; then
     echo ""
     echo "   Direct access (debug):"
     echo "   Frontend: http://localhost:${WEB_PORT:-3080}"
-    echo "   API:      http://localhost:${API_PORT:-4000}"
+    echo "   API:      http://localhost:${API_PORT:-3001}"
     echo "   OSRM:     http://localhost:${OSRM_PORT:-5001}"
 else
     echo "🌍 URL: https://${SITE_DOMAIN:-example.com}"

@@ -319,7 +319,7 @@ jobs:
           SITE_DOMAIN=$(aws ssm get-parameter --name "/city-guided/staging/SITE_DOMAIN" --query "Parameter.Value" --output text 2>/dev/null || echo "")
           EC2_PUBLIC_IP=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_EC2_PUBLIC_IP" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
           WEB_PORT=$(aws ssm get-parameter --name "/city-guided/staging/WEB_PORT" --query "Parameter.Value" --output text 2>/dev/null || echo "3080")
-          API_PORT=$(aws ssm get-parameter --name "/city-guided/staging/API_PORT" --query "Parameter.Value" --output text 2>/dev/null || echo "4000")
+          API_PORT=$(aws ssm get-parameter --name "/city-guided/staging/API_PORT" --query "Parameter.Value" --output text 2>/dev/null || echo "3001")
           DUCKDNS_TOKEN=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_DUCKDNS_TOKEN" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
           
           echo "site_domain=$SITE_DOMAIN" >> $GITHUB_OUTPUT

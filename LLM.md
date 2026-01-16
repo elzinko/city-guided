@@ -17,3 +17,7 @@ Les règles suivantes **DOIVENT** être lues et appliquées dans toutes les disc
 ### Règles de développement
 - **DOIT** : Lire et appliquer [rules/DEV_STARTER_RULES.md](./rules/DEV_STARTER_RULES.md)
 - Ces règles couvrent : feedback loop local-first, gestion des blocages, contournements documentés, philosophie de tests, utilisation de Playwright MCP, etc.
+
+### Règles de test
+- **DOIT** : Lire et appliquer [rules/TESTS_STARTER_RULES.md](./rules/TESTS_STARTER_RULES.md)
+- Ces règles couvrent : tests mobile-first obligatoires, viewport mobile par défaut, interactions tactiles, validation visuelle, etc.

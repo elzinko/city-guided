@@ -2,6 +2,12 @@
 
 Règles de développement destinées à garder un cycle de feedback rapide, éviter les itérations “à l’aveugle” en CI, et documenter proprement les contournements/décisions.
 
+## 0) Organisation des règles pour les LLMs
+
+- **DOIT** : Toutes les règles pour les LLMs **DOIVENT** être mises soit dans [LLM.md](../LLM.md), soit dans un des fichiers du répertoire `rules/`.
+- **NE DOIT PAS** : Disperser les règles dans d'autres fichiers ou emplacements.
+- **DOIT** : Référencer les nouvelles règles depuis [LLM.md](../LLM.md) pour qu'elles soient chargées automatiquement.
+
 ## 1) Feedback loop (local-first)
 
 - **DOIT** : reproduire et/ou valider **en local** avant de déclencher une pipeline ou de relancer des jobs CI pour “voir si ça passe”.

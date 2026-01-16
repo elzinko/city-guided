@@ -24,7 +24,7 @@ npm run docker:local:start
 
 # 3. Access services
 # - Frontend: http://localhost:3080
-# - API: http://localhost:3001
+# - API: http://localhost:4000
 # - OSRM: http://localhost:5000
 ```
 

@@ -9,7 +9,7 @@ http {
     }
 
     upstream api {
-        server api:3001;
+        server api:4000;
     }
 
     # HTTP server - redirect to HTTPS (optionnel, pour Let's Encrypt)

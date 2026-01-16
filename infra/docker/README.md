@@ -17,7 +17,7 @@ Cette architecture sépare les préoccupations en trois composants indépendants
 cp .env.example .env.local
 
 # Éditer selon l'environnement
-# .env.local    → Développement local (Monaco, ports 3000/3001)
+# .env.local    → Développement local (Monaco, ports 3080/4000)
 # .env.staging  → Staging AWS (Île-de-France, nginx, DuckDNS)
 # .env.prod     → Production (France entière, nginx, domaine custom)
 ```
@@ -100,7 +100,7 @@ docker-compose --env-file .env.local -f docker-compose.osrm.yml logs -f
 
 Services principaux de l'application :
 - **web** : Frontend Next.js (port 3000)
-- **api** : Backend API (port 3001)
+- **api** : Backend API (port 4000)
 
 Connecte automatiquement au service OSRM via le réseau `osrm-network`.
 
@@ -235,7 +235,7 @@ curl "http://localhost:5000/route/v1/driving/2.3522,48.8566;2.2945,48.8584?overv
 │  Application (docker-compose.yml)               │
 │  ┌──────────┐  ┌──────────┐                    │
 │  │ Frontend │  │   API    │                     │
-│  │  :3000   │  │  :3001   │                     │
+│  │  :3080   │  │  :4000   │                     │
 │  └────┬─────┘  └────┬─────┘                     │
 │       │             │                            │
 │       └─────────────┴──────┐                     │

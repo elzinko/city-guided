@@ -71,7 +71,7 @@ USER apiuser
 
 # Port will be set at runtime via docker-compose
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=4000
 
 WORKDIR /app/services/api
 

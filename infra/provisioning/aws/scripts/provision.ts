@@ -31,6 +31,7 @@ import {
   isSecret,
   getSsmPath,
   getEnvFilePath,
+  getAwsConsoleUrls,
   type EnvironmentName,
 } from '../constants.js';
 import { createDeployer, type InfraMode } from '../lib/deployer-factory.js';
@@ -504,7 +505,15 @@ async function main() {
       console.log(chalk.white(`   Domain:      https://${envVars.SITE_DOMAIN}`));
       console.log(chalk.white(`   SSM:         ${getSsmPath(env)}/*`));
 
-      console.log(chalk.cyan('\n🔗 Next steps:'));
+      // AWS Console Links
+      console.log(chalk.cyan('\n🔗 AWS Console Links:'));
+      const urls = getAwsConsoleUrls(env, mode);
+      for (const [name, url] of Object.entries(urls)) {
+        console.log(chalk.white(`   • ${name}:`));
+        console.log(chalk.gray(`     ${url}`));
+      }
+
+      console.log(chalk.cyan('\n📝 Next steps:'));
 
       if (mode === 'ec2' && infraOutputs.publicIp) {
         console.log(chalk.white(`   1. SSH: ssh -i ~/.ssh/${awsConfig.KEY_PAIR_NAME}.pem ec2-user@${infraOutputs.publicIp}`));

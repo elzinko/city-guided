@@ -8,13 +8,19 @@
     "provision": "tsx scripts/provision.ts",
     "provision:verify": "tsx scripts/provision-verify.ts",
     "destroy": "tsx scripts/provision.ts destroy",
-    "config": "tsx scripts/config.ts"
+    "config": "tsx scripts/config.ts",
+    "status": "tsx scripts/status.ts"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",
     "aws-cdk-lib": "^2.172.0",
     "constructs": "^10.4.2",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "@aws-sdk/client-ecs": "^3.0.0",
+    "@aws-sdk/client-ec2": "^3.0.0",
+    "@aws-sdk/client-cloudformation": "^3.0.0",
+    "@aws-sdk/client-elastic-load-balancing-v2": "^3.0.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^18.19.130",

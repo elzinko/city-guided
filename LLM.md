@@ -6,6 +6,12 @@ Ce fichier est le point d'entrée unique pour tous les LLM/agents conversationne
 
 - **DOIT** : Lire [RESUME.md](./RESUME.md) pour le contexte complet du projet (architecture, commandes, stack technique, patterns)
 
+## Règles agiles (Phase A)
+
+- **DOIT** : Lire et respecter `agile/README.md`
+- **DOIT** : Appliquer les rôles définis dans `agile/AGENTS.md`
+- Ces règles s’appliquent à toute génération ou modification de documents agiles
+
 ## Règles à appliquer systématiquement
 
 Les règles suivantes **DOIVENT** être lues et appliquées dans toutes les discussions :

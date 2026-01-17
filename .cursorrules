@@ -2,4 +2,5 @@
 
 Point d'entrée spécifique pour Cursor IDE.
 
-- **DOIT** : Lire [LLM.md](./LLM.md) pour le contexte complet du projet et toutes les règles à appliquer
+- **DOIT** : Lire [LLM.md](./LLM.md)
+- Cursor est un adaptateur, pas une source de règles

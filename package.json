@@ -15,7 +15,7 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "test:e2e": "pnpm --filter apps-web-frontend test:e2e",
-    "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "type-check": "turbo run type-check",
     "prepare": "husky install",
     "docker:setup": "bash infra/deployment/scripts/setup.sh",
@@ -32,6 +32,7 @@
     "infra:provision": "cd infra/provisioning/aws && pnpm run provision",
     "infra:provision:verify": "cd infra/provisioning/aws && pnpm run provision:verify",
     "infra:destroy": "cd infra/provisioning/aws && pnpm run destroy",
+    "infra:status": "cd infra/provisioning/aws && pnpm run status",
     "app:deploy": "cd infra/provisioning/aws && npx tsx ../../../infra/deployment/scripts/deploy.ts",
     "app:deploy:verify": "cd infra/provisioning/aws && npx tsx ../../../infra/deployment/scripts/verify.ts",
     "ssh": "bash infra/scripts/ssh.sh",
@@ -41,13 +42,13 @@
   },
   "devDependencies": {
     "turbo": "^1.8.6",
-    "eslint": "^8.57.0",
+    "eslint": "^9.39.2",
+    "@eslint/js": "^9.0.0",
     "prettier": "^2.8.8",
     "husky": "^8.0.0",
     "typescript": "^5.2.0",
     "@types/node": "^20.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "typescript-eslint": "^8.53.0",
     "eslint-config-prettier": "^9.0.0"
   }
 }

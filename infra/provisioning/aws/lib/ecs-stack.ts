@@ -361,18 +361,21 @@ async function publishMetric(desiredCount, status) {
       handler: 'index.handler',
       code: lambda.Code.fromInline(`
 const { ECSClient, UpdateServiceCommand, DescribeServicesCommand } = require('@aws-sdk/client-ecs');
-const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch');
+const { CloudWatchClient, PutMetricDataCommand, GetMetricStatisticsCommand } = require('@aws-sdk/client-cloudwatch');
 
 const ecsClient = new ECSClient({});
 const cloudwatchClient = new CloudWatchClient({});
 
 const CLUSTER_NAME = '${cluster.clusterName}';
 const SERVICE_NAME = '${service.serviceName}';
+const TARGET_GROUP_NAME = '${targetGroup.targetGroupFullName}';
+const REQUEST_CHECK_WINDOW_MINUTES = 2; // Vérifier les requêtes des 2 dernières minutes
 
 exports.handler = async (event) => {
   console.log('Scale-up check triggered', { timestamp: new Date().toISOString() });
   
   try {
+    // 1. Vérifier l'état actuel du service
     const describeResponse = await ecsClient.send(new DescribeServicesCommand({
       cluster: CLUSTER_NAME,
       services: [SERVICE_NAME]
@@ -386,7 +389,7 @@ exports.handler = async (event) => {
     
     const currentDesiredCount = service.desiredCount || 0;
     
-    // Si déjà à 1, ne rien faire
+    // 2. Si déjà à 1 ou plus, ne rien faire
     if (currentDesiredCount >= 1) {
       return {
         statusCode: 200,
@@ -398,24 +401,70 @@ exports.handler = async (event) => {
       };
     }
     
-    // Scale up à 1
-    console.log('Scaling up service to 1');
-    await ecsClient.send(new UpdateServiceCommand({
-      cluster: CLUSTER_NAME,
-      service: SERVICE_NAME,
-      desiredCount: 1
+    // 3. Vérifier les métriques ALB pour les 2 dernières minutes
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - (REQUEST_CHECK_WINDOW_MINUTES + 1) * 60 * 1000);
+    
+    const metricResponse = await cloudwatchClient.send(new GetMetricStatisticsCommand({
+      Namespace: 'AWS/ApplicationELB',
+      MetricName: 'RequestCount',
+      Dimensions: [
+        { Name: 'TargetGroup', Value: TARGET_GROUP_NAME }
+      ],
+      StartTime: startTime,
+      EndTime: endTime,
+      Period: 60, // 1 minute
+      Statistics: ['Sum']
     }));
     
-    await publishMetric(1, 'scaled_up');
-    
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        action: 'scaled_up',
-        previousDesiredCount: currentDesiredCount,
-        newDesiredCount: 1
+    // 4. Analyser les données de métriques
+    const datapoints = metricResponse.Datapoints || [];
+    const recentRequests = datapoints
+      .filter(dp => {
+        const dpTime = new Date(dp.Timestamp);
+        const minutesAgo = (endTime - dpTime) / (1000 * 60);
+        return minutesAgo <= REQUEST_CHECK_WINDOW_MINUTES;
       })
-    };
+      .reduce((sum, dp) => sum + (dp.Sum || 0), 0);
+    
+    console.log('Request analysis', {
+      totalDatapoints: datapoints.length,
+      recentRequests,
+      timeWindow: \`Last \${REQUEST_CHECK_WINDOW_MINUTES} minutes\`
+    });
+    
+    // 5. Si des requêtes sont détectées et le service est à 0, scale-up
+    if (recentRequests > 0) {
+      console.log('Requests detected while service is at zero, scaling up to 1');
+      
+      await ecsClient.send(new UpdateServiceCommand({
+        cluster: CLUSTER_NAME,
+        service: SERVICE_NAME,
+        desiredCount: 1
+      }));
+      
+      await publishMetric(1, 'scaled_up');
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          action: 'scaled_up',
+          previousDesiredCount: currentDesiredCount,
+          newDesiredCount: 1,
+          reason: \`\${recentRequests} requests detected in last \${REQUEST_CHECK_WINDOW_MINUTES} minutes\`
+        })
+      };
+    } else {
+      // Pas de requêtes, ne rien faire
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          action: 'noop',
+          desiredCount: currentDesiredCount,
+          reason: 'No requests detected, service remains at zero'
+        })
+      };
+    }
     
   } catch (error) {
     console.error('Error in scale-up lambda', error);
@@ -483,23 +532,22 @@ async function publishMetric(desiredCount, status) {
       effect: iam.Effect.ALLOW,
       actions: [
         'cloudwatch:PutMetricData',
+        'cloudwatch:GetMetricStatistics',
       ],
       resources: ['*'],
     }));
 
     // ============================================
     // EventBridge Rule pour scale-up automatique
-    // Déclenche la Lambda scale-up quand une requête arrive et que le service est à 0
-    // Note: Cette approche nécessite que la Lambda scale-up soit appelée
-    // depuis l'application ou via un mécanisme externe (ex: API Gateway)
-    // Pour un scale-up vraiment automatique, il faudrait utiliser un ALB Lambda target
-    // qui intercepte les requêtes, mais cela nécessite une refonte de l'architecture ALB
+    // Déclenche la Lambda scale-up toutes les minutes pour vérifier
+    // si des requêtes arrivent alors que le service est à 0
     // ============================================
-    
-    // Pour l'instant, la Lambda scale-up peut être appelée :
-    // 1. Manuellement via AWS CLI: aws lambda invoke --function-name <arn>
-    // 2. Via API Gateway (à configurer séparément si nécessaire)
-    // 3. Via un script de monitoring externe
+    const scaleUpRule = new events.Rule(this, 'ScaleUpRule', {
+      schedule: events.Schedule.rate(cdk.Duration.minutes(1)),
+      description: 'Check for incoming requests and scale up ECS service if needed',
+    });
+
+    scaleUpRule.addTarget(new targets.LambdaFunction(scaleUpLambda));
 
     // ============================================
     // CloudWatch Dashboard

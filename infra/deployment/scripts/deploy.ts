@@ -210,14 +210,36 @@ async function deployToECS(env: EnvironmentName, imageTag: string): Promise<void
 
   console.log(chalk.green(`   ✓ New task definition: ${newTaskDefArn}`));
 
+  // Check current desired count
+  const currentDesiredCount = execSilent(`
+    aws ecs describe-services \\
+      --cluster ${clusterName} \\
+      --services ${serviceName} \\
+      --region ${AWS_CONFIG.region} \\
+      --query 'services[0].desiredCount' \\
+      --output text
+  `);
+
+  const desiredCountNum = parseInt(currentDesiredCount, 10);
+  const isScaledToZero = desiredCountNum === 0;
+
+  if (isScaledToZero) {
+    console.log(chalk.yellow('   ⚠️  Service is currently scaled to zero'));
+    console.log(chalk.white('   → Setting desiredCount to 1 for deployment'));
+  }
+
   // Update service with new task definition
+  // Always set desiredCount to at least 1 during deployment to ensure the new version runs
   console.log(chalk.yellow('\n🔄 Updating ECS service...\n'));
+  
+  const deployDesiredCount = Math.max(desiredCountNum, 1);
   
   exec(`
     aws ecs update-service \\
       --cluster ${clusterName} \\
       --service ${serviceName} \\
       --task-definition ${newTaskDefArn} \\
+      --desired-count ${deployDesiredCount} \\
       --force-new-deployment \\
       --region ${AWS_CONFIG.region} \\
       --query 'service.{status:status,desiredCount:desiredCount}' \\
@@ -225,6 +247,12 @@ async function deployToECS(env: EnvironmentName, imageTag: string): Promise<void
   `);
 
   console.log(chalk.green('\n✓ Service update initiated'));
+  
+  if (isScaledToZero) {
+    console.log(chalk.cyan('\n💡 Note: Service was scaled to 1 for deployment.'));
+    console.log(chalk.white('   The scale-to-zero Lambda will automatically scale it back'));
+    console.log(chalk.white('   to 0 after 5 minutes of inactivity.'));
+  }
 
   // Wait for service to stabilize
   console.log(chalk.yellow('\n⏳ Waiting for service to stabilize (this may take a few minutes)...\n'));

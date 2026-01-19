@@ -1,0 +1,7 @@
+enabled:
+  - ideation-basics
+customRules:
+  - id: my-rule
+    title: My Rule
+    content: Description...
+featuresPath: features

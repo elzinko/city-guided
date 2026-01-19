@@ -1,6 +1,79 @@
-# Agile Documentation System – Méthode & Conventions
+# Life Finds a Way 🦖
 
-## Objectif du répertoire `agile/`
+> *"Life finds a way"* — Dr. Ian Malcolm, Jurassic Park
+
+Feature ideation and exploration system for Phase A (exploration).
+
+**Sister project**: [iamthelaw](../iamthelaw/) (LLM rules management)
+
+## Quick Start
+
+```bash
+cd lifefindsaway
+pnpm install --ignore-workspace
+
+# List available modules
+pnpm dev module list
+
+# Import a module
+pnpm dev module import ideation-basics
+
+# Setup for Cursor (adds reference + installs commands)
+pnpm dev setup cursor
+```
+
+## Commands
+
+```
+lifefindsaway module import <name>    # Import a module
+lifefindsaway module export           # Export rules as module
+lifefindsaway module list             # List modules
+
+lifefindsaway rule add                # Add a custom rule
+lifefindsaway rule list               # List custom rules
+
+lifefindsaway setup cursor            # Setup for Cursor
+lifefindsaway setup claude            # Setup for Claude Code
+```
+
+## How It Works
+
+```
+.cursorrules → lifefindsaway/ENTRY.md → Guidelines
+                                     → Custom rules
+                                     → Commands (.cursor/commands/)
+```
+
+- **setup cursor**: generates ENTRY.md + installs Cursor commands
+- **Idempotent**: run setup multiple times safely
+
+## Structure
+
+```
+lifefindsaway/
+├── core/
+│   ├── modules/           # Built-in modules
+│   ├── templates/         # Entry templates
+│   └── commands/          # Command templates for IDEs
+│       └── cursor/        # Cursor commands
+├── modules/
+│   ├── imports/           # Imported modules
+│   ├── exports/           # Exported modules
+│   └── custom/            # Custom modules
+├── config/
+│   └── lifefindsaway.yaml # Configuration
+├── features/              # Feature documents
+├── templates/             # Feature/Epic templates
+├── planning.md            # Status tracking
+├── ENTRY.md               # Generated entry point
+└── README.md
+```
+
+---
+
+## Agile Documentation System – Méthode & Conventions
+
+### Objectif
 
 Ce répertoire contient **la méthode, les règles et les artefacts agiles du projet**, indépendamment :
 - des outils (Jira, GitHub, Plane, etc.)

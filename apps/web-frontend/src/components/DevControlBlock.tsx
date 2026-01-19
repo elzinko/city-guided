@@ -91,16 +91,6 @@ const compactSelectStyle: React.CSSProperties = {
   WebkitTransform: 'translateZ(0)',
 }
 
-// Icône GPS/Navigation pour le simulateur
-function GpsSimIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-    </svg>
-  )
-}
-
 // Icône Zone POI (cercle autour d'un marqueur)
 function ZonePoiIcon({ size = 18, active = false }: { size?: number; active?: boolean }) {
   const color = active ? '#ef4444' : '#94a3b8'

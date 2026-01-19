@@ -59,7 +59,7 @@ const logsClient = new CloudWatchLogsClient({ region: AWS_CONFIG.region });
 // ECS STATUS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function getECSStatus(env: EnvironmentName) {
+async function getECSStatus() {
   const clusterName = 'city-guided-cluster';
   const serviceName = 'city-guided-service';
 

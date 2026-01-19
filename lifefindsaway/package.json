@@ -1,0 +1,36 @@
+{
+  "name": "lifefindsaway",
+  "version": "0.1.0",
+  "description": "Life Finds a Way 🦖 Feature ideation and exploration system",
+  "type": "module",
+  "bin": {
+    "lifefindsaway": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "llm",
+    "ideation",
+    "agile",
+    "cursor",
+    "claude",
+    "ai",
+    "exploration"
+  ],
+  "dependencies": {
+    "commander": "^12.1.0",
+    "yaml": "^2.7.0",
+    "chalk": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

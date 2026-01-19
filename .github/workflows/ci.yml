@@ -255,17 +255,7 @@ jobs:
       )
     environment:
       name: staging
-      urls:
-        - label: Application
-          url: https://cityguided.duckdns.org
-        - label: AWS Console (ECS Cluster)
-          url: https://eu-west-3.console.aws.amazon.com/ecs/v2/clusters/city-guided-cluster/services?region=eu-west-3
-        - label: AWS Console (ECS Service)
-          url: https://eu-west-3.console.aws.amazon.com/ecs/v2/clusters/city-guided-cluster/services/city-guided-service?region=eu-west-3
-        - label: AWS Console (Application Load Balancer)
-          url: https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#LoadBalancers:search=city-guided-alb
-        - label: AWS Console (CloudFormation)
-          url: https://eu-west-3.console.aws.amazon.com/cloudformation/home?region=eu-west-3#/stacks/stackinfo?stackId=CityGuidedEcsStack
+      url: https://cityguided.duckdns.org
     steps:
       - name: Checkout
         uses: actions/checkout@v4

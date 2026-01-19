@@ -1,0 +1,60 @@
+name: typescript-2026
+version: "1.0.0"
+description: TypeScript best practices for modern projects (2026)
+tags: [typescript, language, type-safety]
+
+rules:
+  - id: strict-config
+    title: Strict Configuration
+    level: MUST
+    content: |
+      Enable all strict options in tsconfig.json:
+      - strict: true
+      - noUncheckedIndexedAccess: true
+      - exactOptionalPropertyTypes: true
+      - noImplicitOverride: true
+
+  - id: prefer-unknown
+    title: Prefer unknown over any
+    level: MUST
+    content: |
+      - Use `unknown` instead of `any` for uncertain types
+      - Narrow types with type guards before use
+      - `any` is only acceptable when interfacing with untyped libraries
+
+  - id: explicit-return-types
+    title: Explicit Return Types for Exports
+    level: SHOULD
+    content: |
+      - Exported functions SHOULD have explicit return types
+      - Exception: simple arrow functions in callbacks
+      - This improves documentation and catches errors early
+
+  - id: const-assertions
+    title: Use const assertions
+    level: SHOULD
+    content: |
+      Prefer `as const` for literal types:
+      ```typescript
+      const STATUSES = ['pending', 'done'] as const;
+      type Status = typeof STATUSES[number];
+      ```
+
+  - id: discriminated-unions
+    title: Prefer Discriminated Unions
+    level: SHOULD
+    content: |
+      Use discriminated unions for state modeling:
+      ```typescript
+      type Result<T> = 
+        | { success: true; data: T }
+        | { success: false; error: Error };
+      ```
+
+  - id: no-enums
+    title: Avoid Enums
+    level: MAY
+    content: |
+      - Consider using `as const` objects instead of enums
+      - Enums have runtime overhead and quirky behavior
+      - Exception: Numeric enums for bit flags are acceptable

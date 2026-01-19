@@ -1,0 +1,5 @@
+enabled:
+  - clean-code
+  - hexagonal
+  - typescript-2026
+projectRulesPath: rules

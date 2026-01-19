@@ -20,13 +20,14 @@ export default tseslint.config(
   {
     ignores: [
       'node_modules/**',
-      'dist/**',
-      'build/**',
-      '*.config.js',
-      '*.config.ts',
-      'cdk.out/**',
-      '.next/**',
-      'coverage/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/*.config.js',
+      '**/*.config.ts',
+      '**/cdk.out/**',
+      '**/.next/**',
+      '**/coverage/**',
+      '**/*.js', // Ignore all .js files (generated from TypeScript)
     ],
   }
 );

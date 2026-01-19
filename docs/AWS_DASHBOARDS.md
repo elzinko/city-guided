@@ -7,11 +7,13 @@ Un dashboard CloudWatch personnalisé est automatiquement créé lors du déploi
 ### Accès au Dashboard
 
 **URL directe** (affichée après le déploiement) :
-```
+
+``` html
 https://eu-west-3.console.aws.amazon.com/cloudwatch/home?region=eu-west-3#dashboards:name=CityGuided-ECS-ScaleToZero
 ```
 
 **Via la console AWS** :
+
 1. Aller dans **CloudWatch** → **Dashboards**
 2. Chercher `CityGuided-ECS-ScaleToZero`
 
@@ -42,28 +44,35 @@ Le dashboard affiche 4 graphiques en temps réel :
 Les logs des containers sont automatiquement envoyés vers CloudWatch Logs.
 
 #### Logs API
+
 **URL directe** :
-```
+
+``` html
 https://eu-west-3.console.aws.amazon.com/cloudwatch/home?region=eu-west-3#logsV2:log-groups/log-group/$252Fecs$252Fcity-guided-api
 ```
 
 **Via la console AWS** :
+
 1. Aller dans **CloudWatch** → **Log groups**
 2. Chercher `/ecs/city-guided-api`
 
 #### Logs Web
+
 **URL directe** :
-```
+
+``` html
 https://eu-west-3.console.aws.amazon.com/cloudwatch/home?region=eu-west-3#logsV2:log-groups/log-group/$252Fecs$252Fcity-guided-web
 ```
 
 **Via la console AWS** :
+
 1. Aller dans **CloudWatch** → **Log groups**
 2. Chercher `/ecs/city-guided-web`
 
 ### Utilisation des logs
 
 Dans CloudWatch Logs, vous pouvez :
+
 - **Voir les logs en temps réel** : Cliquer sur un log stream pour voir les logs en direct
 - **Filtrer les logs** : Utiliser la barre de recherche pour filtrer par texte, timestamp, etc.
 - **Exporter les logs** : Télécharger ou exporter vers S3
@@ -74,11 +83,13 @@ Dans CloudWatch Logs, vous pouvez :
 ### Cluster ECS
 
 **URL directe** :
-```
+
+``` html
 https://eu-west-3.console.aws.amazon.com/ecs/v2/clusters/city-guided-cluster/services?region=eu-west-3
 ```
 
 **Informations disponibles** :
+
 - **Services** : Liste des services ECS
 - **Tasks** : Tâches en cours d'exécution
 - **Metrics** : Métriques du cluster (CPU, mémoire, etc.)
@@ -87,11 +98,13 @@ https://eu-west-3.console.aws.amazon.com/ecs/v2/clusters/city-guided-cluster/ser
 ### Service ECS
 
 **URL directe** :
-```
+
+``` html
 https://eu-west-3.console.aws.amazon.com/ecs/v2/clusters/city-guided-cluster/services/city-guided-service?region=eu-west-3
 ```
 
 **Informations disponibles** :
+
 - **Status** : État du service (ACTIVE, DRAINING, etc.)
 - **Tasks** : Liste des tâches avec leur statut
 - **Metrics** : Métriques du service (CPU, mémoire, réseau)
@@ -111,11 +124,13 @@ https://eu-west-3.console.aws.amazon.com/ecs/v2/clusters/city-guided-cluster/ser
 ### Console ALB
 
 **URL directe** :
-```
+
+```text
 https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#LoadBalancers:search=city-guided-alb
 ```
 
 **Informations disponibles** :
+
 - **Health checks** : État de santé des targets
 - **Target groups** : Groupes de cibles (vos containers ECS)
 - **Listeners** : Règles de routage
@@ -124,11 +139,13 @@ https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#LoadBalancers
 ### Target Groups
 
 **URL directe** :
-```
+
+``` html
 https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#TargetGroups:search=city-guided
 ```
 
 **Informations disponibles** :
+
 - **Target health** : État de santé de chaque container
 - **Health check details** : Détails des health checks
 - **Metrics** : Métriques par target
@@ -143,6 +160,7 @@ pnpm run config get
 ```
 
 Cela affiche toutes les URLs de la console AWS pour :
+
 - ECS Cluster
 - ECS Service
 - Application Load Balancer
@@ -193,6 +211,7 @@ aws ecs describe-tasks \
 ### Métriques ECS standard
 
 Dans CloudWatch → Metrics → AWS/ECS, vous trouverez :
+
 - **CPUUtilization** : Utilisation CPU des tâches
 - **MemoryUtilization** : Utilisation mémoire des tâches
 - **RunningTaskCount** : Nombre de tâches en cours
@@ -201,6 +220,7 @@ Dans CloudWatch → Metrics → AWS/ECS, vous trouverez :
 ### Métriques ALB standard
 
 Dans CloudWatch → Metrics → AWS/ApplicationELB :
+
 - **RequestCount** : Nombre de requêtes
 - **TargetResponseTime** : Temps de réponse
 - **HTTPCode_Target_2XX_Count** : Requêtes réussies
@@ -211,6 +231,7 @@ Dans CloudWatch → Metrics → AWS/ApplicationELB :
 ### Créer des alarmes
 
 Vous pouvez créer des alarmes CloudWatch pour :
+
 - **Scale-up automatique** : Alarme sur RequestCount > 0
 - **Erreurs** : Alarme sur 5XX > seuil
 - **Santé** : Alarme sur HealthyHostCount = 0
@@ -234,7 +255,8 @@ Le dashboard CloudWatch peut être personnalisé :
 2. Sélectionner **Logs table** ou **Logs time series**
 3. Choisir le log group `/ecs/city-guided-api`
 4. Ajouter une requête, par exemple :
-   ```
+
+   ``` sql
    fields @timestamp, @message
    | filter @message like /ERROR/
    | sort @timestamp desc

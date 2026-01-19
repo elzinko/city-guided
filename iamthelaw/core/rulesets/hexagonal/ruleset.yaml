@@ -1,0 +1,44 @@
+name: hexagonal
+version: "1.0.0"
+description: Hexagonal Architecture (Ports & Adapters) principles
+tags: [architecture, clean-architecture, ddd]
+
+rules:
+  - id: domain-isolation
+    title: Domain Must Be Isolated
+    level: MUST
+    content: |
+      - Domain (entities, business rules, use-cases) MUST be independent of frameworks
+      - Domain MUST NOT import from infrastructure or adapters
+      - Domain MUST be testable without I/O
+
+  - id: dependency-inversion
+    title: Invert Dependencies via Ports
+    level: MUST
+    content: |
+      - External dependencies (DB, HTTP, providers) MUST be inverted via ports (interfaces)
+      - Ports are defined in domain/application layer
+      - Adapters implement ports and live in infrastructure
+
+  - id: adapter-location
+    title: Adapters Live in Infrastructure
+    level: MUST
+    content: |
+      - HTTP controllers → infrastructure/http/
+      - Database repositories → infrastructure/persistence/
+      - External API clients → infrastructure/clients/
+
+  - id: wiring-at-edge
+    title: Wiring at the Edge
+    level: SHOULD
+    content: |
+      - Assembly of ports/adapters SHOULD happen at application entry point
+      - Dependency injection configured at startup, not in domain
+      - Configuration reading SHOULD NOT happen in domain
+
+  - id: shared-libs-no-config
+    title: Shared Libraries Don't Read Config
+    level: SHOULD
+    content: |
+      - Shared packages (packages/*) SHOULD NOT read environment variables
+      - Configuration MUST be passed from apps/services

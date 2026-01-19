@@ -26,7 +26,10 @@ export class CityGuidedEcsStack extends cdk.Stack {
     // ============================================
     const cluster = new ecs.Cluster(this, 'Cluster', {
       vpc,
-      clusterName: 'city-guided-cluster'
+      clusterName: 'city-guided-cluster',
+      // Enable CloudWatch Container Insights for enhanced observability
+      // Provides Docker Desktop-like dashboards: cluster → service → task → container
+      containerInsights: true,
     });
 
     // ============================================

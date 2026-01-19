@@ -1,5 +1,82 @@
 # Dashboards AWS pour City Guided
 
+## 🐳 CloudWatch Container Insights (Dashboard Docker-like)
+
+**CloudWatch Container Insights** fournit une observabilité complète de type "Docker Desktop" pour votre stack ECS, avec des vues hiérarchiques : Cluster → Service → Task → Container.
+
+### Accès au Dashboard Container Insights
+
+**URL directe** (après activation) :
+
+```html
+https://eu-west-3.console.aws.amazon.com/cloudwatch/home?region=eu-west-3#container-insights:clusters=city-guided-cluster
+```
+
+**Via la console AWS** :
+
+1. Aller dans **CloudWatch** → **Container Insights**
+2. Sélectionner **Performance monitoring** → **ECS Clusters**
+3. Choisir `city-guided-cluster`
+
+### Fonctionnalités disponibles
+
+Le dashboard Container Insights affiche :
+
+1. **Vue Cluster** :
+   - Vue d'ensemble de tous les services
+   - Métriques agrégées (CPU, mémoire, réseau)
+   - Nombre de tâches en cours
+
+2. **Vue Service** :
+   - Métriques par service (API, Web)
+   - CPU et mémoire par service
+   - Nombre de tâches par service
+
+3. **Vue Task** :
+   - Métriques par tâche individuelle
+   - État de santé de chaque tâche
+   - Utilisation des ressources par tâche
+
+4. **Vue Container** :
+   - Métriques détaillées par container (API, Web, Caddy)
+   - CPU, mémoire, réseau par container
+   - Logs intégrés par container
+
+### Métriques disponibles
+
+- **CPU** : Utilisation CPU par container/task/service
+- **Mémoire** : Utilisation mémoire (utilisée, réservée, limite)
+- **Réseau** : Bytes envoyés/reçus
+- **Stockage** : I/O disque (si applicable)
+- **Logs** : Accès direct aux logs CloudWatch par container
+
+### Avantages
+
+✅ **100% natif AWS** - Pas de dépendances externes  
+✅ **Gratuit** pour les métriques standard (CPU, mémoire, réseau)  
+✅ **Temps réel** - Métriques mises à jour toutes les minutes  
+✅ **Intégration CloudWatch** - Logs, alarmes, dashboards personnalisés  
+✅ **Interface intuitive** - Similaire à Docker Desktop  
+
+### Coûts
+
+- **Gratuit** : Métriques standard (CPU, mémoire, réseau, logs)
+- **Payant** : Métriques custom (si vous en ajoutez)
+- **Logs** : Standard CloudWatch Logs pricing (premiers 5 GB/mois gratuits)
+
+### Activation
+
+Container Insights est automatiquement activé lors du déploiement de la stack ECS via CDK.
+
+Pour activer manuellement :
+
+```bash
+aws ecs update-cluster-settings \
+  --cluster city-guided-cluster \
+  --settings name=containerInsights,value=enabled \
+  --region eu-west-3
+```
+
 ## 📊 CloudWatch Dashboard (Principal)
 
 Un dashboard CloudWatch personnalisé est automatiquement créé lors du déploiement de la stack ECS.

@@ -270,9 +270,9 @@ jobs:
         with:
           version: 10.27.0
 
-      - name: Install deployment dependencies
+      - name: Install dependencies
         run: |
-          cd infra/provisioning/aws
+          # Install all workspace dependencies (including infra/deployment and infra/provisioning/aws)
           pnpm install --frozen-lockfile
 
       - name: Configure AWS credentials
@@ -291,9 +291,8 @@ jobs:
           echo ""
           
           # The deploy script automatically detects the mode from constants.ts
-          # Use pnpm from infra/provisioning/aws (has chalk and tsx installed)
-          cd infra/provisioning/aws
-          pnpm exec tsx ../../../infra/deployment/scripts/deploy.ts staging --tag "$IMAGE_TAG"
+          # Uses pnpm script from package.json (can be run locally too)
+          pnpm app:deploy staging --tag "$IMAGE_TAG"
 
       - name: Get deployment info from SSM
         id: ssm

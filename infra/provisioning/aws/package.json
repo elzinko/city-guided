@@ -9,7 +9,9 @@
     "provision:verify": "tsx scripts/provision-verify.ts",
     "destroy": "tsx scripts/provision.ts destroy",
     "config": "tsx scripts/config.ts",
-    "status": "tsx scripts/status.ts"
+    "status": "tsx scripts/status.ts",
+    "deploy": "tsx ../../deployment/scripts/deploy.ts",
+    "deploy:verify": "tsx ../../deployment/scripts/verify.ts"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",
@@ -20,13 +22,13 @@
     "@aws-sdk/client-ec2": "^3.0.0",
     "@aws-sdk/client-cloudformation": "^3.0.0",
     "@aws-sdk/client-elastic-load-balancing-v2": "^3.0.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.0.0"
+    "@aws-sdk/client-cloudwatch-logs": "^3.0.0",
+    "chalk": "^5.4.1",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@types/node": "^18.19.130",
     "aws-cdk": "^2.172.0",
-    "chalk": "^5.4.1",
-    "tsx": "^4.19.2",
     "typescript": "^5.8.3"
   }
 }

@@ -15,13 +15,36 @@ if ! command -v pnpm >/dev/null 2>&1; then
   exit 1
 fi
 
-# If top-level node_modules missing, run install (this keeps the hook idempotent and avoids forcing network installs every commit)
-if [ ! -d "node_modules" ]; then
-  echo "node_modules missing: running 'pnpm -w install'..."
-  pnpm -w install
+# Check if lockfile is up to date (especially important for workspace changes)
+echo "Checking if lockfile is up to date..."
+pnpm install --frozen-lockfile >/dev/null 2>&1
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "⚠️  pnpm-lock.yaml is outdated or dependencies have changed."
+  echo "   Running 'pnpm install' to update lockfile..."
+  pnpm install
   RC=$?
   if [ $RC -ne 0 ]; then
-    echo "pnpm install failed (exit $RC). Aborting commit."
+    echo "❌ pnpm install failed (exit $RC). Aborting commit."
+    exit $RC
+  fi
+  echo "✅ Lockfile updated. Please review and stage pnpm-lock.yaml if needed."
+  # Auto-stage the lockfile if it changed
+  if git diff --quiet pnpm-lock.yaml 2>/dev/null; then
+    echo "   (lockfile unchanged)"
+  else
+    echo "   Staging updated pnpm-lock.yaml..."
+    git add pnpm-lock.yaml
+  fi
+fi
+
+# If top-level node_modules missing, run install (this keeps the hook idempotent and avoids forcing network installs every commit)
+if [ ! -d "node_modules" ]; then
+  echo "node_modules missing: running 'pnpm install'..."
+  pnpm install
+  RC=$?
+  if [ $RC -ne 0 ]; then
+    echo "❌ pnpm install failed (exit $RC). Aborting commit."
     exit $RC
   fi
 fi

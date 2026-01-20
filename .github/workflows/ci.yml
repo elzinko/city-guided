@@ -18,7 +18,19 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENVIRONMENT VARIABLES
+# Infrastructure mode is defined in constants.ts, but we need it here for conditionals
+# ═══════════════════════════════════════════════════════════════════════════════
+env:
+  # Source of truth: infra/provisioning/aws/constants.ts INFRA_MODES
+  STAGING_INFRA_MODE: 'ecs'
+  AWS_REGION: 'eu-west-3'
+
 jobs:
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # BUILD & TEST (Single build, cached for all subsequent jobs)
+  # ═══════════════════════════════════════════════════════════════════════════════
   build-and-test:
     name: Build & Unit Tests
     runs-on: ubuntu-latest
@@ -36,6 +48,19 @@ jobs:
         with:
           version: 10.27.0
 
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
       - name: Install dependencies
         env:
           HUSKY: 0
@@ -47,6 +72,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Unit Tests
+        run: pnpm run test
+
       - name: Cache build artifacts
         uses: actions/cache/save@v4
         with:
@@ -54,8 +82,14 @@ jobs:
             apps/*/dist
             apps/*/.next
             services/*/dist
+            packages/*/dist
+            node_modules
+            .turbo
           key: build-${{ github.sha }}
 
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # E2E TESTS (Uses cached build artifacts)
+  # ═══════════════════════════════════════════════════════════════════════════════
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
@@ -74,22 +108,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright browsers
-        run: pnpm --filter apps-web-frontend exec playwright install --with-deps chromium
-
-      - name: Restore build artifacts
+      - name: Restore build artifacts (includes node_modules)
         uses: actions/cache/restore@v4
         with:
           path: |
             apps/*/dist
             apps/*/.next
             services/*/dist
+            packages/*/dist
+            node_modules
+            .turbo
           key: build-${{ github.sha }}
+
+      - name: Install Playwright browsers
+        run: pnpm --filter apps-web-frontend exec playwright install --with-deps chromium
 
       - name: Generate .env.ci file
         run: |
@@ -154,8 +187,8 @@ jobs:
 
   # ═══════════════════════════════════════════════════════════════════════════════
   # BUILD AND PUSH DOCKER IMAGES TO AWS ECR
+  # Uses cached build artifacts from build-and-test job for faster builds
   # ═══════════════════════════════════════════════════════════════════════════════
-
   build-images:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
@@ -163,21 +196,33 @@ jobs:
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
-      id-token: write  # Required for AWS OIDC
+      id-token: write
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
-      api_image: ${{ steps.push-api.outputs.image }}
-      web_image: ${{ steps.push-web.outputs.image }}
+      api_image: ${{ steps.ecr-repos.outputs.api_repo }}:${{ steps.meta.outputs.version }}
+      web_image: ${{ steps.ecr-repos.outputs.web_repo }}:${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Restore build artifacts
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            apps/*/dist
+            apps/*/.next
+            services/*/dist
+            packages/*/dist
+            node_modules
+            .turbo
+          key: build-${{ github.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.SECRET_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.SECRET_AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-3
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -189,80 +234,66 @@ jobs:
       - name: Get ECR repository URIs
         id: ecr-repos
         run: |
-          API_REPO=$(aws ecr describe-repositories --repository-names city-guided-api --region eu-west-3 --query 'repositories[0].repositoryUri' --output text)
-          WEB_REPO=$(aws ecr describe-repositories --repository-names city-guided-web --region eu-west-3 --query 'repositories[0].repositoryUri' --output text)
+          API_REPO=$(aws ecr describe-repositories --repository-names city-guided-api --region ${{ env.AWS_REGION }} --query 'repositories[0].repositoryUri' --output text)
+          WEB_REPO=$(aws ecr describe-repositories --repository-names city-guided-web --region ${{ env.AWS_REGION }} --query 'repositories[0].repositoryUri' --output text)
           echo "api_repo=${API_REPO}" >> $GITHUB_OUTPUT
           echo "web_repo=${WEB_REPO}" >> $GITHUB_OUTPUT
-          echo "API Repository: ${API_REPO}"
-          echo "Web Repository: ${WEB_REPO}"
+          echo "📦 API Repository: ${API_REPO}"
+          echo "📦 Web Repository: ${WEB_REPO}"
 
-      - name: Docker metadata for API
-        id: meta-api
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.ecr-repos.outputs.api_repo }}
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Generate image tag
+        id: meta
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "version=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "🏷️ Image tag: ${SHORT_SHA}"
 
       - name: Build and push API image
-        id: push-api
         uses: docker/build-push-action@v5
         with:
           context: .
           file: infra/deployment/compose/Dockerfile.api
           push: true
-          tags: ${{ steps.meta-api.outputs.tags }}
-          labels: ${{ steps.meta-api.outputs.labels }}
+          tags: |
+            ${{ steps.ecr-repos.outputs.api_repo }}:${{ steps.meta.outputs.version }}
+            ${{ steps.ecr-repos.outputs.api_repo }}:latest
+            ${{ steps.ecr-repos.outputs.api_repo }}:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Docker metadata for Web
-        id: meta-web
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.ecr-repos.outputs.web_repo }}
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Build and push Web image
-        id: push-web
         uses: docker/build-push-action@v5
         with:
           context: .
           file: infra/deployment/compose/Dockerfile.frontend
           push: true
-          tags: ${{ steps.meta-web.outputs.tags }}
-          labels: ${{ steps.meta-web.outputs.labels }}
+          tags: |
+            ${{ steps.ecr-repos.outputs.web_repo }}:${{ steps.meta.outputs.version }}
+            ${{ steps.ecr-repos.outputs.web_repo }}:latest
+            ${{ steps.ecr-repos.outputs.web_repo }}:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Output image tag
-        id: meta
+      - name: Image summary
         run: |
-          # Use short SHA (7 chars) to match docker/metadata-action
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "version=${SHORT_SHA}" >> $GITHUB_OUTPUT
-          echo "Image tag: ${SHORT_SHA}"
-          echo "API image: ${{ steps.ecr-repos.outputs.api_repo }}:${SHORT_SHA}"
-          echo "Web image: ${{ steps.ecr-repos.outputs.web_repo }}:${SHORT_SHA}"
+          echo ""
+          echo "╔════════════════════════════════════════════════════════╗"
+          echo "║            📦 Docker Images Built                       ║"
+          echo "╚════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "🏷️ Tag: ${{ steps.meta.outputs.version }}"
+          echo "📦 API: ${{ steps.ecr-repos.outputs.api_repo }}:${{ steps.meta.outputs.version }}"
+          echo "📦 Web: ${{ steps.ecr-repos.outputs.web_repo }}:${{ steps.meta.outputs.version }}"
+          echo ""
 
   # ═══════════════════════════════════════════════════════════════════════════════
-  # DEPLOY TO STAGING
+  # DEPLOY TO STAGING (ECS Fargate)
   # ═══════════════════════════════════════════════════════════════════════════════
   # 
-  # This job uses a unified deployment script that automatically detects
-  # the infrastructure mode (EC2 or ECS) from constants.ts and deploys accordingly.
-  # 
-  # Infrastructure mode is defined in: infra/provisioning/aws/constants.ts
-  # 
-  # Run `pnpm provision staging` to set up infrastructure.
+  # Infrastructure mode: ECS Fargate (defined in constants.ts)
+  # The deploy script reads mode from constants.ts and deploys accordingly.
   #
   # ═══════════════════════════════════════════════════════════════════════════════
-
   deploy-staging:
     name: Deploy to AWS Staging
     runs-on: ubuntu-latest
@@ -290,100 +321,108 @@ jobs:
         with:
           version: 10.27.0
 
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
       - name: Install dependencies
-        run: |
-          # Install all workspace dependencies (including infra/deployment and infra/provisioning/aws)
-          pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.SECRET_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.SECRET_AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.SECRET_AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy application (unified script)
+      - name: Deploy application
         env:
           IMAGE_TAG: ${{ needs.build-images.outputs.image_tag }}
         run: |
           echo "🚀 Deploying to AWS staging..."
+          echo "   Mode: ${{ env.STAGING_INFRA_MODE }}"
           echo "   Image tag: $IMAGE_TAG"
           echo ""
           
-          # The deploy script automatically detects the mode from constants.ts
-          # Uses pnpm script from package.json (can be run locally too)
+          # Deploy script reads mode from constants.ts
           pnpm app:deploy staging --tag "$IMAGE_TAG"
 
-      - name: Get deployment info from SSM
+      - name: Get ALB DNS (ECS mode)
+        if: env.STAGING_INFRA_MODE == 'ecs'
+        id: alb
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names city-guided-alb \
+            --region ${{ env.AWS_REGION }} \
+            --query 'LoadBalancers[0].DNSName' \
+            --output text 2>/dev/null || echo "")
+          echo "dns=$ALB_DNS" >> $GITHUB_OUTPUT
+          echo "🌍 ALB DNS: $ALB_DNS"
+
+      - name: Get site domain from SSM
         id: ssm
         run: |
-          # Fetch key values from SSM for verification and summary
-          SITE_DOMAIN=$(aws ssm get-parameter --name "/city-guided/staging/SITE_DOMAIN" --query "Parameter.Value" --output text 2>/dev/null || echo "")
-          EC2_PUBLIC_IP=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_EC2_PUBLIC_IP" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-          INFRA_MODE=$(aws ssm get-parameter --name "/city-guided/staging/INFRA_MODE" --query "Parameter.Value" --output text 2>/dev/null || echo "ec2")
-          
+          SITE_DOMAIN=$(aws ssm get-parameter --name "/city-guided/staging/SITE_DOMAIN" --query "Parameter.Value" --output text 2>/dev/null || echo "cityguided.duckdns.org")
           echo "site_domain=$SITE_DOMAIN" >> $GITHUB_OUTPUT
-          echo "public_ip=$EC2_PUBLIC_IP" >> $GITHUB_OUTPUT
-          echo "infra_mode=$INFRA_MODE" >> $GITHUB_OUTPUT
 
-      - name: Update DuckDNS (EC2 mode only)
-        if: steps.ssm.outputs.infra_mode == 'ec2' && steps.ssm.outputs.public_ip != ''
+      - name: Verify ECS deployment
+        if: env.STAGING_INFRA_MODE == 'ecs'
         run: |
-          echo "🦆 Updating DuckDNS..."
+          echo "🔍 Verifying ECS deployment..."
+          echo ""
           
-          SITE_DOMAIN="${{ steps.ssm.outputs.site_domain }}"
-          DUCKDNS_TOKEN=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_DUCKDNS_TOKEN" --with-decryption --query "Parameter.Value" --output text)
-          EC2_PUBLIC_IP="${{ steps.ssm.outputs.public_ip }}"
+          # Get service status
+          aws ecs describe-services \
+            --cluster city-guided-cluster \
+            --services city-guided-service \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].{Status:status,Desired:desiredCount,Running:runningCount,Pending:pendingCount}' \
+            --output table
           
-          DUCKDNS_SUBDOMAIN="${SITE_DOMAIN%.duckdns.org}"
+          echo ""
+          echo "📊 Target Group Health:"
           
-          RESPONSE=$(curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_SUBDOMAIN}&token=${DUCKDNS_TOKEN}&ip=${EC2_PUBLIC_IP}")
+          # Get target group ARN (CDK-generated name)
+          TG_ARN=$(aws elbv2 describe-target-groups \
+            --region ${{ env.AWS_REGION }} \
+            --query "TargetGroups[?contains(TargetGroupName, 'CityGu')].TargetGroupArn" \
+            --output text 2>/dev/null || echo "")
           
-          if [ "$RESPONSE" = "OK" ]; then
-            echo "✅ DuckDNS updated: $SITE_DOMAIN → $EC2_PUBLIC_IP"
+          if [ -n "$TG_ARN" ]; then
+            aws elbv2 describe-target-health \
+              --target-group-arn "$TG_ARN" \
+              --region ${{ env.AWS_REGION }} \
+              --query 'TargetHealthDescriptions[*].{Target:Target.Id,Health:TargetHealth.State}' \
+              --output table 2>/dev/null || echo "No targets registered (service may be scaled to zero)"
           else
-            echo "⚠️ DuckDNS update failed: $RESPONSE"
+            echo "⚠️ Target group not found"
           fi
 
-      - name: Verify deployment (EC2)
-        if: steps.ssm.outputs.infra_mode == 'ec2'
+      - name: Verify EC2 deployment
+        if: env.STAGING_INFRA_MODE == 'ec2'
         run: |
           echo "🔍 Verifying EC2 deployment..."
           
-          EC2_PUBLIC_IP="${{ steps.ssm.outputs.public_ip }}"
+          EC2_PUBLIC_IP=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_EC2_PUBLIC_IP" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
           
-          # Wait for services to start
-          sleep 30
-          
-          curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}" > /dev/null \
-            && echo "✅ Frontend OK" || echo "⚠️ Frontend not responding yet"
-          
-          curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}/api/health" > /dev/null \
-            && echo "✅ API OK" || echo "⚠️ API not responding yet"
-
-      - name: Verify deployment (ECS)
-        if: steps.ssm.outputs.infra_mode == 'ecs'
-        run: |
-          echo "🔍 Verifying ECS deployment..."
-          
-          # Get ALB DNS
-          ALB_DNS=$(aws elbv2 describe-load-balancers \
-            --names city-guided-alb \
-            --query 'LoadBalancers[0].DNSName' \
-            --output text)
-          
-          echo "ALB DNS: $ALB_DNS"
-          
-          # Check target health
-          TG_ARN=$(aws elbv2 describe-target-groups \
-            --names city-guided-targets \
-            --query 'TargetGroups[0].TargetGroupArn' \
-            --output text)
-          
-          aws elbv2 describe-target-health \
-            --target-group-arn "$TG_ARN" \
-            --query 'TargetHealthDescriptions[*].TargetHealth.State' \
-            --output table
+          if [ -n "$EC2_PUBLIC_IP" ]; then
+            sleep 30
+            curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}" > /dev/null \
+              && echo "✅ Frontend OK" || echo "⚠️ Frontend not responding yet"
+            curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}/api/health" > /dev/null \
+              && echo "✅ API OK" || echo "⚠️ API not responding yet"
+          else
+            echo "⚠️ EC2 public IP not found in SSM"
+          fi
 
       - name: Deployment summary
         run: |
@@ -392,8 +431,18 @@ jobs:
           echo "║            ✅ Staging Deployment Completed             ║"
           echo "╚════════════════════════════════════════════════════════╝"
           echo ""
-          echo "📦 Commit:  ${{ github.sha }}"
-          echo "🏗️  Mode:    ${{ steps.ssm.outputs.infra_mode }}"
-          echo "🌍 URL:     https://${{ steps.ssm.outputs.site_domain }}"
-          echo "🗄️ Config:  AWS SSM /city-guided/staging/*"
+          echo "📦 Commit:     ${{ github.sha }}"
+          echo "🏷️ Image tag:  ${{ needs.build-images.outputs.image_tag }}"
+          echo "🏗️  Mode:       ${{ env.STAGING_INFRA_MODE }}"
+          echo ""
+          if [ "${{ env.STAGING_INFRA_MODE }}" == "ecs" ]; then
+            echo "🌍 ALB URL:    http://${{ steps.alb.outputs.dns }}"
+            echo "🌍 Site URL:   https://${{ steps.ssm.outputs.site_domain }}"
+            echo ""
+            echo "💡 Note: First request may take 1-2 min if service was scaled to zero"
+          else
+            echo "🌍 Site URL:   https://${{ steps.ssm.outputs.site_domain }}"
+          fi
+          echo ""
+          echo "🗄️ Config:     AWS SSM /city-guided/staging/*"
           echo ""

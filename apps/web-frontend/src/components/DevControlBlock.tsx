@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { PlayerControls } from './PlayerControls'
 import { Z_INDEX, SHOW_DEV_OPTIONS } from '../config/constants'
 
 type RouteOption = {
@@ -279,36 +278,249 @@ export function DevControlBlock({
             overflowY: 'auto',
           }}
         >
-          {/* Bloc 1 : Bouton édition des trajets */}
+          {/* Bloc 1 : Toggle trajet virtuel + sélecteur de route + contrôles */}
           <div
             id="dev-virtual-route-block"
             style={{
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: 'column',
               gap: 8,
-              justifyContent: 'flex-end',
             }}
           >
-            {/* Bouton édition des trajets */}
-            <a
-              id="dev-edit-routes-link"
-              href="/admin/routes"
-              style={{
-                ...compactButtonStyle,
-                textDecoration: 'none',
-                width: BUTTON_HEIGHT,
-                padding: 0,
-                border: virtualRouteActive ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
-                background: virtualRouteActive ? '#f5f3ff' : '#f8fafc',
-                color: virtualRouteActive ? '#7c3aed' : '#94a3b8',
-              }}
-              title="Éditer les trajets virtuels"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </a>
+            {/* Ligne 1 : Toggle + Bouton édition des trajets */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Toggle trajet virtuel */}
+              <div
+                id="dev-virtual-route-toggle"
+                data-testid="dev-virtual-route-toggle"
+                onClick={() => {
+                  const newValue = !virtualRouteActive
+                  setVirtualRouteActive(newValue)
+                  if (!newValue && isSimulating) stopSimulation()
+                }}
+                style={{
+                  ...compactButtonStyle,
+                  gap: 6,
+                  padding: '0 10px',
+                  background: virtualRouteActive ? '#dcfce7' : '#ffffff',
+                  border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                }}
+                title={virtualRouteActive ? 'Désactiver le trajet virtuel' : 'Activer le trajet virtuel'}
+              >
+                <div
+                  id="dev-virtual-route-switch"
+                  style={{
+                    width: 36,
+                    height: 20,
+                    borderRadius: 10,
+                    background: virtualRouteActive ? '#22c55e' : '#e2e8f0',
+                    border: virtualRouteActive ? '1px solid #16a34a' : '1px solid #cbd5e1',
+                    position: 'relative',
+                    transition: 'all 0.2s ease',
+                    flexShrink: 0,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 2,
+                      left: virtualRouteActive ? 18 : 2,
+                      width: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      background: '#fff',
+                      transition: 'left 0.2s ease',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Spacer */}
+              <div style={{ flex: 1 }} />
+
+              {/* Bouton édition des trajets */}
+              <a
+                id="dev-edit-routes-link"
+                data-testid="dev-edit-routes-link"
+                href="/admin/routes"
+                style={{
+                  ...compactButtonStyle,
+                  textDecoration: 'none',
+                  width: BUTTON_HEIGHT,
+                  padding: 0,
+                  border: virtualRouteActive ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
+                  background: virtualRouteActive ? '#f5f3ff' : '#f8fafc',
+                  color: virtualRouteActive ? '#7c3aed' : '#94a3b8',
+                }}
+                title="Éditer les trajets virtuels"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </a>
+            </div>
+
+            {/* Ligne 2 : Sélecteur de route */}
+            {virtualRouteActive && (
+              <select
+                id="dev-route-selector"
+                data-testid="dev-route-selector"
+                value={selectedRouteId}
+                disabled={!virtualRouteActive}
+                onChange={(e) => {
+                  onRouteSelect(e.target.value)
+                  loadRoute(e.target.value)
+                }}
+                style={{
+                  ...compactSelectStyle,
+                  width: '100%',
+                  background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
+                  border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #cbd5e1',
+                  color: virtualRouteActive ? '#166534' : '#94a3b8',
+                  cursor: virtualRouteActive ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {routeOptions.map((route: RouteOption) => (
+                  <option key={route.id} value={route.id}>
+                    ({route.pointsCount || simPath.length} pts) {route.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Ligne 3 : Contrôles du simulateur GPS */}
+            {virtualRouteActive && (
+              <div
+                id="dev-route-controls"
+                data-testid="dev-route-controls"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                {/* Indicateur de position sur le trajet */}
+                {simPath.length > 0 && (
+                  <div
+                    id="dev-route-indicator"
+                    data-testid="dev-route-indicator"
+                    style={{
+                      ...compactButtonStyle,
+                      background: '#dcfce7',
+                      border: '1px solid #22c55e',
+                      color: '#166534',
+                      minWidth: 60,
+                      fontSize: 12,
+                    }}
+                  >
+                    {simStep + 1}/{simPath.length}
+                  </div>
+                )}
+
+                {/* Contrôles de lecture (Play/Pause, Précédent, Suivant) */}
+                <div
+                  id="dev-player-controls"
+                  data-testid="dev-player-controls"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  {/* Bouton précédent */}
+                  <button
+                    id="dev-previous-button"
+                    data-testid="dev-previous-button"
+                    onClick={onPrevious}
+                    disabled={!onPrevious}
+                    aria-label="POI précédent"
+                    style={{
+                      ...compactButtonStyle,
+                      width: BUTTON_HEIGHT,
+                      padding: 0,
+                      background: '#ffffff',
+                      color: '#64748b',
+                      cursor: onPrevious ? 'pointer' : 'not-allowed',
+                      opacity: onPrevious ? 1 : 0.5,
+                    }}
+                    title="POI précédent"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M8.715 6.36694L14.405 10.6669C14.7769 10.9319 14.9977 11.3603 14.9977 11.8169C14.9977 12.2736 14.7769 12.702 14.405 12.9669L8.715 17.6669C8.23425 18.0513 7.58151 18.1412 7.01475 17.9011C6.44799 17.6611 6.05842 17.1297 6 16.5169V7.51694C6.05842 6.90422 6.44799 6.37281 7.01475 6.13275C7.58151 5.89269 8.23425 5.9826 8.715 6.36694Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" transform="rotate(180 10.5 12)"/>
+                      <path d="M18 6.01697V18.017" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" transform="rotate(180 18 12)"/>
+                    </svg>
+                  </button>
+
+                  {/* Bouton play/pause */}
+                  <button
+                    id="dev-play-pause-button"
+                    data-testid="dev-play-pause-button"
+                    onClick={onPlayPause}
+                    aria-label={isSimulating && !simPaused ? 'Pause' : 'Play'}
+                    style={{
+                      ...compactButtonStyle,
+                      width: BUTTON_HEIGHT,
+                      padding: 0,
+                      background: isSimulating && !simPaused ? '#ef4444' : '#22c55e',
+                      color: '#ffffff',
+                    }}
+                    title={isSimulating && !simPaused ? 'Pause' : 'Play'}
+                  >
+                    {isSimulating && !simPaused ? (
+                      <span style={{ fontSize: 16, lineHeight: 1 }}>⏸</span>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 5v14l11-7L8 5z" fill="#ffffff" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Bouton suivant */}
+                  <button
+                    id="dev-next-button"
+                    data-testid="dev-next-button"
+                    onClick={onNext}
+                    disabled={!onNext}
+                    aria-label="POI suivant"
+                    style={{
+                      ...compactButtonStyle,
+                      width: BUTTON_HEIGHT,
+                      padding: 0,
+                      background: '#ffffff',
+                      color: '#64748b',
+                      cursor: onNext ? 'pointer' : 'not-allowed',
+                      opacity: onNext ? 1 : 0.5,
+                    }}
+                    title="POI suivant"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M8.715 6.36694L14.405 10.6669C14.7769 10.9319 14.9977 11.3603 14.9977 11.8169C14.9977 12.2736 14.7769 12.702 14.405 12.9669L8.715 17.6669C8.23425 18.0513 7.58151 18.1412 7.01475 17.9011C6.44799 17.6611 6.05842 17.1297 6 16.5169V7.51694C6.05842 6.90422 6.44799 6.37281 7.01475 6.13275C7.58151 5.89269 8.23425 5.9826 8.715 6.36694Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M18 6.01697V18.017" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Vitesse */}
+                <select
+                  id="dev-speed-select"
+                  data-testid="dev-speed-select"
+                  value={speedFactor}
+                  onChange={(e) => setSpeedFactor(Number(e.target.value))}
+                  style={{ ...compactSelectStyle, minWidth: 55 }}
+                >
+                  <option value={0.5}>0.5×</option>
+                  <option value={1}>1×</option>
+                  <option value={2}>2×</option>
+                  <option value={5}>5×</option>
+                  <option value={10}>10×</option>
+                  <option value={20}>20×</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Séparateur */}
@@ -529,10 +741,11 @@ export function DevControlBlock({
         </div>
       )}
 
-      {/* Barre principale : toggle trajet virtuel + contrôles GPS + bouton dev */}
+      {/* Barre principale : uniquement le bouton dev */}
       <div
         ref={barRef}
         id="dev-control-bar"
+        data-testid="dev-control-bar"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -541,144 +754,13 @@ export function DevControlBlock({
           minHeight: 52,
         }}
       >
-        {/* Toggle trajet virtuel (toujours visible, remplace l'ancienne icône GPS) */}
-        <div
-          id="dev-virtual-route-toggle"
-          onClick={() => {
-            const newValue = !virtualRouteActive
-            setVirtualRouteActive(newValue)
-            setPanelOpen(newValue) // Ouvrir le panneau si trajets activés, fermer si désactivés
-            if (!newValue && isSimulating) stopSimulation()
-          }}
-          style={{
-            ...compactButtonStyle,
-            gap: 6,
-            padding: '0 10px',
-            background: virtualRouteActive ? '#dcfce7' : '#ffffff',
-            border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #e2e8f0',
-            cursor: 'pointer',
-          }}
-          title={virtualRouteActive ? 'Désactiver le trajet virtuel' : 'Activer le trajet virtuel'}
-        >
-          <div
-            id="dev-virtual-route-switch"
-            style={{
-              width: 36,
-              height: 20,
-              borderRadius: 10,
-              background: virtualRouteActive ? '#22c55e' : '#e2e8f0',
-              border: virtualRouteActive ? '1px solid #16a34a' : '1px solid #cbd5e1',
-              position: 'relative',
-              transition: 'all 0.2s ease',
-              flexShrink: 0,
-              boxSizing: 'border-box',
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                top: 2,
-                left: virtualRouteActive ? 18 : 2,
-                width: 16,
-                height: 16,
-                borderRadius: 8,
-                background: '#fff',
-                transition: 'left 0.2s ease',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Sélecteur de route avec nombre de points intégré */}
-        <select
-          id="dev-route-selector"
-          value={selectedRouteId}
-          disabled={!virtualRouteActive}
-          onChange={(e) => {
-            onRouteSelect(e.target.value)
-            loadRoute(e.target.value)
-          }}
-          style={{
-            ...compactSelectStyle,
-            flex: 1,
-            maxWidth: 300,
-            background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
-            border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #cbd5e1',
-            color: virtualRouteActive ? '#166534' : '#94a3b8',
-            cursor: virtualRouteActive ? 'pointer' : 'not-allowed',
-          }}
-        >
-          {routeOptions.map((route: RouteOption) => (
-            <option key={route.id} value={route.id}>
-              ({route.pointsCount || simPath.length} pts) {route.name}
-            </option>
-          ))}
-        </select>
-
-        {/* Contrôles du simulateur GPS - visible uniquement si virtualRouteActive */}
-        {virtualRouteActive && (
-          <>
-            {/* Séparateur */}
-            <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
-
-            {/* Indicateur de position sur le trajet (si trajet virtuel actif) */}
-            {simPath.length > 0 && (
-              <div
-                id="dev-route-indicator"
-                style={{
-                  ...compactButtonStyle,
-                  background: '#dcfce7',
-                  border: '1px solid #22c55e',
-                  color: '#166534',
-                  minWidth: 50,
-                }}
-              >
-                {simStep + 1}/{simPath.length}
-              </div>
-            )}
-
-            {/* Contrôles de lecture */}
-            <PlayerControls
-              playing={isSimulating && !simPaused}
-              onPlayPause={onPlayPause}
-              onPrevious={onPrevious}
-              onNext={onNext}
-              variant="square"
-              size="small"
-              buttonStyle={{
-                height: BUTTON_HEIGHT,
-                width: BUTTON_HEIGHT,
-                borderRadius: 8,
-              }}
-            />
-
-            {/* Vitesse */}
-            <select
-              id="dev-speed-select"
-              value={speedFactor}
-              onChange={(e) => setSpeedFactor(Number(e.target.value))}
-              style={{ ...compactSelectStyle, minWidth: 55 }}
-            >
-              <option value={0.5}>0.5×</option>
-              <option value={1}>1×</option>
-              <option value={2}>2×</option>
-              <option value={5}>5×</option>
-              <option value={10}>10×</option>
-              <option value={20}>20×</option>
-            </select>
-
-            {/* Séparateur */}
-            <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
-          </>
-        )}
-
-        {/* Spacer pour pousser le bouton à droite */}
+        {/* Spacer pour centrer le bouton */}
         <div style={{ flex: 1 }} />
 
         {/* Bouton engrenage */}
         <button
           id="dev-gear-button"
+          data-testid="dev-gear-button"
           onClick={() => setPanelOpen(!panelOpen)}
           style={{
             ...compactButtonStyle,
@@ -697,6 +779,9 @@ export function DevControlBlock({
             style={{ display: 'block', objectFit: 'contain' }}
           />
         </button>
+
+        {/* Spacer pour centrer le bouton */}
+        <div style={{ flex: 1 }} />
       </div>
     </div>
   )

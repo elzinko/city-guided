@@ -11,7 +11,7 @@ services:
   osrm:
     image: osrm/osrm-backend:latest
     platform: linux/amd64
-    container_name: ${PROJECT_NAME:-city-guided}-${ENVIRONMENT:-local}-osrm
+    container_name: osrm
     ports:
       - '${OSRM_PORT:-5001}:5000'
     volumes:

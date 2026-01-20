@@ -15,6 +15,13 @@ SKIP_OSRM="${SKIP_OSRM:-0}"
 API_PORT="${API_PORT:-4000}"
 WEB_PORT="${WEB_PORT:-3080}"
 
+# Export PROJECT_NAME and ENVIRONMENT for docker-compose
+export PROJECT_NAME="${PROJECT_NAME:-city-guided}"
+export ENVIRONMENT="${ENVIRONMENT:-local}"
+
+# Export SHOW_DEV_OPTIONS for Next.js (dev controls visibility)
+export SHOW_DEV_OPTIONS="${SHOW_DEV_OPTIONS:-true}"
+
 # Start OSRM (unless skipped)
 if [ "$SKIP_OSRM" != "1" ]; then
     echo "🚀 Starting OSRM service..."
@@ -48,6 +55,7 @@ if [ "$SKIP_OSRM" != "1" ]; then
     fi
 
     # Start OSRM service
+    export COMPOSE_PROJECT_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
     docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm.yml" up -d
 
     # Wait for OSRM to be healthy

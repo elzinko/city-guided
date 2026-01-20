@@ -20,11 +20,8 @@ concurrency:
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENVIRONMENT VARIABLES
-# Infrastructure mode is defined in constants.ts, but we need it here for conditionals
 # ═══════════════════════════════════════════════════════════════════════════════
 env:
-  # Source of truth: infra/provisioning/aws/constants.ts INFRA_MODES
-  STAGING_INFRA_MODE: 'ecs'
   AWS_REGION: 'eu-west-3'
 
 jobs:
@@ -304,11 +301,6 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════════
   # DEPLOY TO STAGING (ECS Fargate)
   # ═══════════════════════════════════════════════════════════════════════════════
-  # 
-  # Infrastructure mode: ECS Fargate (defined in constants.ts)
-  # The deploy script reads mode from constants.ts and deploys accordingly.
-  #
-  # ═══════════════════════════════════════════════════════════════════════════════
   deploy-staging:
     name: Deploy to AWS Staging
     runs-on: ubuntu-latest
@@ -363,16 +355,13 @@ jobs:
         env:
           IMAGE_TAG: ${{ needs.build-images.outputs.image_tag }}
         run: |
-          echo "🚀 Deploying to AWS staging..."
-          echo "   Mode: ${{ env.STAGING_INFRA_MODE }}"
+          echo "🚀 Deploying to AWS staging (ECS Fargate)..."
           echo "   Image tag: $IMAGE_TAG"
           echo ""
           
-          # Deploy script reads mode from constants.ts
           pnpm app:deploy staging --tag "$IMAGE_TAG"
 
-      - name: Get ALB DNS (ECS mode)
-        if: env.STAGING_INFRA_MODE == 'ecs'
+      - name: Get ALB DNS
         id: alb
         run: |
           ALB_DNS=$(aws elbv2 describe-load-balancers \
@@ -390,7 +379,6 @@ jobs:
           echo "site_domain=$SITE_DOMAIN" >> $GITHUB_OUTPUT
 
       - name: Verify ECS deployment
-        if: env.STAGING_INFRA_MODE == 'ecs'
         run: |
           echo "🔍 Verifying ECS deployment..."
           echo ""
@@ -422,23 +410,6 @@ jobs:
             echo "⚠️ Target group not found"
           fi
 
-      - name: Verify EC2 deployment
-        if: env.STAGING_INFRA_MODE == 'ec2'
-        run: |
-          echo "🔍 Verifying EC2 deployment..."
-          
-          EC2_PUBLIC_IP=$(aws ssm get-parameter --name "/city-guided/staging/SECRET_EC2_PUBLIC_IP" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-          
-          if [ -n "$EC2_PUBLIC_IP" ]; then
-            sleep 30
-            curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}" > /dev/null \
-              && echo "✅ Frontend OK" || echo "⚠️ Frontend not responding yet"
-            curl -sf --connect-timeout 15 "http://${EC2_PUBLIC_IP}/api/health" > /dev/null \
-              && echo "✅ API OK" || echo "⚠️ API not responding yet"
-          else
-            echo "⚠️ EC2 public IP not found in SSM"
-          fi
-
       - name: Deployment summary
         run: |
           echo ""
@@ -448,16 +419,12 @@ jobs:
           echo ""
           echo "📦 Commit:     ${{ github.sha }}"
           echo "🏷️ Image tag:  ${{ needs.build-images.outputs.image_tag }}"
-          echo "🏗️  Mode:       ${{ env.STAGING_INFRA_MODE }}"
+          echo "🏗️  Mode:       ECS Fargate"
           echo ""
-          if [ "${{ env.STAGING_INFRA_MODE }}" == "ecs" ]; then
-            echo "🌍 ALB URL:    http://${{ steps.alb.outputs.dns }}"
-            echo "🌍 Site URL:   https://${{ steps.ssm.outputs.site_domain }}"
-            echo ""
-            echo "💡 Note: First request may take 1-2 min if service was scaled to zero"
-          else
-            echo "🌍 Site URL:   https://${{ steps.ssm.outputs.site_domain }}"
-          fi
+          echo "🌍 ALB URL:    http://${{ steps.alb.outputs.dns }}"
+          echo "🌍 Site URL:   https://${{ steps.ssm.outputs.site_domain }}"
+          echo ""
+          echo "💡 Note: First request may take 1-2 min if service was scaled to zero"
           echo ""
           echo "🗄️ Config:     AWS SSM /city-guided/staging/*"
           echo ""

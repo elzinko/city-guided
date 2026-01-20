@@ -137,10 +137,20 @@ export class CityGuidedEcsStack extends cdk.Stack {
       maxCapacity: 1,  // Maximum 1 instance comme demandé
     });
 
-    // Scale based on CPU utilization (simpler than request-based)
+    // Scale-up based on ALB request count (works even when service is at 0)
+    // This is the KEY metric for scale-to-zero: it detects incoming traffic
+    // even when no tasks are running, allowing automatic scale-up from 0 to 1
+    scaling.scaleOnRequestCount('ScaleOnRequests', {
+      requestsPerTarget: 1,  // Scale-up if there's any request
+      targetGroup: targetGroup,
+      scaleInCooldown: cdk.Duration.minutes(5),  // Wait 5min before scaling down
+      scaleOutCooldown: cdk.Duration.seconds(10),  // Scale-up quickly (10s)
+    });
+
+    // Secondary scale based on CPU utilization (when service is already running)
     scaling.scaleOnCpuUtilization('ScaleOnCpu', {
       targetUtilizationPercent: 50,
-      scaleInCooldown: cdk.Duration.seconds(60),
+      scaleInCooldown: cdk.Duration.minutes(5),
       scaleOutCooldown: cdk.Duration.seconds(30),
     });
 
@@ -356,8 +366,9 @@ async function publishMetric(desiredCount, status) {
 
     // ============================================
     // Lambda pour scale-up automatique sur première requête
-    // Cette Lambda peut être appelée manuellement ou via API Gateway
-    // Elle scale-up le service à 1 si il est à 0
+    // IMPORTANT: L'auto-scaling ECS natif ne peut pas scaler de 0→1
+    // car RequestCountPerTarget = undefined quand il n'y a pas de targets
+    // Cette Lambda surveille RequestCount global de l'ALB (qui fonctionne même à 0)
     // ============================================
     const scaleUpLambda = new lambda.Function(this, 'ScaleUpLambda', {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -371,8 +382,7 @@ const cloudwatchClient = new CloudWatchClient({});
 
 const CLUSTER_NAME = '${cluster.clusterName}';
 const SERVICE_NAME = '${service.serviceName}';
-const TARGET_GROUP_NAME = '${targetGroup.targetGroupFullName}';
-const REQUEST_CHECK_WINDOW_MINUTES = 2; // Vérifier les requêtes des 2 dernières minutes
+const ALB_FULL_NAME = '${alb.loadBalancerFullName}';
 
 exports.handler = async (event) => {
   console.log('Scale-up check triggered', { timestamp: new Date().toISOString() });
@@ -404,41 +414,35 @@ exports.handler = async (event) => {
       };
     }
     
-    // 3. Vérifier les métriques ALB pour les 2 dernières minutes
+    // 3. Vérifier les métriques ALB globales (fonctionne même quand service à 0)
     const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - (REQUEST_CHECK_WINDOW_MINUTES + 1) * 60 * 1000);
+    const startTime = new Date(endTime.getTime() - 2 * 60 * 1000); // 2 dernières minutes
     
     const metricResponse = await cloudwatchClient.send(new GetMetricStatisticsCommand({
       Namespace: 'AWS/ApplicationELB',
       MetricName: 'RequestCount',
       Dimensions: [
-        { Name: 'TargetGroup', Value: TARGET_GROUP_NAME }
+        { Name: 'LoadBalancer', Value: ALB_FULL_NAME }
       ],
       StartTime: startTime,
       EndTime: endTime,
-      Period: 60, // 1 minute
+      Period: 60,
       Statistics: ['Sum']
     }));
     
     // 4. Analyser les données de métriques
     const datapoints = metricResponse.Datapoints || [];
-    const recentRequests = datapoints
-      .filter(dp => {
-        const dpTime = new Date(dp.Timestamp);
-        const minutesAgo = (endTime - dpTime) / (1000 * 60);
-        return minutesAgo <= REQUEST_CHECK_WINDOW_MINUTES;
-      })
-      .reduce((sum, dp) => sum + (dp.Sum || 0), 0);
+    const recentRequests = datapoints.reduce((sum, dp) => sum + (dp.Sum || 0), 0);
     
     console.log('Request analysis', {
       totalDatapoints: datapoints.length,
       recentRequests,
-      timeWindow: \`Last \${REQUEST_CHECK_WINDOW_MINUTES} minutes\`
+      timeWindow: 'Last 2 minutes'
     });
     
     // 5. Si des requêtes sont détectées et le service est à 0, scale-up
     if (recentRequests > 0) {
-      console.log('Requests detected while service is at zero, scaling up to 1');
+      console.log('Requests detected while service at zero, scaling up to 1');
       
       await ecsClient.send(new UpdateServiceCommand({
         cluster: CLUSTER_NAME,
@@ -454,11 +458,10 @@ exports.handler = async (event) => {
           action: 'scaled_up',
           previousDesiredCount: currentDesiredCount,
           newDesiredCount: 1,
-          reason: \`\${recentRequests} requests detected in last \${REQUEST_CHECK_WINDOW_MINUTES} minutes\`
+          reason: \`\${recentRequests} requests detected in last 2 minutes\`
         })
       };
     } else {
-      // Pas de requêtes, ne rien faire
       return {
         statusCode: 200,
         body: JSON.stringify({
@@ -672,7 +675,7 @@ async function publishMetric(desiredCount, status) {
 
     new cdk.CfnOutput(this, 'ScaleUpLambdaArn', {
       value: scaleUpLambda.functionArn,
-      description: 'Scale-Up Lambda ARN (can be invoked manually or via API Gateway)',
+      description: 'Scale-Up Lambda ARN (monitors ALB for requests when service is at zero)',
     });
   }
 }

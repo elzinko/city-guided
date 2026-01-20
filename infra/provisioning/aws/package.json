@@ -11,7 +11,13 @@
     "config": "tsx scripts/config.ts",
     "status": "tsx scripts/status.ts",
     "deploy": "tsx ../../deployment/scripts/deploy.ts",
-    "deploy:verify": "tsx ../../deployment/scripts/verify.ts"
+    "deploy:verify": "tsx ../../deployment/scripts/verify.ts",
+    "logs": "tsx scripts/logs.ts",
+    "logs:api": "tsx scripts/logs.ts api",
+    "logs:web": "tsx scripts/logs.ts web",
+    "logs:follow": "tsx scripts/logs.ts --follow",
+    "logs:api:follow": "tsx scripts/logs.ts api --follow",
+    "logs:web:follow": "tsx scripts/logs.ts web --follow"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",

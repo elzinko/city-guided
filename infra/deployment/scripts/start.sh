@@ -204,7 +204,7 @@ fi
 
 echo ""
 echo "📋 Container status:"
-docker ps --filter "name=${COMPOSE_PROJECT_NAME:-city-guided}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+docker ps --filter "name=${PROJECT_NAME:-city-guided}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"

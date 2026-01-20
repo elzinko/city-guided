@@ -32,7 +32,7 @@ Edit `infra/config/.env.staging`:
 
 - `ENVIRONMENT=staging`
 - `NODE_ENV=production`
-- `COMPOSE_PROJECT_NAME=city-guided-staging`
+- `PROJECT_NAME=city-guided-staging`
 - `SITE_DOMAIN=...` (e.g. `cityguided.duckdns.org`)
 - `SECRET_DUCKDNS_TOKEN=...` (required only if using DuckDNS)
 - OSRM settings (`OSRM_REGION`, `OSRM_REGION_BASE`, …)

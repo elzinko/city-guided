@@ -115,13 +115,9 @@ else
         # Store in temp file for later processing (with SECRET_ prefix)
         echo "${var_name}=${value}" >> "$TEMP_PARAMS"
         
-        # Also store without SECRET_ prefix for sourcing (secrets are stored with prefix in SSM)
-        if [[ "$var_name" == SECRET_* ]]; then
-            # Store secret without prefix for .env file
-            echo "${var_name#SECRET_}=${value}" >> "$TEMP_VARS"
-        else
-            echo "${var_name}=${value}" >> "$TEMP_VARS"
-        fi
+        # Store with SECRET_ prefix for consistency (same as in .env.staging and SSM)
+        # Docker Compose can use variables with SECRET_ prefix without issues
+        echo "${var_name}=${value}" >> "$TEMP_VARS"
     done < <(echo "$PARAMS")
     
     # Source variables for use in heredoc
@@ -141,7 +137,8 @@ else
 # ───────────────────────────────────────────────────────────────────────────────
 
 ENVIRONMENT=${ENVIRONMENT}
-COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-city-guided-${ENVIRONMENT}}
+PROJECT_NAME=${PROJECT_NAME:-city-guided}
+STACK_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
 NODE_ENV=${NODE_ENV:-production}
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -208,8 +205,8 @@ DATABASE_URL=${DATABASE_URL:-}
 
 EOF
 
-    # Add secrets section if any SECRET_ variables exist (write without SECRET_ prefix)
-    SECRET_VARS=$(grep "^SECRET_" "$TEMP_PARAMS" | sed 's/^SECRET_//' || true)
+    # Add secrets section if any SECRET_ variables exist (keep SECRET_ prefix for consistency)
+    SECRET_VARS=$(grep "^SECRET_" "$TEMP_PARAMS" || true)
     if [ -n "$SECRET_VARS" ]; then
         cat >> "$ENV_FILE" << EOF
 # ───────────────────────────────────────────────────────────────────────────────
@@ -222,7 +219,7 @@ EOF
     
     # Add any other variables that weren't categorized
     # Exclude already handled variables and secrets
-    OTHER_VARS=$(grep -v "^ENVIRONMENT=\|^COMPOSE_PROJECT_NAME=\|^NODE_ENV=\|^SITE_DOMAIN=\|^API_PORT=\|^WEB_PORT=\|^OSRM_PORT=\|^CADDY_HTTP_PORT=\|^CADDY_HTTPS_PORT=\|^OSRM_URL=\|^OSRM_REGION_BASE=\|^OSRM_NETWORK_EXTERNAL=\|^API_IMAGE=\|^WEB_IMAGE=\|^NEXT_PUBLIC_API_URL=\|^NEXT_PUBLIC_OSRM_URL=\|^APP_VERSION=\|^APP_REPO_URL=\|^RESTART_POLICY=\|^HEALTHCHECK_\|^LOG_LEVEL=\|^DATABASE_URL=\|^SECRET_" "$TEMP_VARS" 2>/dev/null || true)
+    OTHER_VARS=$(grep -v "^ENVIRONMENT=\|^PROJECT_NAME=\|^NODE_ENV=\|^SITE_DOMAIN=\|^API_PORT=\|^WEB_PORT=\|^OSRM_PORT=\|^CADDY_HTTP_PORT=\|^CADDY_HTTPS_PORT=\|^OSRM_URL=\|^OSRM_REGION_BASE=\|^OSRM_NETWORK_EXTERNAL=\|^API_IMAGE=\|^WEB_IMAGE=\|^NEXT_PUBLIC_API_URL=\|^NEXT_PUBLIC_OSRM_URL=\|^APP_VERSION=\|^APP_REPO_URL=\|^RESTART_POLICY=\|^HEALTHCHECK_\|^LOG_LEVEL=\|^DATABASE_URL=\|^SECRET_" "$TEMP_VARS" 2>/dev/null || true)
     
     if [ -n "$OTHER_VARS" ]; then
         cat >> "$ENV_FILE" << EOF

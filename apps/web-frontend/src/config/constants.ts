@@ -25,6 +25,14 @@ export const Z_INDEX = {
 } as const
 
 // Developer options visibility
-// Default to false, can be overridden by NEXT_PUBLIC_SHOW_DEV_OPTIONS env var
-const envShowDevOptions = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SHOW_DEV_OPTIONS
+// NOTE: This is now managed via ConfigContext (see contexts/ConfigContext.tsx)
+// The value is read server-side in _app.tsx and passed via React Context
+// This allows the same Docker image to be used for staging and prod
+//
+// Uses SHOW_DEV_OPTIONS (runtime variable, no NEXT_PUBLIC_ prefix needed)
+// Default: false
+const envShowDevOptions = typeof process !== 'undefined' && process.env?.SHOW_DEV_OPTIONS
 export const SHOW_DEV_OPTIONS = envShowDevOptions === 'true' || envShowDevOptions === '1'
+
+// Export a hook-compatible version (preferred way to use in components)
+// Import useConfig from contexts/ConfigContext instead of this constant

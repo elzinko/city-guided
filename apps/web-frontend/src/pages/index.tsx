@@ -18,8 +18,8 @@ import {
   GPS_HIDE_THRESHOLD_PERCENT,
   MAX_POIS_DISPLAYED,
   SHEET_HEIGHTS,
-  SHOW_DEV_OPTIONS,
 } from '../config/constants'
+import { useConfig } from '../contexts/ConfigContext'
 import { getBottomSheetHeight } from '../config/ui-rules'
 
 const DEFAULT_RADIUS_METERS = 400
@@ -76,6 +76,7 @@ type Poi = {
 // GpsIcon est maintenant un composant séparé dans ../components/GpsIcon.tsx
 
 export default function Home() {
+  const { showDevOptions } = useConfig()
   const fallbackPos = { lat: 48.3976, lng: 2.7855 } // By/Thomery - distinct de Fontainebleau pour ne pas confondre avec trajet virtuel
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null) // Null par défaut, attend la vraie géoloc
   const [realGpsPos, setRealGpsPos] = useState<{ lat: number; lng: number } | null>(null) // Position GPS réelle
@@ -1682,8 +1683,8 @@ export default function Home() {
           }}
         />
 
-        {/* Bloc unifié : lecteur GPS + panneau développeur - Visible uniquement si SHOW_DEV_OPTIONS */}
-        {SHOW_DEV_OPTIONS && (
+        {/* Bloc unifié : lecteur GPS + panneau développeur - Visible uniquement si showDevOptions */}
+        {showDevOptions && (
         <DevControlBlock
             virtualRouteActive={virtualRouteActive}
             setVirtualRouteActive={setVirtualRouteActive}

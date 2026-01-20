@@ -140,7 +140,8 @@ else
 # ───────────────────────────────────────────────────────────────────────────────
 
 ENVIRONMENT=${ENVIRONMENT}
-COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-city-guided-${ENVIRONMENT}}
+PROJECT_NAME=${PROJECT_NAME:-city-guided}
+STACK_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
 NODE_ENV=${NODE_ENV:-production}
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -221,7 +222,7 @@ EOF
     
     # Add any other variables that weren't categorized
     # Exclude already handled variables and secrets
-    OTHER_VARS=$(grep -v "^ENVIRONMENT=\|^COMPOSE_PROJECT_NAME=\|^NODE_ENV=\|^SITE_DOMAIN=\|^API_PORT=\|^WEB_PORT=\|^OSRM_PORT=\|^CADDY_HTTP_PORT=\|^CADDY_HTTPS_PORT=\|^OSRM_URL=\|^OSRM_REGION_BASE=\|^OSRM_NETWORK_EXTERNAL=\|^API_IMAGE=\|^WEB_IMAGE=\|^NEXT_PUBLIC_API_URL=\|^NEXT_PUBLIC_OSRM_URL=\|^APP_VERSION=\|^APP_REPO_URL=\|^RESTART_POLICY=\|^HEALTHCHECK_\|^LOG_LEVEL=\|^DATABASE_URL=\|^SECRET_" "$TEMP_VARS" 2>/dev/null || true)
+    OTHER_VARS=$(grep -v "^ENVIRONMENT=\|^PROJECT_NAME=\|^NODE_ENV=\|^SITE_DOMAIN=\|^API_PORT=\|^WEB_PORT=\|^OSRM_PORT=\|^CADDY_HTTP_PORT=\|^CADDY_HTTPS_PORT=\|^OSRM_URL=\|^OSRM_REGION_BASE=\|^OSRM_NETWORK_EXTERNAL=\|^API_IMAGE=\|^WEB_IMAGE=\|^NEXT_PUBLIC_API_URL=\|^NEXT_PUBLIC_OSRM_URL=\|^APP_VERSION=\|^APP_REPO_URL=\|^RESTART_POLICY=\|^HEALTHCHECK_\|^LOG_LEVEL=\|^DATABASE_URL=\|^SECRET_" "$TEMP_VARS" 2>/dev/null || true)
     
     if [ -n "$OTHER_VARS" ]; then
         cat >> "$ENV_FILE" << EOF

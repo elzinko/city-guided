@@ -56,12 +56,11 @@ export const GITHUB_CONFIG = {
  * Infrastructure mode per environment
  * 
  * This is the source of truth for deployment mode.
- * Change here to switch between EC2 and ECS Fargate.
+ * All environments now use ECS Fargate (EC2 has been decommissioned).
  */
 export const INFRA_MODES = {
-  staging: 'ecs' as const,  // ECS Fargate (migrated from EC2)
-  prod: 'ec2' as const,     // EC2 Spot instance
-  // To migrate to ECS: change to 'ecs'
+  staging: 'ecs' as const,  // ECS Fargate
+  prod: 'ecs' as const,      // ECS Fargate (migrated from EC2)
 } as const;
 
 export type InfraMode = typeof INFRA_MODES[keyof typeof INFRA_MODES];
@@ -70,7 +69,7 @@ export type InfraMode = typeof INFRA_MODES[keyof typeof INFRA_MODES];
  * Get infrastructure mode for an environment
  */
 export function getInfraMode(env: EnvironmentName): 'ec2' | 'ecs' {
-  return INFRA_MODES[env] || 'ec2';
+  return INFRA_MODES[env] || 'ecs'; // Default to ECS (EC2 decommissioned)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

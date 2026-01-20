@@ -20,6 +20,7 @@ import {
   AWS_CONFIG,
   ENVIRONMENTS,
   getEnvironmentConfig,
+  getInfraMode,
   isSecret,
   getSsmPath,
   getEnvFilePath,
@@ -321,8 +322,15 @@ async function cmdPush(env: EnvironmentName): Promise<void> {
   // Update SSM parameters
   const paramCount = await updateSsmParameters(env, envVars);
 
-  // Restart services
-  await restartDockerServices(env);
+  // Restart services (only for EC2, not needed for ECS)
+  // ECS will pick up new environment variables on next deployment
+  const mode = getInfraMode(env);
+  if (mode === 'ec2') {
+    await restartDockerServices(env);
+  } else {
+    console.log(chalk.blue('\n💡 ECS mode: Environment variables will be applied on next deployment'));
+    console.log(chalk.gray('   Run: pnpm deploy staging --tag <tag> to deploy with new config'));
+  }
 
   console.log(chalk.cyan('\n✨ Configuration update complete!'));
   console.log(chalk.white(`Updated ${paramCount} parameters`));

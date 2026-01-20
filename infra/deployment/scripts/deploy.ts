@@ -200,17 +200,115 @@ async function deployToECS(env: EnvironmentName, imageTag: string): Promise<void
       --query 'taskDefinition'
   `);
 
+  // Get environment variables from SSM (source of truth: .env.staging pushed via pnpm config:push)
+  console.log(chalk.yellow('\n📥 Fetching environment variables from SSM...\n'));
+  const ssmPath = getSsmPath(env);
+  
+  // Fetch all parameters from SSM (same approach as deploy.sh)
+  const ssmParamsOutput = execSilent(
+    `aws ssm get-parameters-by-path \
+      --path "${ssmPath}" \
+      --recursive \
+      --with-decryption \
+      --region ${AWS_CONFIG.region} \
+      --query 'Parameters[*].[Name,Value]' \
+      --output text 2>/dev/null || echo ""`
+  );
+
+  // Parse SSM parameters into a map
+  const envVars: Record<string, string> = {};
+  if (ssmParamsOutput && ssmParamsOutput.trim() !== '') {
+    const lines = ssmParamsOutput.trim().split('\n');
+    for (const line of lines) {
+      const parts = line.split('\t');
+      if (parts.length >= 2) {
+        const fullName = parts[0];
+        const key = fullName.replace(`${ssmPath}/`, '');
+        // Remove SECRET_ prefix for environment variables (secrets are stored with prefix in SSM)
+        const envKey = key.startsWith('SECRET_') ? key.substring(7) : key;
+        envVars[envKey] = parts[1];
+      }
+    }
+  }
+
+  console.log(chalk.white(`   Loaded ${Object.keys(envVars).length} variables from SSM`));
+  
+  // Get SHOW_DEV_OPTIONS (runtime variable only, no NEXT_PUBLIC_ prefix)
+  const showDevOptions = envVars.SHOW_DEV_OPTIONS || 'false';
+  console.log(chalk.white(`   SHOW_DEV_OPTIONS: ${showDevOptions}`));
+
   // Update image tags in task definition
   const updatedTaskDef = JSON.parse(taskDef);
   
-  // Update container images with ECR URIs
+  // Update container images with ECR URIs and environment variables
   updatedTaskDef.containerDefinitions.forEach((container: any) => {
     if (container.name === 'api') {
       container.image = `${apiRepoUri}:${imageTag}`;
       console.log(chalk.green(`   ✓ API image: ${container.image}`));
+      
+      // Update API container environment variables from SSM
+      if (!container.environment) {
+        container.environment = [];
+      }
+      
+      // Add/update environment variables for API container
+      // Only add variables that are relevant for the API (not NEXT_PUBLIC_*)
+      const apiEnvVars = ['NODE_ENV', 'PORT', 'LOG_LEVEL', 'DATABASE_URL'];
+      for (const key of apiEnvVars) {
+        if (envVars[key]) {
+          const existingIndex = container.environment.findIndex((e: any) => e.name === key);
+          if (existingIndex >= 0) {
+            container.environment[existingIndex].value = envVars[key];
+          } else {
+            container.environment.push({ name: key, value: envVars[key] });
+          }
+        }
+      }
+      
     } else if (container.name === 'web') {
       container.image = `${webRepoUri}:${imageTag}`;
       console.log(chalk.green(`   ✓ Web image: ${container.image}`));
+      
+      // Update web container environment variables from SSM
+      if (!container.environment) {
+        container.environment = [];
+      }
+      
+      // Add/update environment variables for web container
+      // NEXT_PUBLIC_* variables are for build-time (needed by Next.js client-side)
+      // SHOW_DEV_OPTIONS is runtime-only (read server-side, allows same image for staging/prod)
+      const webEnvVars = [
+        'NODE_ENV',
+        'PORT',
+        'NEXT_PUBLIC_API_URL',
+        'NEXT_PUBLIC_OSRM_URL',
+        'SHOW_DEV_OPTIONS', // Runtime variable (read server-side in _app.tsx)
+        'APP_VERSION',
+        'APP_REPO_URL',
+      ];
+      
+      for (const key of webEnvVars) {
+        if (envVars[key]) {
+          const existingIndex = container.environment.findIndex((e: any) => e.name === key);
+          if (existingIndex >= 0) {
+            container.environment[existingIndex].value = envVars[key];
+          } else {
+            container.environment.push({ name: key, value: envVars[key] });
+          }
+        }
+      }
+      
+      // Always add SHOW_DEV_OPTIONS (runtime variable) if not already present
+      // This allows the same Docker image to be used for staging and prod
+      const hasShowDevOptions = container.environment.some((e: any) => e.name === 'SHOW_DEV_OPTIONS');
+      if (!hasShowDevOptions) {
+        container.environment.push({
+          name: 'SHOW_DEV_OPTIONS',
+          value: showDevOptions,
+        });
+      }
+      
+      console.log(chalk.green(`   ✓ Updated web container with ${container.environment.length} environment variables`));
     }
   });
 

@@ -44,7 +44,13 @@
     "ssh": "bash infra/scripts/ssh.sh",
     "config:get": "cd infra/provisioning/aws && pnpm run config get",
     "config:push": "cd infra/provisioning/aws && pnpm run config push",
-    "config:diff": "cd infra/provisioning/aws && pnpm run config diff"
+    "config:diff": "cd infra/provisioning/aws && pnpm run config diff",
+    "env:check": "cd infra/provisioning/aws && pnpm run env:check",
+    "env:export": "cd infra/provisioning/aws && pnpm run env:export",
+    "stack:start": "cd infra/provisioning/aws && pnpm run stack:start",
+    "stack:stop": "cd infra/provisioning/aws && pnpm run stack:stop",
+    "stack:restart": "cd infra/provisioning/aws && pnpm run stack:restart",
+    "cleanup:ssm": "cd infra/provisioning/aws && pnpm run cleanup:ssm"
   },
   "devDependencies": {
     "turbo": "^1.8.6",

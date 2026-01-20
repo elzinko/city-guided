@@ -287,7 +287,7 @@ export function DevControlBlock({
               gap: 8,
             }}
           >
-            {/* Ligne 1 : Toggle + Bouton édition des trajets */}
+            {/* Ligne 1 : Toggle + Sélecteur + Bouton édition des trajets */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {/* Toggle trajet virtuel */}
               <div
@@ -338,8 +338,31 @@ export function DevControlBlock({
                 </div>
               </div>
 
-              {/* Spacer */}
-              <div style={{ flex: 1 }} />
+              {/* Sélecteur de route */}
+              <select
+                id="dev-route-selector"
+                data-testid="dev-route-selector"
+                value={selectedRouteId}
+                disabled={!virtualRouteActive}
+                onChange={(e) => {
+                  onRouteSelect(e.target.value)
+                  loadRoute(e.target.value)
+                }}
+                style={{
+                  ...compactSelectStyle,
+                  flex: 1,
+                  background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
+                  border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #cbd5e1',
+                  color: virtualRouteActive ? '#166534' : '#94a3b8',
+                  cursor: virtualRouteActive ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {routeOptions.map((route: RouteOption) => (
+                  <option key={route.id} value={route.id}>
+                    ({route.pointsCount || simPath.length} pts) {route.name}
+                  </option>
+                ))}
+              </select>
 
               {/* Bouton édition des trajets */}
               <a
@@ -363,34 +386,6 @@ export function DevControlBlock({
                 </svg>
               </a>
             </div>
-
-            {/* Ligne 2 : Sélecteur de route */}
-            {virtualRouteActive && (
-              <select
-                id="dev-route-selector"
-                data-testid="dev-route-selector"
-                value={selectedRouteId}
-                disabled={!virtualRouteActive}
-                onChange={(e) => {
-                  onRouteSelect(e.target.value)
-                  loadRoute(e.target.value)
-                }}
-                style={{
-                  ...compactSelectStyle,
-                  width: '100%',
-                  background: virtualRouteActive ? '#dcfce7' : '#f8fafc',
-                  border: virtualRouteActive ? '1px solid #22c55e' : '1px solid #cbd5e1',
-                  color: virtualRouteActive ? '#166534' : '#94a3b8',
-                  cursor: virtualRouteActive ? 'pointer' : 'not-allowed',
-                }}
-              >
-                {routeOptions.map((route: RouteOption) => (
-                  <option key={route.id} value={route.id}>
-                    ({route.pointsCount || simPath.length} pts) {route.name}
-                  </option>
-                ))}
-              </select>
-            )}
 
           </div>
 

@@ -74,6 +74,11 @@ docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/d
 # Stop OSRM service
 echo "[DEBUG] Command 3: docker compose down (OSRM)"
 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm.yml down --remove-orphans 2>/dev/null || true
+
+# Force remove any orphaned OSRM container (prevents conflict errors)
+echo "[DEBUG] Command 4: force remove orphaned OSRM container"
+docker rm -f osrm 2>/dev/null || true
+
 echo "✅ Existing containers stopped"
 echo ""
 

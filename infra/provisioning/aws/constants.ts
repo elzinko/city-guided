@@ -56,8 +56,12 @@ export type InfraMode = typeof INFRA_MODES[keyof typeof INFRA_MODES];
 
 /**
  * Get infrastructure mode for an environment
+ * 
+ * Note: Currently all environments use ECS, but we keep the env parameter
+ * for future extensibility (e.g., if we want different modes per environment)
  */
-export function getInfraMode(env: EnvironmentName): 'ecs' {
+export function getInfraMode(_env: EnvironmentName): 'ecs' {
+   
   return 'ecs';
 }
 
@@ -120,8 +124,12 @@ export function getEnvFilePath(env: EnvironmentName): string {
 
 /**
  * Get AWS Console URLs for infrastructure resources
+ * 
+ * Note: Currently URLs are the same for all environments, but we keep the env parameter
+ * for future extensibility (e.g., if we want environment-specific dashboards)
  */
-export function getAwsConsoleUrls(env: EnvironmentName): Record<string, string> {
+export function getAwsConsoleUrls(_env: EnvironmentName): Record<string, string> {
+   
   const region = AWS_CONFIG.region;
   const baseUrl = `https://${region}.console.aws.amazon.com`;
   

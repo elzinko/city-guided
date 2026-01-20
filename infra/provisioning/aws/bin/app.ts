@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { CityGuidedEcsStack } from '../lib/ecs-stack.js';
-import { ReverseProxyStack } from '../lib/reverse-proxy-stack.js';
+// import { ReverseProxyStack } from '../lib/reverse-proxy-stack.js';
 import { AWS_CONFIG } from '../constants.js';
 
 const app = new cdk.App();
 
 // ECS Fargate-based stack
-const ecsStack = new CityGuidedEcsStack(app, 'CityGuidedEcsStack', {
+new CityGuidedEcsStack(app, 'CityGuidedEcsStack', {
   env: {
     account: AWS_CONFIG.account || process.env.CDK_DEFAULT_ACCOUNT,
     region: AWS_CONFIG.region || process.env.CDK_DEFAULT_REGION,

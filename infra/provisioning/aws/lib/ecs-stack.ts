@@ -12,6 +12,8 @@ import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 
 export class CityGuidedEcsStack extends cdk.Stack {
+  public readonly loadBalancerDnsName: string;
+
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
@@ -72,6 +74,9 @@ export class CityGuidedEcsStack extends cdk.Stack {
       internetFacing: true,
       loadBalancerName: 'city-guided-alb'
     });
+
+    // Store ALB DNS name for reverse proxy stack
+    this.loadBalancerDnsName = alb.loadBalancerDnsName;
 
     // ============================================
     // ECS Task Definition (Fargate)

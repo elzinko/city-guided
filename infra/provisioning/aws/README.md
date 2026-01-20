@@ -1,22 +1,32 @@
-# City-Guided AWS Provisioning (Staging)
+# City-Guided AWS Provisioning
 
-This folder contains Infrastructure as Code (AWS CDK) and a unified provisioning script to deploy City-Guided on an AWS EC2 Spot instance, with configuration stored in AWS SSM Parameter Store and deployments performed via GitHub Actions.
+This folder contains Infrastructure as Code (AWS CDK) and provisioning scripts to deploy City-Guided on AWS using **ECS Fargate**, with configuration stored in AWS SSM Parameter Store and deployments performed via GitHub Actions.
 
-Key idea: the source of truth for application configuration is `infra/config/.env.<environment>`. Provisioning pushes those values to SSM, and the deployment script regenerates the `.env.<environment>` on the EC2 host from SSM before starting containers.
+**Note**: EC2-based deployment has been removed. All environments now use ECS Fargate. See [ec2-removal.md](../../../docs/technical/ec2-removal.md) for migration details.
+
+Key idea: the source of truth for application configuration is `infra/config/.env.<environment>`. Provisioning pushes those values to SSM, and the deployment script updates the ECS task definition with these values.
 
 ## Estimated monthly cost
 
-- **EC2 Spot `t3.medium`**: ~ $9/month (varies by region/availability)
-- **Elastic IP**: Free when attached to a running instance
-- **DuckDNS**: Free
+### ECS Fargate (with scale-to-zero)
+- **ECS Fargate tasks**: ~$5-10/month (mostly idle with scale-to-zero)
+- **Application Load Balancer**: ~$16/month (required, cannot scale to zero)
+- **Data Transfer**: ~$0.09/GB (first 100GB free)
+
+### Optional: Reverse Proxy for Fixed IP
+- **EC2 t4g.nano**: ~$3/month (for DuckDNS fixed IP + HTTPS)
+- **Elastic IP**: Free when attached to running instance
+- **Total with proxy**: ~$24-30/month
+
+**Old EC2 setup (deprecated)**: ~$10-20/month
 
 ## Prerequisites
 
 - **Node.js 20+** and **pnpm**
-- **AWS CLI v2** installed and configured (`aws configure`) OR be ready to paste credentials when prompted
-- AWS permissions for **CloudFormation**, **EC2**, **IAM**, **SSM**
-- **GitHub CLI (`gh`)** (optional but recommended) if you want the script to automatically set GitHub Actions environment secrets
-- **Session Manager plugin** (optional but recommended) for SSM-based shell access
+- **AWS CLI v2** installed and configured (`aws configure`)
+- AWS permissions for **CloudFormation**, **ECS**, **ECR**, **EC2**, **IAM**, **SSM**, **ELB**
+- **GitHub CLI (`gh`)** (optional but recommended) for automatic GitHub Actions secrets setup
+- **Docker** (for local testing)
 
 ## Quick start (recommended)
 
@@ -44,7 +54,7 @@ cd infra/provisioning/aws
 pnpm install
 ```
 
-### 3) Provision everything (infra + SSM + GitHub secrets + instance setup)
+### 3) Provision infrastructure (ECS cluster + ALB + ECR)
 
 ```bash
 pnpm run provision -- staging
@@ -52,20 +62,48 @@ pnpm run provision -- staging
 
 What it does:
 
-1. Deploys the CDK stack (EC2 Spot + Elastic IP + Security Group + IAM role for SSM)
-2. Stores config in SSM at `/city-guided/staging/*` (secrets are detected by the `SECRET_` prefix and stored as `SecureString`)
-3. Optionally provisions **GitHub Actions environment secrets** for the `staging` environment (requires `gh auth login`)
-4. Installs EC2 dependencies via SSM (Docker Compose v2 + Buildx)
-5. Updates DuckDNS if `SITE_DOMAIN` is a `*.duckdns.org` domain
+1. Deploys the CDK stack (ECS Cluster + Fargate Service + ALB + ECR repositories)
+2. Stores config in SSM at `/city-guided/staging/*` (secrets are detected by the `SECRET_` prefix)
+3. Sets up scale-to-zero Lambda functions
+4. Creates CloudWatch dashboard for monitoring
+
+### 4) Optional: Enable reverse proxy for fixed IP
+
+If you want to use a custom domain with DuckDNS:
+
+1. Get a DuckDNS token from [duckdns.org](https://www.duckdns.org/)
+2. Set environment variables:
+   ```bash
+   export DUCKDNS_TOKEN="your-token"
+   export DUCKDNS_DOMAIN="cityguided.duckdns.org"
+   ```
+3. Uncomment the reverse proxy stack in `bin/app.ts`
+4. Re-run provision:
+   ```bash
+   pnpm run provision -- staging
+   ```
+
+See [reverse-proxy-setup.md](../../../docs/technical/reverse-proxy-setup.md) for detailed instructions.
 
 ## What gets provisioned
 
 ### AWS (CDK / CloudFormation)
 
-- EC2 Spot instance (default: `t3.medium`)
-- Security group allowing `22` (SSH), `80` (HTTP), `443` (HTTPS)
-- Elastic IP (stable public IP)
-- IAM role with `AmazonSSMManagedInstanceCore` (SSM management) + Parameter Store read access
+#### ECS Stack (CityGuidedEcsStack)
+- ECS Cluster (`city-guided-cluster`)
+- ECS Fargate Service with 2 containers (API + Web)
+- Application Load Balancer (ALB) with HTTP listener
+- ECR repositories for Docker images
+- Auto-scaling (0-1 instances with scale-to-zero)
+- Lambda functions for scale-up/scale-down automation
+- CloudWatch dashboard for monitoring
+- Security groups for ALB and ECS tasks
+
+#### Optional: Reverse Proxy Stack (CityGuidedReverseProxyStack)
+- EC2 t4g.nano instance with Elastic IP
+- Caddy reverse proxy with automatic HTTPS
+- Security group (ports 22, 80, 443)
+- Integration with DuckDNS for fixed domain name
 
 ### AWS SSM Parameter Store
 
@@ -73,14 +111,16 @@ What it does:
 - Values come from `infra/config/.env.<env>` plus a few infra outputs (instance ID, public IP, etc.)
 - Secrets are keys that start with `SECRET_`
 
-### GitHub Actions environment secrets (minimal)
+### GitHub Actions environment secrets
 
 For the GitHub environment named `staging` (see `.github/workflows/ci.yml`):
 
 - `SECRET_AWS_ACCESS_KEY_ID`
 - `SECRET_AWS_SECRET_ACCESS_KEY`
-- `SECRET_AWS_REGION`
-- `SECRET_EC2_INSTANCE_ID`
+- `DUCKDNS_TOKEN` (optional, for reverse proxy)
+
+Plus GitHub variables:
+- `DUCKDNS_ENABLED` (set to `true` to enable automatic DNS updates)
 
 ## CI/CD deployment flow
 
@@ -89,12 +129,15 @@ The main workflow is `.github/workflows/ci.yml`.
 On `main`, it:
 
 1. Lints + builds + runs E2E tests
-2. Builds and pushes Docker images to GHCR:
-   - `ghcr.io/<owner>/<repo>-api:<tag>`
-   - `ghcr.io/<owner>/<repo>-web:<tag>`
-3. Deploys to EC2 via **SSM** by running:
-   - `infra/docker/scripts/deploy.sh staging`
-   - with `IMAGE_TAG=<tag>` (short commit SHA)
+2. Builds and pushes Docker images to **AWS ECR**:
+   - `<account>.dkr.ecr.eu-west-3.amazonaws.com/city-guided-api:<tag>`
+   - `<account>.dkr.ecr.eu-west-3.amazonaws.com/city-guided-web:<tag>`
+3. Deploys to ECS by:
+   - Updating the ECS task definition with new image tags
+   - Forcing a new deployment of the service
+   - Optionally updates DuckDNS with reverse proxy IP (if enabled)
+
+The deployment automatically scales up from 0 to 1 instance when traffic is detected.
 
 ## Checking the deployed version (commit / code link)
 

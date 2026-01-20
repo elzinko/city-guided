@@ -378,6 +378,39 @@ jobs:
           SITE_DOMAIN=$(aws ssm get-parameter --name "/city-guided/staging/SITE_DOMAIN" --query "Parameter.Value" --output text 2>/dev/null || echo "cityguided.duckdns.org")
           echo "site_domain=$SITE_DOMAIN" >> $GITHUB_OUTPUT
 
+      - name: Update DuckDNS (if reverse proxy is enabled)
+        if: vars.DUCKDNS_ENABLED == 'true'
+        run: |
+          echo "🦆 Updating DuckDNS with reverse proxy Elastic IP..."
+          
+          # Get Elastic IP from the reverse proxy stack
+          ELASTIC_IP=$(aws ec2 describe-addresses \
+            --filters "Name=tag:Name,Values=city-guided-proxy" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Addresses[0].PublicIp' \
+            --output text 2>/dev/null || echo "")
+          
+          if [ -z "$ELASTIC_IP" ]; then
+            echo "⚠️ No reverse proxy Elastic IP found. Skipping DuckDNS update."
+            echo "   To enable: Deploy the reverse proxy stack first."
+            exit 0
+          fi
+          
+          # Extract domain name from full domain (e.g., cityguided from cityguided.duckdns.org)
+          DUCKDNS_DOMAIN=$(echo "${{ steps.ssm.outputs.site_domain }}" | sed 's/.duckdns.org$//')
+          
+          # Update DuckDNS
+          RESPONSE=$(curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${{ secrets.DUCKDNS_TOKEN }}&ip=${ELASTIC_IP}")
+          
+          if [ "$RESPONSE" = "OK" ]; then
+            echo "✅ DuckDNS updated successfully"
+            echo "   Domain: ${DUCKDNS_DOMAIN}.duckdns.org"
+            echo "   IP: ${ELASTIC_IP}"
+          else
+            echo "❌ DuckDNS update failed: $RESPONSE"
+            exit 1
+          fi
+
       - name: Verify ECS deployment
         run: |
           echo "🔍 Verifying ECS deployment..."

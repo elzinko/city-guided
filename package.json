@@ -41,7 +41,6 @@
     "infra:logs:web:follow": "cd infra/provisioning/aws && pnpm run logs:web:follow",
     "app:deploy": "cd infra/provisioning/aws && pnpm run deploy",
     "app:deploy:verify": "cd infra/provisioning/aws && pnpm run deploy:verify",
-    "ssh": "bash infra/scripts/ssh.sh",
     "config:get": "cd infra/provisioning/aws && pnpm run config get",
     "config:push": "cd infra/provisioning/aws && pnpm run config push",
     "config:diff": "cd infra/provisioning/aws && pnpm run config diff",

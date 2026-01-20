@@ -17,19 +17,9 @@ export const AWS_CONFIG = {
   region: 'eu-west-3', // Paris
   account: process.env.AWS_ACCOUNT_ID || '766050776787',
   ssmParameterPrefix: '/city-guided', // SSM Parameter Store prefix
-  // Default stack name (used by CDK app.ts)
-  stackName: 'CityGuidedStagingStack',
-} as const;
-
-export const EC2_CONFIG = {
-  instanceType: 't3.medium', // 2 vCPU, 4GB RAM
-  spotPrice: '0.0125', // ~70% discount
-  amiName: 'amzn2-ami-hvm-*-x86_64-gp2', // Amazon Linux 2
-  volumeSize: 30, // GB
 } as const;
 
 export const SECURITY_CONFIG = {
-  allowedSshIps: ['0.0.0.0/0'], // Restrict in production
   ports: {
     ssh: 22,
     http: 80,
@@ -55,12 +45,11 @@ export const GITHUB_CONFIG = {
 /**
  * Infrastructure mode per environment
  * 
- * This is the source of truth for deployment mode.
- * All environments now use ECS Fargate (EC2 has been decommissioned).
+ * All environments use ECS Fargate.
  */
 export const INFRA_MODES = {
-  staging: 'ecs' as const,  // ECS Fargate
-  prod: 'ecs' as const,      // ECS Fargate (migrated from EC2)
+  staging: 'ecs' as const,
+  prod: 'ecs' as const,
 } as const;
 
 export type InfraMode = typeof INFRA_MODES[keyof typeof INFRA_MODES];
@@ -68,8 +57,8 @@ export type InfraMode = typeof INFRA_MODES[keyof typeof INFRA_MODES];
 /**
  * Get infrastructure mode for an environment
  */
-export function getInfraMode(env: EnvironmentName): 'ec2' | 'ecs' {
-  return INFRA_MODES[env] || 'ecs'; // Default to ECS (EC2 decommissioned)
+export function getInfraMode(env: EnvironmentName): 'ecs' {
+  return 'ecs';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -80,16 +69,13 @@ export function getInfraMode(env: EnvironmentName): 'ec2' | 'ecs' {
  * Environment-specific AWS/infra configuration
  * 
  * Note: Application variables are in infra/config/.env.<environment>
- * This only contains infrastructure-specific values (CloudFormation, key pairs)
  */
 export const ENVIRONMENTS = {
   staging: {
-    STACK_NAME: 'CityGuidedStagingStack',
-    KEY_PAIR_NAME: 'city-guided-staging',
+    STACK_NAME: 'CityGuidedEcsStack',
   },
   prod: {
-    STACK_NAME: 'CityGuidedProdStack',
-    KEY_PAIR_NAME: 'city-guided-prod',
+    STACK_NAME: 'CityGuidedEcsStack',
   },
 } as const;
 
@@ -135,28 +121,18 @@ export function getEnvFilePath(env: EnvironmentName): string {
 /**
  * Get AWS Console URLs for infrastructure resources
  */
-export function getAwsConsoleUrls(env: EnvironmentName, mode: 'ec2' | 'ecs'): Record<string, string> {
+export function getAwsConsoleUrls(env: EnvironmentName): Record<string, string> {
   const region = AWS_CONFIG.region;
   const baseUrl = `https://${region}.console.aws.amazon.com`;
   
-  if (mode === 'ec2') {
-    const config = getEnvironmentConfig(env);
-    return {
-      'EC2 Instance': `${baseUrl}/ec2/home?region=${region}#Instances:tag:Name=${config.STACK_NAME}`,
-      'CloudWatch Logs': `${baseUrl}/cloudwatch/home?region=${region}#logsV2:log-groups`,
-      'SSM Session Manager': `${baseUrl}/systems-manager/session-manager?region=${region}`,
-      'CloudFormation Stack': `${baseUrl}/cloudformation/home?region=${region}#/stacks/stackinfo?stackId=${config.STACK_NAME}`,
-    };
-  } else {
-    return {
-      'CloudWatch Dashboard': `${baseUrl}/cloudwatch/home?region=${region}#dashboards:name=CityGuided-ECS-ScaleToZero`,
-      'ECS Cluster': `${baseUrl}/ecs/v2/clusters/city-guided-cluster/services?region=${region}`,
-      'ECS Service': `${baseUrl}/ecs/v2/clusters/city-guided-cluster/services/city-guided-service?region=${region}`,
-      'Application Load Balancer': `${baseUrl}/ec2/home?region=${region}#LoadBalancers:search=city-guided-alb`,
-      'Target Groups': `${baseUrl}/ec2/home?region=${region}#TargetGroups:search=city-guided`,
-      'CloudWatch Logs (API)': `${baseUrl}/cloudwatch/home?region=${region}#logsV2:log-groups/log-group/$252Fecs$252Fcity-guided-api`,
-      'CloudWatch Logs (Web)': `${baseUrl}/cloudwatch/home?region=${region}#logsV2:log-groups/log-group/$252Fecs$252Fcity-guided-web`,
-      'CloudFormation Stack': `${baseUrl}/cloudformation/home?region=${region}#/stacks/stackinfo?stackId=CityGuidedEcsStack`,
-    };
-  }
+  return {
+    'CloudWatch Dashboard': `${baseUrl}/cloudwatch/home?region=${region}#dashboards:name=CityGuided-ECS-ScaleToZero`,
+    'ECS Cluster': `${baseUrl}/ecs/v2/clusters/city-guided-cluster/services?region=${region}`,
+    'ECS Service': `${baseUrl}/ecs/v2/clusters/city-guided-cluster/services/city-guided-service?region=${region}`,
+    'Application Load Balancer': `${baseUrl}/ec2/home?region=${region}#LoadBalancers:search=city-guided-alb`,
+    'Target Groups': `${baseUrl}/ec2/home?region=${region}#TargetGroups:search=city-guided`,
+    'CloudWatch Logs (API)': `${baseUrl}/cloudwatch/home?region=${region}#logsV2:log-groups/log-group/$252Fecs$252Fcity-guided-api`,
+    'CloudWatch Logs (Web)': `${baseUrl}/cloudwatch/home?region=${region}#logsV2:log-groups/log-group/$252Fecs$252Fcity-guided-web`,
+    'CloudFormation Stack': `${baseUrl}/cloudformation/home?region=${region}#/stacks/stackinfo?stackId=CityGuidedEcsStack`,
+  };
 }

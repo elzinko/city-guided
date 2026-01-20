@@ -1,7 +1,8 @@
 import '../styles.css'
 import '../styles/utility.css'
 import 'leaflet/dist/leaflet.css'
-import type { AppProps } from 'next/app'
+import type { AppProps, AppContext } from 'next/app'
+import App from 'next/app'
 import { ConfigProvider } from '../contexts/ConfigContext'
 
 // Read SHOW_DEV_OPTIONS from runtime environment variable
@@ -12,22 +13,31 @@ function getShowDevOptions(): boolean {
   return value === 'true' || value === '1'
 }
 
-// Use getInitialProps to read runtime environment variables
-// This is called once per app load (not per page)
-App.getInitialProps = async () => {
-  return {
-    pageProps: {
+class MyApp extends App<AppProps & { showDevOptions?: boolean }> {
+  // Use getInitialProps to read runtime environment variables
+  // This is called once per app load (not per page) and disables automatic static optimization
+  static async getInitialProps({ Component, ctx }: AppContext) {
+    let pageProps = {}
+    
+    if (Component.getInitialProps) {
+      pageProps = await Component.getInitialProps(ctx)
+    }
+    
+    return {
+      pageProps,
       showDevOptions: getShowDevOptions(),
-    },
+    }
+  }
+
+  render() {
+    const { Component, pageProps, showDevOptions = false } = this.props
+    
+    return (
+      <ConfigProvider showDevOptions={showDevOptions}>
+        <Component {...pageProps} />
+      </ConfigProvider>
+    )
   }
 }
 
-export default function App({ Component, pageProps }: AppProps & { pageProps?: { showDevOptions?: boolean } }) {
-  const showDevOptions = pageProps?.showDevOptions ?? false
-  
-  return (
-    <ConfigProvider showDevOptions={showDevOptions}>
-      <Component {...pageProps} />
-    </ConfigProvider>
-  )
-}
+export default MyApp

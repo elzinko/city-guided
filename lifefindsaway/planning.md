@@ -37,6 +37,7 @@ Ce fichier est la **source de vérité unique** pour :
 ### idea
 
 ### exploring
+- [ ] 20260120171923-docker-compose-ecs-unification
 - [ ] 20260117100000-epic-poi-data-pipeline/20260117100100-poi-admin-import
 - [ ] 20260117100000-epic-poi-data-pipeline/20260117100200-audio-guide-generation
 

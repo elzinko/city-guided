@@ -162,8 +162,8 @@ export function DevControlBlock({
   selectedRouteId,
   onRouteSelect,
   loadRoute,
-  routeStatus: _routeStatus, // eslint-disable-line @typescript-eslint/no-unused-vars
-  osrmError: _osrmError, // eslint-disable-line @typescript-eslint/no-unused-vars
+  routeStatus: _routeStatus,  
+  osrmError: _osrmError,  
   pos,
   godMode,
   setGodMode,
@@ -392,135 +392,6 @@ export function DevControlBlock({
               </select>
             )}
 
-            {/* Ligne 3 : Contrôles du simulateur GPS */}
-            {virtualRouteActive && (
-              <div
-                id="dev-route-controls"
-                data-testid="dev-route-controls"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                {/* Indicateur de position sur le trajet */}
-                {simPath.length > 0 && (
-                  <div
-                    id="dev-route-indicator"
-                    data-testid="dev-route-indicator"
-                    style={{
-                      ...compactButtonStyle,
-                      background: '#dcfce7',
-                      border: '1px solid #22c55e',
-                      color: '#166534',
-                      minWidth: 60,
-                      fontSize: 12,
-                    }}
-                  >
-                    {simStep + 1}/{simPath.length}
-                  </div>
-                )}
-
-                {/* Contrôles de lecture (Play/Pause, Précédent, Suivant) */}
-                <div
-                  id="dev-player-controls"
-                  data-testid="dev-player-controls"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  {/* Bouton précédent */}
-                  <button
-                    id="dev-previous-button"
-                    data-testid="dev-previous-button"
-                    onClick={onPrevious}
-                    disabled={!onPrevious}
-                    aria-label="POI précédent"
-                    style={{
-                      ...compactButtonStyle,
-                      width: BUTTON_HEIGHT,
-                      padding: 0,
-                      background: '#ffffff',
-                      color: '#64748b',
-                      cursor: onPrevious ? 'pointer' : 'not-allowed',
-                      opacity: onPrevious ? 1 : 0.5,
-                    }}
-                    title="POI précédent"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M8.715 6.36694L14.405 10.6669C14.7769 10.9319 14.9977 11.3603 14.9977 11.8169C14.9977 12.2736 14.7769 12.702 14.405 12.9669L8.715 17.6669C8.23425 18.0513 7.58151 18.1412 7.01475 17.9011C6.44799 17.6611 6.05842 17.1297 6 16.5169V7.51694C6.05842 6.90422 6.44799 6.37281 7.01475 6.13275C7.58151 5.89269 8.23425 5.9826 8.715 6.36694Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" transform="rotate(180 10.5 12)"/>
-                      <path d="M18 6.01697V18.017" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" transform="rotate(180 18 12)"/>
-                    </svg>
-                  </button>
-
-                  {/* Bouton play/pause */}
-                  <button
-                    id="dev-play-pause-button"
-                    data-testid="dev-play-pause-button"
-                    onClick={onPlayPause}
-                    aria-label={isSimulating && !simPaused ? 'Pause' : 'Play'}
-                    style={{
-                      ...compactButtonStyle,
-                      width: BUTTON_HEIGHT,
-                      padding: 0,
-                      background: isSimulating && !simPaused ? '#ef4444' : '#22c55e',
-                      color: '#ffffff',
-                    }}
-                    title={isSimulating && !simPaused ? 'Pause' : 'Play'}
-                  >
-                    {isSimulating && !simPaused ? (
-                      <span style={{ fontSize: 16, lineHeight: 1 }}>⏸</span>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M8 5v14l11-7L8 5z" fill="#ffffff" />
-                      </svg>
-                    )}
-                  </button>
-
-                  {/* Bouton suivant */}
-                  <button
-                    id="dev-next-button"
-                    data-testid="dev-next-button"
-                    onClick={onNext}
-                    disabled={!onNext}
-                    aria-label="POI suivant"
-                    style={{
-                      ...compactButtonStyle,
-                      width: BUTTON_HEIGHT,
-                      padding: 0,
-                      background: '#ffffff',
-                      color: '#64748b',
-                      cursor: onNext ? 'pointer' : 'not-allowed',
-                      opacity: onNext ? 1 : 0.5,
-                    }}
-                    title="POI suivant"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M8.715 6.36694L14.405 10.6669C14.7769 10.9319 14.9977 11.3603 14.9977 11.8169C14.9977 12.2736 14.7769 12.702 14.405 12.9669L8.715 17.6669C8.23425 18.0513 7.58151 18.1412 7.01475 17.9011C6.44799 17.6611 6.05842 17.1297 6 16.5169V7.51694C6.05842 6.90422 6.44799 6.37281 7.01475 6.13275C7.58151 5.89269 8.23425 5.9826 8.715 6.36694Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M18 6.01697V18.017" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Vitesse */}
-                <select
-                  id="dev-speed-select"
-                  data-testid="dev-speed-select"
-                  value={speedFactor}
-                  onChange={(e) => setSpeedFactor(Number(e.target.value))}
-                  style={{ ...compactSelectStyle, minWidth: 55 }}
-                >
-                  <option value={0.5}>0.5×</option>
-                  <option value={1}>1×</option>
-                  <option value={2}>2×</option>
-                  <option value={5}>5×</option>
-                  <option value={10}>10×</option>
-                  <option value={20}>20×</option>
-                </select>
-              </div>
-            )}
           </div>
 
           {/* Séparateur */}
@@ -741,7 +612,7 @@ export function DevControlBlock({
         </div>
       )}
 
-      {/* Barre principale : uniquement le bouton dev */}
+      {/* Barre principale : contrôles route + bouton dev */}
       <div
         ref={barRef}
         id="dev-control-bar"
@@ -754,10 +625,140 @@ export function DevControlBlock({
           minHeight: 52,
         }}
       >
-        {/* Spacer pour centrer le bouton */}
+        {/* Contrôles du simulateur GPS (à gauche) */}
+        {virtualRouteActive && (
+          <div
+            id="dev-route-controls"
+            data-testid="dev-route-controls"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {/* Indicateur de position sur le trajet */}
+            {simPath.length > 0 && (
+              <div
+                id="dev-route-indicator"
+                data-testid="dev-route-indicator"
+                style={{
+                  ...compactButtonStyle,
+                  background: '#dcfce7',
+                  border: '1px solid #22c55e',
+                  color: '#166534',
+                  minWidth: 60,
+                  fontSize: 12,
+                }}
+              >
+                {simStep + 1}/{simPath.length}
+              </div>
+            )}
+
+            {/* Contrôles de lecture (Play/Pause, Précédent, Suivant) */}
+            <div
+              id="dev-player-controls"
+              data-testid="dev-player-controls"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {/* Bouton précédent */}
+              <button
+                id="dev-previous-button"
+                data-testid="dev-previous-button"
+                onClick={onPrevious}
+                disabled={!onPrevious}
+                aria-label="POI précédent"
+                style={{
+                  ...compactButtonStyle,
+                  width: BUTTON_HEIGHT,
+                  padding: 0,
+                  background: '#ffffff',
+                  color: '#64748b',
+                  cursor: onPrevious ? 'pointer' : 'not-allowed',
+                  opacity: onPrevious ? 1 : 0.5,
+                }}
+                title="POI précédent"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M8.715 6.36694L14.405 10.6669C14.7769 10.9319 14.9977 11.3603 14.9977 11.8169C14.9977 12.2736 14.7769 12.702 14.405 12.9669L8.715 17.6669C8.23425 18.0513 7.58151 18.1412 7.01475 17.9011C6.44799 17.6611 6.05842 17.1297 6 16.5169V7.51694C6.05842 6.90422 6.44799 6.37281 7.01475 6.13275C7.58151 5.89269 8.23425 5.9826 8.715 6.36694Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" transform="rotate(180 10.5 12)"/>
+                  <path d="M18 6.01697V18.017" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" transform="rotate(180 18 12)"/>
+                </svg>
+              </button>
+
+              {/* Bouton play/pause */}
+              <button
+                id="dev-play-pause-button"
+                data-testid="dev-play-pause-button"
+                onClick={onPlayPause}
+                aria-label={isSimulating && !simPaused ? 'Pause' : 'Play'}
+                style={{
+                  ...compactButtonStyle,
+                  width: BUTTON_HEIGHT,
+                  padding: 0,
+                  background: isSimulating && !simPaused ? '#ef4444' : '#22c55e',
+                  color: '#ffffff',
+                }}
+                title={isSimulating && !simPaused ? 'Pause' : 'Play'}
+              >
+                {isSimulating && !simPaused ? (
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>⏸</span>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M8 5v14l11-7L8 5z" fill="#ffffff" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Bouton suivant */}
+              <button
+                id="dev-next-button"
+                data-testid="dev-next-button"
+                onClick={onNext}
+                disabled={!onNext}
+                aria-label="POI suivant"
+                style={{
+                  ...compactButtonStyle,
+                  width: BUTTON_HEIGHT,
+                  padding: 0,
+                  background: '#ffffff',
+                  color: '#64748b',
+                  cursor: onNext ? 'pointer' : 'not-allowed',
+                  opacity: onNext ? 1 : 0.5,
+                }}
+                title="POI suivant"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M8.715 6.36694L14.405 10.6669C14.7769 10.9319 14.9977 11.3603 14.9977 11.8169C14.9977 12.2736 14.7769 12.702 14.405 12.9669L8.715 17.6669C8.23425 18.0513 7.58151 18.1412 7.01475 17.9011C6.44799 17.6611 6.05842 17.1297 6 16.5169V7.51694C6.05842 6.90422 6.44799 6.37281 7.01475 6.13275C7.58151 5.89269 8.23425 5.9826 8.715 6.36694Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M18 6.01697V18.017" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Vitesse */}
+            <select
+              id="dev-speed-select"
+              data-testid="dev-speed-select"
+              value={speedFactor}
+              onChange={(e) => setSpeedFactor(Number(e.target.value))}
+              style={{ ...compactSelectStyle, minWidth: 55 }}
+            >
+              <option value={0.5}>0.5×</option>
+              <option value={1}>1×</option>
+              <option value={2}>2×</option>
+              <option value={5}>5×</option>
+              <option value={10}>10×</option>
+              <option value={20}>20×</option>
+            </select>
+          </div>
+        )}
+
+        {/* Spacer pour pousser le bouton à droite */}
         <div style={{ flex: 1 }} />
 
-        {/* Bouton engrenage */}
+        {/* Bouton engrenage (à droite) */}
         <button
           id="dev-gear-button"
           data-testid="dev-gear-button"
@@ -779,9 +780,6 @@ export function DevControlBlock({
             style={{ display: 'block', objectFit: 'contain' }}
           />
         </button>
-
-        {/* Spacer pour centrer le bouton */}
-        <div style={{ flex: 1 }} />
       </div>
     </div>
   )

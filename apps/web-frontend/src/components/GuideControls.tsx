@@ -15,35 +15,35 @@ export function GuideControls({
   loadRoute,
   routeStatus,
   osrmError,
-  startSimulation: _startSimulation, // eslint-disable-line @typescript-eslint/no-unused-vars
+  startSimulation: _startSimulation,  
   isSimulating,
   simStep,
   simPath,
-  speedFactor: _speedFactor, // eslint-disable-line @typescript-eslint/no-unused-vars
-  setSpeedFactor: _setSpeedFactor, // eslint-disable-line @typescript-eslint/no-unused-vars
+  speedFactor: _speedFactor,  
+  setSpeedFactor: _setSpeedFactor,  
   zoomLevel,
   setZoomLevel,
-  simPaused: _simPaused, // eslint-disable-line @typescript-eslint/no-unused-vars
-  setSimPaused: _setSimPaused, // eslint-disable-line @typescript-eslint/no-unused-vars
-  setMapAlreadyCentered: _setMapAlreadyCentered, // eslint-disable-line @typescript-eslint/no-unused-vars
-  setPos: _setPos, // eslint-disable-line @typescript-eslint/no-unused-vars
+  simPaused: _simPaused,  
+  setSimPaused: _setSimPaused,  
+  setMapAlreadyCentered: _setMapAlreadyCentered,  
+  setPos: _setPos,  
   pos,
   godMode,
   setGodMode,
-  autoTts: _autoTts, // eslint-disable-line @typescript-eslint/no-unused-vars
-  setAutoTts: _setAutoTts, // eslint-disable-line @typescript-eslint/no-unused-vars
+  autoTts: _autoTts,  
+  setAutoTts: _setAutoTts,  
   audioPaused,
   setAudioPaused,
-  audioGuideActive: _audioGuideActive, // eslint-disable-line @typescript-eslint/no-unused-vars
-  setAudioGuideActive: _setAudioGuideActive, // eslint-disable-line @typescript-eslint/no-unused-vars
-  stopSpeech: _stopSpeech, // eslint-disable-line @typescript-eslint/no-unused-vars
+  audioGuideActive: _audioGuideActive,  
+  setAudioGuideActive: _setAudioGuideActive,  
+  stopSpeech: _stopSpeech,  
   pauseSpeech,
   resumeSpeech,
   centerRadiusMeters,
   setCenterRadiusMeters,
-  recenterOnUser: _recenterOnUser, // eslint-disable-line @typescript-eslint/no-unused-vars
-  onPrevPoi: _onPrevPoi, // eslint-disable-line @typescript-eslint/no-unused-vars
-  onNextPoi: _onNextPoi, // eslint-disable-line @typescript-eslint/no-unused-vars
+  recenterOnUser: _recenterOnUser,  
+  onPrevPoi: _onPrevPoi,  
+  onNextPoi: _onNextPoi,  
   virtualRouteActive,
   setVirtualRouteActive,
   stopSimulation,

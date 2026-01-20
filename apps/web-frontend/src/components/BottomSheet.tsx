@@ -151,7 +151,7 @@ export function BottomSheet({
   guideMode,
   guideTitle,
   guideSubtitle,
-  guideImage: _guideImage, // eslint-disable-line @typescript-eslint/no-unused-vars
+  guideImage: _guideImage,  
   guideText,
   onPrev,
   onNext,
@@ -161,10 +161,10 @@ export function BottomSheet({
   selectedPoi = null,
   onSelectPoi,
   onClosePoi,
-  onClose: _onClose, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onClose: _onClose,  
   onCenterOnPoi,
   onHeightChange,
-  previousDiscoverLevel: _previousDiscoverLevel, // eslint-disable-line @typescript-eslint/no-unused-vars
+  previousDiscoverLevel: _previousDiscoverLevel,  
 }: Props) {
   // === TOUS LES HOOKS DOIVENT ÊTRE DÉCLARÉS AU DÉBUT ===
   // État pour suivre quel POI est en cours de lecture audio

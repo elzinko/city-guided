@@ -1007,7 +1007,7 @@ export default function Home() {
         if (hasChanged) {
           // Si la simulation est active, utiliser une animation plus fluide
           if (isSimulating && !simPaused) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+             
             const _animationDuration = Math.max(0.2, Math.min(1.0, 1 / Math.max(speedFactor, 0.25)))
             map.panTo([pos.lat, pos.lng], { animate: false }) // Pas d'animation pour éviter les conflits
           } else {

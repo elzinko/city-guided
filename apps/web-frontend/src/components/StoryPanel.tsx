@@ -97,7 +97,7 @@ export function StoryPanel({
   id, 
   activeStory, 
   pois, 
-  getStorySegments: _getStorySegments, // eslint-disable-line @typescript-eslint/no-unused-vars
+  getStorySegments: _getStorySegments,  
   speak, 
   stopSpeech,
   pauseSpeech,

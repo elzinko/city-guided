@@ -103,12 +103,15 @@ export class CityGuidedEcsStack extends cdk.Stack {
     });
 
     // Web Container (main entry point via ALB)
+    // Note: Container listens on PORT env var (default 3080 in Dockerfile)
     const webContainer = taskDefinition.addContainer('web', {
       image: ecs.ContainerImage.fromRegistry('nginx:latest'), // Placeholder
       containerName: 'web',
       environment: {
         NODE_ENV: 'production',
-        PORT: '3000',
+        PORT: '3080',  // Must match Dockerfile default
+        // Use ALB URL for API calls (ALB routes /api/* to API container)
+        NEXT_PUBLIC_API_URL: `http://${alb.loadBalancerDnsName}/api`,
       },
       logging: new ecs.AwsLogDriver({
         streamPrefix: 'web',
@@ -119,9 +122,15 @@ export class CityGuidedEcsStack extends cdk.Stack {
       }),
     });
     webContainer.addPortMappings({
-      containerPort: 80,
+      containerPort: 3080,  // Must match PORT env var
       protocol: ecs.Protocol.TCP,
     });
+
+    // Grant ECR pull permissions to the task execution role
+    // This is required because the deploy script updates task definition to use ECR images
+    // Note: Must be done after containers are added (execution role is created by AwsLogDriver)
+    apiRepository.grantPull(taskDefinition.executionRole!);
+    webRepository.grantPull(taskDefinition.executionRole!);
 
     // ============================================
     // ECS Service
@@ -148,19 +157,41 @@ export class CityGuidedEcsStack extends cdk.Stack {
       open: true,
     });
 
-    // Add ECS service as target (this creates the target group automatically)
-    const targetGroup = listener.addTargets('EcsTargets', {
-      port: 80,
+    // API Target Group (for /api/* routes)
+    listener.addTargets('ApiTargets', {
+      port: 4000,  // API container port
+      protocol: elbv2.ApplicationProtocol.HTTP,
+      priority: 1,  // Higher priority (checked first)
+      conditions: [
+        elbv2.ListenerCondition.pathPatterns(['/api/*']),
+      ],
       targets: [service.loadBalancerTarget({
-        containerName: 'web',
-        containerPort: 80,
+        containerName: 'api',
+        containerPort: 4000,
       })],
       healthCheck: {
-        path: '/',  // Simple health check for nginx placeholder
+        path: '/api/health',
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(5),
         healthyThresholdCount: 2,
-        unhealthyThresholdCount: 2,
+        unhealthyThresholdCount: 3,
+      },
+    });
+
+    // Web Target Group (default, for all other routes)
+    const webTargetGroup = listener.addTargets('WebTargets', {
+      port: 3080,  // Must match web container port
+      protocol: elbv2.ApplicationProtocol.HTTP,
+      targets: [service.loadBalancerTarget({
+        containerName: 'web',
+        containerPort: 3080,  // Must match web container port
+      })],
+      healthCheck: {
+        path: '/',
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        healthyThresholdCount: 2,
+        unhealthyThresholdCount: 3,  // More tolerant for Next.js startup
       },
     });
 
@@ -177,7 +208,7 @@ export class CityGuidedEcsStack extends cdk.Stack {
     // even when no tasks are running, allowing automatic scale-up from 0 to 1
     scaling.scaleOnRequestCount('ScaleOnRequests', {
       requestsPerTarget: 1,  // Scale-up if there's any request
-      targetGroup: targetGroup,
+      targetGroup: webTargetGroup,  // Use web target group for scaling decisions
       scaleInCooldown: cdk.Duration.minutes(5),  // Wait 5min before scaling down
       scaleOutCooldown: cdk.Duration.seconds(10),  // Scale-up quickly (10s)
     });
@@ -205,7 +236,7 @@ const cloudwatchClient = new CloudWatchClient({});
 
 const CLUSTER_NAME = '${cluster.clusterName}';
 const SERVICE_NAME = '${service.serviceName}';
-const TARGET_GROUP_NAME = '${targetGroup.targetGroupFullName}';
+const TARGET_GROUP_NAME = '${webTargetGroup.targetGroupFullName}';
 const IDLE_DURATION_MINUTES = 5;
 const STACK_NAME = '${this.stackName}';
 

@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -13,6 +14,37 @@ import { Construct } from 'constructs';
 export class CityGuidedEcsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    // ============================================
+    // ECR Repositories for Docker images
+    // ============================================
+    const apiRepository = new ecr.Repository(this, 'ApiRepository', {
+      repositoryName: 'city-guided-api',
+      imageScanOnPush: true,
+      imageTagMutability: ecr.TagMutability.MUTABLE,
+      lifecycleRules: [
+        {
+          description: 'Keep last 10 images',
+          maxImageCount: 10,
+          rulePriority: 1,
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Don't delete on stack destroy
+    });
+
+    const webRepository = new ecr.Repository(this, 'WebRepository', {
+      repositoryName: 'city-guided-web',
+      imageScanOnPush: true,
+      imageTagMutability: ecr.TagMutability.MUTABLE,
+      lifecycleRules: [
+        {
+          description: 'Keep last 10 images',
+          maxImageCount: 10,
+          rulePriority: 1,
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Don't delete on stack destroy
+    });
 
     // ============================================
     // VPC - Use default VPC for simplicity
@@ -666,6 +698,18 @@ async function publishMetric(desiredCount, status) {
     new cdk.CfnOutput(this, 'LoadBalancerDNS', {
       value: alb.loadBalancerDnsName,
       description: 'ALB DNS Name',
+    });
+
+    new cdk.CfnOutput(this, 'ApiRepositoryUri', {
+      value: apiRepository.repositoryUri,
+      description: 'ECR Repository URI for API',
+      exportName: 'CityGuidedApiRepositoryUri',
+    });
+
+    new cdk.CfnOutput(this, 'WebRepositoryUri', {
+      value: webRepository.repositoryUri,
+      description: 'ECR Repository URI for Web',
+      exportName: 'CityGuidedWebRepositoryUri',
     });
 
     new cdk.CfnOutput(this, 'DashboardUrl', {

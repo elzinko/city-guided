@@ -159,6 +159,28 @@ async function deployToECS(env: EnvironmentName, imageTag: string): Promise<void
   console.log(chalk.white(`   Service: ${serviceName}`));
   console.log(chalk.white(`   Image tag: ${imageTag}`));
 
+  // Get ECR repository URIs
+  console.log(chalk.yellow('\n🔍 Getting ECR repository URIs...\n'));
+  
+  const apiRepoUri = execSilent(`
+    aws ecr describe-repositories \\
+      --repository-names city-guided-api \\
+      --region ${AWS_CONFIG.region} \\
+      --query 'repositories[0].repositoryUri' \\
+      --output text
+  `);
+
+  const webRepoUri = execSilent(`
+    aws ecr describe-repositories \\
+      --repository-names city-guided-web \\
+      --region ${AWS_CONFIG.region} \\
+      --query 'repositories[0].repositoryUri' \\
+      --output text
+  `);
+
+  console.log(chalk.white(`   API Repository: ${apiRepoUri}`));
+  console.log(chalk.white(`   Web Repository: ${webRepoUri}`));
+
   // Get current task definition
   console.log(chalk.yellow('\n📦 Updating task definition...\n'));
   
@@ -181,12 +203,14 @@ async function deployToECS(env: EnvironmentName, imageTag: string): Promise<void
   // Update image tags in task definition
   const updatedTaskDef = JSON.parse(taskDef);
   
-  // Update container images
+  // Update container images with ECR URIs
   updatedTaskDef.containerDefinitions.forEach((container: any) => {
     if (container.name === 'api') {
-      container.image = `ghcr.io/elzinko/city-guided-api:${imageTag}`;
+      container.image = `${apiRepoUri}:${imageTag}`;
+      console.log(chalk.green(`   ✓ API image: ${container.image}`));
     } else if (container.name === 'web') {
-      container.image = `ghcr.io/elzinko/city-guided-web:${imageTag}`;
+      container.image = `${webRepoUri}:${imageTag}`;
+      console.log(chalk.green(`   ✓ Web image: ${container.image}`));
     }
   });
 

@@ -19,22 +19,15 @@ Structure minimale : `apps/`, `services/`, `packages/`, `infra/`
 2. **Développement** : `pnpm dev`
    > Démarre automatiquement Docker si nécessaire. Les URLs apparaissent dans les logs.
 
-3. **Build** : `pnpm build`
-
-4. **Tests** : `pnpm test`
+3. **Tests** : `pnpm test`
 
 ## Configuration
 
-Voir les templates d'environnement :
-- Frontend : [`apps/web-frontend/.env.local`](./apps/web-frontend/.env.local)
-- API : [`services/api/.env.example`](./services/api/.env.example)
+Voir les configurations de déploiement dans [config](./infra/config).
 
 ## Scripts disponibles
 
 Toutes les commandes dans [package.json](./package.json) :
-- `build`, `test`, `lint`, `type-check`
-- `docker:*` pour la containerisation
-- `ssh:*`, `config:*` pour l'infrastructure
 
 ## Architecture
 

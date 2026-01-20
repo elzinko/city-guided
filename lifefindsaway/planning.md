@@ -40,8 +40,17 @@ Ce fichier est la **source de vérité unique** pour :
 - [ ] 20260120171923-docker-compose-ecs-unification
 - [ ] 20260117100000-epic-poi-data-pipeline/20260117100100-poi-admin-import
 - [ ] 20260117100000-epic-poi-data-pipeline/20260117100200-audio-guide-generation
+- [ ] 20260120232435-epic-decouverte-recherche/20260120232500-recherche-avancee
+- [ ] 20260120232435-epic-decouverte-recherche/20260120232501-decouvertes-personnalisees
+- [ ] 20260120232435-epic-decouverte-recherche/20260120232502-vue-decouvrir-categories
+- [ ] 20260120232700-epic-engagement-utilisateur/20260120232701-enregistres
+- [ ] 20260120232700-epic-engagement-utilisateur/20260120232702-contribuer
+- [ ] 20260120232700-epic-engagement-utilisateur/20260120232703-notation-avis
 
 ### candidate
+- [ ] 20260120232800-epic-crud-trajets-virtuels (Epic, à découper en features)
+- [ ] 20260120232900-epic-refonte-technique-frontend (Epic technique, à découper)
+- [ ] 20260120232600-bouton-feedback-github
 - [ ] 20260115100000-ecs-fargate-migration
 - [ ] 20260116100000-ecs-scale-to-zero
 

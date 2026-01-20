@@ -158,11 +158,6 @@ async function checkEc2EnvVars(env: EnvironmentName, containerName?: string): Pr
   console.log(chalk.cyan('📋 EC2 Instance:'));
   console.log(chalk.white(`   ID: ${instanceId}\n`));
 
-  // Get container names
-  const containerFilter = containerName 
-    ? `--filter name=city-guided-${env}-${containerName}`
-    : `--filter name=city-guided-${env}`;
-
   // Execute command on EC2 to check environment variables
   const command = containerName
     ? `docker inspect city-guided-${env}-${containerName} --format '{{range .Config.Env}}{{println .}}{{end}}' || echo "Container not found"`

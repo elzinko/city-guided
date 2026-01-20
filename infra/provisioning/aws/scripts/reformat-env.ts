@@ -84,7 +84,6 @@ function reformatEnvFile(env: EnvironmentName): void {
   const templateLines = templateContent.split('\n');
   const output: string[] = [];
   const usedVars = new Set<string>();
-  const sections: string[] = [];
 
   // Track current section
   let currentSection: string[] = [];

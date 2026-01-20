@@ -14,7 +14,6 @@ import { ECSClient, UpdateServiceCommand, DescribeServicesCommand } from '@aws-s
 import chalk from 'chalk';
 import {
   AWS_CONFIG,
-  getEnvironmentConfig,
   type EnvironmentName,
 } from '../constants.js';
 

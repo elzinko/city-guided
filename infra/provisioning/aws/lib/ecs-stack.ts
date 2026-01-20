@@ -134,6 +134,9 @@ export class CityGuidedEcsStack extends cdk.Stack {
       minHealthyPercent: 0,  // Allow scale-to-zero
       maxHealthyPercent: 200,
       enableExecuteCommand: true,  // For debugging
+      // IMPORTANT: Fargate tasks need public IP to pull images from ECR
+      // (Alternative: NAT Gateway or VPC Endpoints, but those cost more)
+      assignPublicIp: true,
     });
 
     // ============================================

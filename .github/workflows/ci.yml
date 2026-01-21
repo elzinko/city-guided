@@ -151,7 +151,7 @@ jobs:
           SHOULD_BUILD_LOCAL=true
           RESTART_POLICY=no
           NODE_ENV=test
-          NEXT_PUBLIC_SHOW_DEV_OPTIONS=false
+          NEXT_PUBLIC_SHOW_DEV_OPTIONS=true
           DOCKER_ENV=true
           EOF
 

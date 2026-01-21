@@ -54,6 +54,8 @@ réel tout en maintenant une visibilité sur l'état du service.
 - [x] Métriques personnalisées CloudWatch
 - [x] Dashboard `CityGuided-ECS-ScaleToZero`
 - [x] Documentation technique
+- [x] Lambdas dans des fichiers séparés (TypeScript)
+- [x] Code consultable dans IDE (pas de code inline)
 
 ## Contraintes connues
 
@@ -88,5 +90,7 @@ réel tout en maintenant une visibilité sur l'état du service.
 
 ## Notes libres
 - Documentation technique détaillée : `docs/technical/ecs-scale-to-zero.md`
-- Lambda code inline dans `ecs-stack.ts`
+- Lambdas TypeScript séparées : `infra/provisioning/aws/lambdas/scale-to-zero/`, `infra/provisioning/aws/lambdas/scale-up/`
 - Namespace métriques : `CityGuided/ECS`
+- Délai d'inactivité : 5 minutes (configurable dans `scale-to-zero/index.ts`)
+- Fréquence de vérification : 1 minute (configurable dans `ecs-stack.ts`)

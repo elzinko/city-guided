@@ -1,0 +1,11 @@
+{
+  "name": "scale-up-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to scale ECS service up on incoming requests",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-ecs": "^3.0.0",
+    "@aws-sdk/client-cloudwatch": "^3.0.0"
+  }
+}

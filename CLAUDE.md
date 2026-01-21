@@ -1,5 +1,0 @@
-# CLAUDE.md
-
-Point d'entrée spécifique pour Claude Code (claude.ai/code).
-
-- **DOIT** : Lire [LLM.md](./LLM.md) pour le contexte complet du projet et toutes les règles à appliquer

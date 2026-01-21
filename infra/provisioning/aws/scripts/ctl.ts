@@ -45,8 +45,10 @@ process.on('SIGINT', () => {
 interface ServiceStatus {
   desired: number;
   running: number;
-  lambdaEnabled: boolean;
-  lambdaArn?: string;
+  scaleUpLambdaEnabled: boolean;
+  scaleToZeroLambdaEnabled: boolean;
+  scaleUpLambdaArn?: string;
+  scaleToZeroLambdaArn?: string;
 }
 
 async function getStatus(env: EnvironmentName): Promise<ServiceStatus> {
@@ -64,7 +66,7 @@ async function getStatus(env: EnvironmentName): Promise<ServiceStatus> {
   const desired = service?.desiredCount ?? 0;
   const running = service?.runningCount ?? 0;
 
-  // Get Lambda ARN from CloudFormation
+  // Get Lambda ARNs from CloudFormation
   const stackResponse = await cfnClient.send(
     new DescribeStacksCommand({
       StackName: config.STACK_NAME,
@@ -72,27 +74,38 @@ async function getStatus(env: EnvironmentName): Promise<ServiceStatus> {
   );
 
   const outputs = stackResponse.Stacks?.[0]?.Outputs || [];
-  const lambdaArnOutput = outputs.find(o => o.OutputKey === 'ScaleUpLambdaArn');
-  const lambdaArn = lambdaArnOutput?.OutputValue;
+  const scaleUpLambdaArn = outputs.find(o => o.OutputKey === 'ScaleUpLambdaArn')?.OutputValue;
+  const scaleToZeroLambdaArn = outputs.find(o => o.OutputKey === 'ScaleToZeroLambdaArn')?.OutputValue;
 
-  // Get Lambda concurrency (if 0, Lambda is disabled)
-  let lambdaEnabled = true;
-  if (lambdaArn) {
-    try {
-      const lambdaName = lambdaArn.split(':').pop();
-      const lambdaResponse = await lambdaClient.send(
-        new GetFunctionCommand({
-          FunctionName: lambdaName,
-        })
-      );
-      const concurrency = lambdaResponse.Concurrency?.ReservedConcurrentExecutions;
-      lambdaEnabled = concurrency !== 0;
-    } catch {
-      // Lambda might not exist or not have concurrency set
-    }
+  // Check both Lambdas concurrency status
+  const scaleUpLambdaEnabled = await isLambdaEnabled(scaleUpLambdaArn);
+  const scaleToZeroLambdaEnabled = await isLambdaEnabled(scaleToZeroLambdaArn);
+
+  return { 
+    desired, 
+    running, 
+    scaleUpLambdaEnabled, 
+    scaleToZeroLambdaEnabled,
+    scaleUpLambdaArn, 
+    scaleToZeroLambdaArn 
+  };
+}
+
+async function isLambdaEnabled(lambdaArn: string | undefined): Promise<boolean> {
+  if (!lambdaArn) return false;
+  
+  try {
+    const lambdaName = lambdaArn.split(':').pop();
+    const lambdaResponse = await lambdaClient.send(
+      new GetFunctionCommand({
+        FunctionName: lambdaName,
+      })
+    );
+    const concurrency = lambdaResponse.Concurrency?.ReservedConcurrentExecutions;
+    return concurrency !== 0;
+  } catch {
+    return true; // If no concurrency limit set, Lambda is enabled
   }
-
-  return { desired, running, lambdaEnabled, lambdaArn };
 }
 
 async function scaleService(count: 0 | 1): Promise<void> {
@@ -153,13 +166,14 @@ function displayStatus(status: ServiceStatus, env: string): void {
     console.log(chalk.yellow('   ⚠ Service is scaled to zero'));
   }
   
-  console.log(chalk.white('\n⚡ Scale-to-Zero Lambda'));
-  console.log(chalk.white(`   Status: ${status.lambdaEnabled ? chalk.green('Enabled') : chalk.red('Disabled')}`));
+  console.log(chalk.white('\n⚡ Lambdas'));
+  console.log(chalk.white(`   Scale-Up (auto-wake):  ${status.scaleUpLambdaEnabled ? chalk.green('Enabled') : chalk.red('Disabled')}`));
+  console.log(chalk.white(`   Scale-To-Zero (down):  ${status.scaleToZeroLambdaEnabled ? chalk.green('Enabled') : chalk.red('Disabled')}`));
   
   let mode = '';
   if (status.desired === 1) {
     mode = chalk.green('🟢 ON') + ' - Service running';
-  } else if (status.desired === 0 && status.lambdaEnabled) {
+  } else if (status.desired === 0 && status.scaleUpLambdaEnabled) {
     mode = chalk.yellow('🟡 STANDBY') + ' - Scale-to-zero (auto-wake on request)';
   } else {
     mode = chalk.red('🔴 OFF') + ' - Service stopped, no auto-wake';
@@ -177,8 +191,14 @@ async function start(env: EnvironmentName): Promise<void> {
   await scaleService(1);
   console.log(chalk.green('✓ Scaled service to 1'));
   
-  if (status.lambdaArn && !status.lambdaEnabled) {
-    await setLambdaEnabled(status.lambdaArn, true);
+  // Enable both Lambdas for normal operation
+  if (status.scaleUpLambdaArn && !status.scaleUpLambdaEnabled) {
+    await setLambdaEnabled(status.scaleUpLambdaArn, true);
+    console.log(chalk.green('✓ Enabled scale-up Lambda'));
+  }
+  
+  if (status.scaleToZeroLambdaArn && !status.scaleToZeroLambdaEnabled) {
+    await setLambdaEnabled(status.scaleToZeroLambdaArn, true);
     console.log(chalk.green('✓ Enabled scale-to-zero Lambda'));
   }
   
@@ -194,8 +214,14 @@ async function stop(env: EnvironmentName): Promise<void> {
   await scaleService(0);
   console.log(chalk.green('✓ Scaled service to 0'));
   
-  if (status.lambdaArn && !status.lambdaEnabled) {
-    await setLambdaEnabled(status.lambdaArn, true);
+  // Enable both Lambdas: scale-to-zero will keep it at 0, scale-up will wake it
+  if (status.scaleUpLambdaArn && !status.scaleUpLambdaEnabled) {
+    await setLambdaEnabled(status.scaleUpLambdaArn, true);
+    console.log(chalk.green('✓ Enabled scale-up Lambda (auto-wake)'));
+  }
+  
+  if (status.scaleToZeroLambdaArn && !status.scaleToZeroLambdaEnabled) {
+    await setLambdaEnabled(status.scaleToZeroLambdaArn, true);
     console.log(chalk.green('✓ Enabled scale-to-zero Lambda'));
   }
   
@@ -214,8 +240,14 @@ async function off(env: EnvironmentName): Promise<void> {
   await scaleService(0);
   console.log(chalk.green('✓ Scaled service to 0'));
   
-  if (status.lambdaArn) {
-    await setLambdaEnabled(status.lambdaArn, false);
+  // Disable BOTH Lambdas: no auto-wake, no scale-down
+  if (status.scaleUpLambdaArn) {
+    await setLambdaEnabled(status.scaleUpLambdaArn, false);
+    console.log(chalk.green('✓ Disabled scale-up Lambda (no auto-wake)'));
+  }
+  
+  if (status.scaleToZeroLambdaArn) {
+    await setLambdaEnabled(status.scaleToZeroLambdaArn, false);
     console.log(chalk.green('✓ Disabled scale-to-zero Lambda'));
   }
   

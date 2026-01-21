@@ -574,5 +574,10 @@ exports.handler = async (event) => {
       value: scaleUpLambda.functionArn,
       description: 'Scale-Up Lambda ARN (monitors ALB for requests when service is at zero)',
     });
+
+    new cdk.CfnOutput(this, 'ScaleToZeroLambdaArn', {
+      value: scaleToZeroLambda.functionArn,
+      description: 'Scale-To-Zero Lambda ARN (monitors inactivity and scales down to zero)',
+    });
   }
 }

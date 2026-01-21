@@ -1,88 +1,12 @@
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { distanceMeters } from '../utils/distance'
 import { Z_INDEX } from '../config/constants'
-import { getBottomSheetHeight } from '../config/ui-rules'
 import type { MenuTab } from './BottomMenu'
 import { ChapterPlayer } from './ChapterPlayer'
 import { PoiHeader, PoiCarousel } from './poi'
+import { GuidePlaceholder, PoiCard } from './shared'
+import { useBottomSheetDrag, useBottomSheetHeight } from './bottom-sheet/hooks'
 import type { PoiWithStory } from '../types/story'
-
-// Composant bouton Play/Pause avec bordure pointillée (rappel visuel)
-function PlayPauseButton({ 
-  isPlaying, 
-  onToggle, 
-  size = 40 
-}: { 
-  isPlaying: boolean
-  onToggle: () => void
-  size?: number 
-}) {
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation() // Empêcher le clic sur la carte
-        onToggle()
-      }}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        border: '2px dashed #94a3b8', // Bordure pointillée comme rappel
-        background: isPlaying 
-          ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' 
-          : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        boxShadow: isPlaying 
-          ? '0 4px 12px rgba(239, 68, 68, 0.4)' 
-          : '0 4px 12px rgba(34, 197, 94, 0.4)',
-        transition: 'all 0.2s ease',
-        flexShrink: 0,
-      }}
-      aria-label={isPlaying ? 'Pause' : 'Écouter la description'}
-      title={isPlaying ? 'Pause' : 'Écouter la description audio'}
-    >
-      {isPlaying ? (
-        <svg width={size * 0.4} height={size * 0.4} viewBox="0 0 24 24" fill="currentColor">
-          <rect x="6" y="4" width="4" height="16" rx="1" />
-          <rect x="14" y="4" width="4" height="16" rx="1" />
-        </svg>
-      ) : (
-        <svg width={size * 0.45} height={size * 0.45} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      )}
-    </button>
-  )
-}
-
-function GuidePlaceholder({ title }: { title?: string }) {
-  const hue = title ? title.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360 : 200
-  return (
-    <div
-      style={{
-        width: 70,
-        height: 70,
-        borderRadius: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        background: `linear-gradient(135deg, hsl(${hue}, 70%, 60%) 0%, hsl(${hue + 30}, 60%, 50%) 100%)`,
-      }}
-    >
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-        <path d="M2 17l10 5 10-5" />
-        <path d="M2 12l10 5 10-5" />
-      </svg>
-    </div>
-  )
-}
 
 type Level = 'hidden' | 'peek' | 'mid' | 'full' | 'searchResults' | 'poiFromSearch' | 'poiFromMap'
 
@@ -166,22 +90,29 @@ export function BottomSheet({
   onHeightChange,
   previousDiscoverLevel: _previousDiscoverLevel,  
 }: Props) {
-  // === TOUS LES HOOKS DOIVENT ÊTRE DÉCLARÉS AU DÉBUT ===
   // État pour suivre quel POI est en cours de lecture audio
   const [playingPoiId, setPlayingPoiId] = useState<string | null>(null)
   
   // État pour suivre le chapitre courant (pour afficher l'image du chapitre)
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0)
   
-  // Refs pour le drag du bottom sheet
-  const startYRef = useRef<number | null>(null)
-  const startLevelRef = useRef<Level>(level)
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const isDraggingRef = useRef(false)
-  const currentOffsetRef = useRef(0)
-  const velocityRef = useRef(0)
-  const lastYRef = useRef(0)
-  const lastTimeRef = useRef(0)
+  // Hooks pour gérer la hauteur et le drag
+  const { height, bottom, getLevelHeight } = useBottomSheetHeight({
+    level,
+    menuVisible,
+    devBlockHeight,
+    isDesktop,
+  })
+  
+  const { sheetRef, handlePointerDown } = useBottomSheetDrag({
+    level,
+    setLevel,
+    menuVisible,
+    devBlockHeight,
+    selectedPoi,
+    getLevelHeight,
+    onHeightChange,
+  })
 
   // Fonction pour gérer le play/pause d'un POI
   const handlePoiPlayPause = (poi: Poi) => {
@@ -214,242 +145,12 @@ export function BottomSheet({
   // Early return APRÈS tous les hooks
   if (level === 'hidden') return null
 
-  // Desktop: panneau latéral gauche style Google Maps
-  // Mobile: bottom sheet classique avec règles UI
-  
   // Helper pour convertir les niveaux contextuels en niveaux de base pour les composants
   const getBaseLevel = (lvl: Level): 'peek' | 'mid' | 'full' => {
     if (lvl === 'searchResults' || lvl === 'poiFromSearch' || lvl === 'poiFromMap') {
       return 'full'
     }
     return lvl as 'peek' | 'mid' | 'full'
-  }
-  
-  // Ordre des niveaux pour la navigation (sans les niveaux contextuels)
-  // Les niveaux contextuels (searchResults, poiFromSearch, poiFromMap) sont gérés séparément
-  const order: Level[] = ['peek', 'mid', 'full']
-  
-  // Calculer la hauteur en pixels pour chaque niveau (avec règles UI)
-  // Limiter la hauteur maximale pour ne pas dépasser le search-overlay (calcul dynamique)
-  // Cette fonction est utilisée pour mobile uniquement (desktop utilise top/bottom)
-  const getLevelHeight = (lvl: Level): number => {
-    if (lvl === 'hidden') return 0
-    
-    const vh = typeof window !== 'undefined' ? window.innerHeight : 800
-    const heightPercent = getBottomSheetHeight(lvl)
-    const calculatedHeight = vh * (heightPercent / 100)
-    
-    // Calculer dynamiquement la position du search-overlay (uniquement pour mobile)
-    if (!isDesktop) {
-      const searchOverlay = typeof document !== 'undefined' ? document.getElementById('search-overlay') : null
-      // Pour recouvrir complètement le champ de saisie, on utilise le top du search-overlay au lieu du bottom
-      // Cela permet au panneau de monter jusqu'au niveau du search-overlay
-      const searchOverlayTop = searchOverlay 
-        ? searchOverlay.getBoundingClientRect().top
-        : 12 // Fallback si le search-overlay n'est pas trouvé
-      
-      // Calculer la hauteur maximale: viewportHeight - bottom du sheet - top du search-overlay
-      // Le panneau peut monter jusqu'au top du search-overlay pour le recouvrir complètement
-      const sheetBottom = menuVisible ? (devBlockHeight + 64) : 0
-      const maxHeight = vh - sheetBottom - searchOverlayTop
-      
-      return Math.min(calculatedHeight, maxHeight)
-    }
-    
-    // Desktop: retourner la hauteur calculée sans limitation (géré par top/bottom)
-    return calculatedHeight
-  }
-  
-  // Si le menu n'est pas visible (recherche), le panneau est en bas (bottom: 0)
-  // Sinon, il se déploie au-dessus du menu : bottom = devBlockHeight + 64px (hauteur du menu)
-  const BOTTOM_MENU_HEIGHT = 64
-  const bottom = isDesktop ? 'auto' : (menuVisible ? devBlockHeight + BOTTOM_MENU_HEIGHT : 0)
-  
-  // Pour mobile, utiliser getLevelHeight qui calcule dynamiquement avec limitation
-  // Pour desktop, utiliser 'auto' (géré par top/bottom)
-  // Note: level ne peut pas être 'hidden' ici car on a déjà fait un early return
-  const height = isDesktop ? 'auto' : `${getLevelHeight(level)}px`
-
-  // Trouver le niveau le plus proche d'une hauteur donnée, avec prise en compte de la vélocité
-  const findClosestLevel = (currentHeight: number, velocity: number): Level => {
-    const vh = typeof window !== 'undefined' ? window.innerHeight : 800
-    const BOTTOM_MENU_HEIGHT = 64
-    const minSheetHeight = menuVisible ? devBlockHeight + BOTTOM_MENU_HEIGHT : 0
-    
-    // Pour les résultats de recherche, permettre de fermer en tirant vers le bas
-    if (!selectedPoi && currentHeight <= minSheetHeight + 80) {
-      return 'hidden'
-    }
-    
-    // Si vélocité forte vers le bas (positive) et on est sur les résultats de recherche
-    // Permettre de fermer le panneau en tirant vers le bas
-    if (velocity > 600 && level === 'searchResults') {
-      return 'hidden'
-    }
-    
-    // Si on est sur un niveau contextuel POI
-    if (level === 'poiFromSearch' || level === 'poiFromMap') {
-      // Pour les POI, NE PAS fermer en tirant vers le bas
-      // Le panneau reste au minimum à la hauteur du poi-header
-      // L'utilisateur doit utiliser le bouton X pour fermer
-      return level
-    }
-    
-    // Si on est sur searchResults, permettre de descendre mais pas de fermer
-    if (level === 'searchResults') {
-      if (velocity > 600) {
-        return 'hidden'
-      }
-      return level
-    }
-    
-    // Si vélocité forte vers le haut (négative), aller au niveau supérieur
-    if (velocity < -500) {
-      const currentIdx = order.indexOf(level)
-      if (currentIdx < order.length - 1) return order[currentIdx + 1]
-    }
-    // Si vélocité forte vers le bas (positive), aller au niveau inférieur
-    if (velocity > 500) {
-      const currentIdx = order.indexOf(level)
-      if (currentIdx > 0) return order[currentIdx - 1]
-    }
-    
-    // Sinon, trouver le niveau le plus proche parmi les niveaux de base
-    // S'assurer que la hauteur permet de recouvrir complètement le search-overlay (calcul dynamique)
-    const searchOverlay = typeof document !== 'undefined' ? document.getElementById('search-overlay') : null
-    // Utiliser le top pour permettre au panneau de recouvrir complètement le champ de saisie
-    const searchOverlayTop = searchOverlay 
-      ? searchOverlay.getBoundingClientRect().top
-      : 12 // Fallback si le search-overlay n'est pas trouvé
-    const maxAllowedHeight = vh - (menuVisible ? (devBlockHeight + 64) : 0) - searchOverlayTop
-    const clampedHeight = Math.min(currentHeight, maxAllowedHeight)
-    
-    let closest: Level = 'peek'
-    let minDiff = Infinity
-    for (const lvl of order) {
-      const h = getLevelHeight(lvl)
-      const diff = Math.abs(clampedHeight - h)
-      if (diff < minDiff) {
-        minDiff = diff
-        closest = lvl
-      }
-    }
-    return closest
-  }
-
-  const handlePointerEnd = (clientY: number | null) => {
-    if (clientY === null || startYRef.current === null) {
-      isDraggingRef.current = false
-      currentOffsetRef.current = 0
-      return
-    }
-    
-    const vh = typeof window !== 'undefined' ? window.innerHeight : 800
-    // Calculer dynamiquement la position du search-overlay
-    const searchOverlay = typeof document !== 'undefined' ? document.getElementById('search-overlay') : null
-    // Utiliser le top pour permettre au panneau de recouvrir complètement le champ de saisie
-    const searchOverlayTop = searchOverlay 
-      ? searchOverlay.getBoundingClientRect().top
-      : 12 // Fallback si le search-overlay n'est pas trouvé
-    const maxHeight = vh - (menuVisible ? (devBlockHeight + 64) : 0) - searchOverlayTop // Permettre de recouvrir le search-overlay
-    
-    const startHeight = getLevelHeight(startLevelRef.current)
-    const dragOffset = startYRef.current - clientY
-    const newHeight = Math.min(startHeight + dragOffset, maxHeight) // Limiter aussi ici
-    const target = findClosestLevel(newHeight, velocityRef.current)
-    
-    setLevel(target)
-    startYRef.current = null
-    isDraggingRef.current = false
-    currentOffsetRef.current = 0
-    velocityRef.current = 0
-    
-    if (sheetRef.current) {
-      sheetRef.current.style.transform = ''
-      sheetRef.current.style.transition = 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-      // Notifier la hauteur finale après la transition
-      const finalHeight = getLevelHeight(target)
-      if (onHeightChange) {
-        onHeightChange(finalHeight)
-      }
-    }
-  }
-
-  const handlePointerDown = (e: React.PointerEvent | React.TouchEvent) => {
-    const clientY =
-      (e as any).clientY ??
-      (e as React.TouchEvent).touches?.[0]?.clientY ??
-      (e as React.TouchEvent).changedTouches?.[0]?.clientY ??
-      null
-    if (clientY === null) return
-    
-    startYRef.current = clientY
-    startLevelRef.current = level
-    isDraggingRef.current = true
-    lastYRef.current = clientY
-    lastTimeRef.current = Date.now()
-    velocityRef.current = 0
-
-    if (sheetRef.current) {
-      sheetRef.current.style.transition = 'none'
-    }
-
-    const move = (ev: any) => {
-      if (!isDraggingRef.current) return
-      const y = ev.clientY ?? ev.touches?.[0]?.clientY ?? ev.changedTouches?.[0]?.clientY ?? null
-      if (y === null || startYRef.current === null) return
-
-      // Calculer la vélocité
-      const now = Date.now()
-      const dt = now - lastTimeRef.current
-      if (dt > 0) {
-        velocityRef.current = (y - lastYRef.current) / dt * 1000 // pixels par seconde
-      }
-      lastYRef.current = y
-      lastTimeRef.current = now
-
-      const dragOffset = startYRef.current - y
-      currentOffsetRef.current = dragOffset
-      
-      if (sheetRef.current) {
-        // Calculer la nouvelle hauteur basée sur le drag
-        // Limiter la hauteur maximale pour recouvrir complètement le search-overlay (calcul dynamique)
-        const vh = window.innerHeight
-        const searchOverlay = document.getElementById('search-overlay')
-        // Utiliser le top pour permettre au panneau de recouvrir complètement le champ de saisie
-        const searchOverlayTop = searchOverlay 
-          ? searchOverlay.getBoundingClientRect().top
-          : 12 // Fallback si le search-overlay n'est pas trouvé
-        const maxHeight = vh - (menuVisible ? (devBlockHeight + 64) : 0) - searchOverlayTop
-        const startHeight = getLevelHeight(startLevelRef.current)
-        
-        // Hauteur minimale pour garder le poi-header visible (environ 140px = header + padding)
-        // Uniquement si un POI est sélectionné
-        const poiMinHeight = selectedPoi ? 140 : 0
-        const newHeight = Math.max(poiMinHeight, Math.min(startHeight + dragOffset, maxHeight))
-        sheetRef.current.style.height = `${newHeight}px`
-        
-        // Notifier le parent de la nouvelle hauteur en temps réel
-        if (onHeightChange) {
-          onHeightChange(newHeight)
-        }
-      }
-    }
-
-    const up = (ev: any) => {
-      const y = ev.clientY ?? ev.touches?.[0]?.clientY ?? ev.changedTouches?.[0]?.clientY ?? null
-      handlePointerEnd(y)
-
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-      window.removeEventListener('touchmove', move)
-      window.removeEventListener('touchend', up)
-    }
-
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-    window.addEventListener('touchmove', move)
-    window.addEventListener('touchend', up)
   }
 
   const sorted = items
@@ -830,35 +531,12 @@ export function BottomSheet({
             }}
           >
             {featured.map((p: any) => (
-              <button
+              <PoiCard
                 key={p.id}
-                id={`poi-chip-${p.id}`}
+                poi={p}
                 onClick={() => handlePoiCardClick(p)}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 12,
-                  border: '1px solid #e2e8f0',
-                  background: '#f5f7fb',
-                  color: '#0f172a',
-                  whiteSpace: 'nowrap',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <span style={{ fontSize: 14 }}>
-                  {p.category === 'Château' ? '🏰' :
-                   p.category === 'Musée' ? '🏛️' :
-                   p.category === 'Forêt' ? '🌲' :
-                   p.category === 'Street Art' ? '🎨' :
-                   p.category === 'Patrimoine' ? '🏛️' :
-                   p.category === 'Balade' ? '🚶' : '📍'}
-                </span>
-                {p.name}
-              </button>
+                variant="chip"
+              />
             ))}
           </div>
         )}
@@ -872,92 +550,16 @@ export function BottomSheet({
               flexDirection: 'column',
               gap: 10,
               paddingBottom: 20,
-              // Ne pas limiter la hauteur pour que le contenu garde sa taille naturelle
-              // Le contenu sera masqué progressivement par overflow: hidden du parent
             }}
           >
             {sorted.map((p: any) => (
-              <div
+              <PoiCard
                 key={p.id}
-                id={`poi-card-${p.id}`}
+                poi={p}
+                isPlaying={playingPoiId === p.id}
+                onPlayPause={() => handlePoiPlayPause(p)}
                 onClick={() => handlePoiCardClick(p)}
-                style={{
-                  padding: 12,
-                  borderRadius: 12,
-                  border: '1px solid #e2e8f0',
-                  background: '#f5f7fb',
-                  display: 'flex',
-                  gap: 12,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#eef2f7'
-                  e.currentTarget.style.borderColor = '#cbd5e1'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#f5f7fb'
-                  e.currentTarget.style.borderColor = '#e2e8f0'
-                }}
-              >
-                {/* Image miniature du POI */}
-                <div
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 10,
-                    background: `linear-gradient(135deg, 
-                      hsl(${(p.name || '').split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) % 360}, 60%, 70%) 0%, 
-                      hsl(${((p.name || '').split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) + 40) % 360}, 50%, 60%) 100%)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <span style={{ fontSize: 28 }}>
-                    {p.category === 'Château' ? '🏰' :
-                     p.category === 'Musée' ? '🏛️' :
-                     p.category === 'Forêt' ? '🌲' :
-                     p.category === 'Street Art' ? '🎨' :
-                     p.category === 'Patrimoine' ? '🏛️' :
-                     p.category === 'Balade' ? '🚶' : '📍'}
-                  </span>
-                </div>
-
-                {/* Contenu texte */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>{p.name}</div>
-                  <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' } as any}>
-                    {p.shortDescription}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 'auto' }}>
-                    {p.dist !== null && (
-                      <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
-                        📍 {p.dist} m
-                      </span>
-                    )}
-                    {p.category && (
-                      <span style={{ 
-                        fontSize: 11, 
-                        color: '#64748b', 
-                        background: '#e2e8f0', 
-                        padding: '2px 6px', 
-                        borderRadius: 4 
-                      }}>
-                        {p.category}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Bouton Play/Pause avec bordure pointillée */}
-                <PlayPauseButton
-                  isPlaying={playingPoiId === p.id}
-                  onToggle={() => handlePoiPlayPause(p)}
-                  size={44}
-                />
-              </div>
+              />
             ))}
           </div>
         )}

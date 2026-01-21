@@ -1,66 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { convertToChapters, PoiWithStory } from '../types/story'
+import { PlayIcon, PauseIcon, PrevIcon as SharedPrevIcon, NextIcon as SharedNextIcon } from './icons'
 
-// Icônes similaires à celles de DevControlBlock
-function PlayIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      stroke="none"
-    >
-      <path d="M8 5.14v14l11-7-11-7z" />
-    </svg>
-  )
-}
-
-function PauseIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      stroke="none"
-    >
-      <rect x="6" y="5" width="4" height="14" rx="1" />
-      <rect x="14" y="5" width="4" height="14" rx="1" />
-    </svg>
-  )
-}
-
-function PrevIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      stroke="none"
-    >
-      <rect x="4" y="5" width="3" height="14" rx="1" />
-      <path d="M20 5v14l-10-7 10-7z" />
-    </svg>
-  )
-}
-
-function NextIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      stroke="none"
-    >
-      <path d="M4 5v14l10-7-10-7z" />
-      <rect x="17" y="5" width="3" height="14" rx="1" />
-    </svg>
-  )
-}
-
+// Icône Replay locale (spécifique au player)
 function ReplayIcon({ size = 12 }: { size?: number }) {
   return (
     <svg
@@ -461,7 +403,7 @@ export function ChapterPlayer({
             style={navButtonStyle(canGoPrev)}
             title="Chapitre précédent"
           >
-            <PrevIcon size={compact ? 12 : 14} />
+            <SharedPrevIcon size={compact ? 12 : 14} color="#475569" />
           </button>
 
           {/* Bouton Play/Pause central */}
@@ -486,7 +428,7 @@ export function ChapterPlayer({
             style={navButtonStyle(canGoNext)}
             title="Chapitre suivant"
           >
-            <NextIcon size={compact ? 12 : 14} />
+            <SharedNextIcon size={compact ? 12 : 14} color="#475569" />
           </button>
         </div>
 

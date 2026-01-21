@@ -1,0 +1,10 @@
+enabled:
+  - clean-code
+  - hexagonal
+  - typescript-2026
+  - architecture
+  - development
+  - ci-cd
+  - testing
+  - personal-preferences
+projectRulesPath: rules

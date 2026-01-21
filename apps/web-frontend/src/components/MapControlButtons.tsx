@@ -1,5 +1,5 @@
 import React from 'react'
-import { PlayButton } from './PlayButton'
+import { PlayPauseButton } from './shared'
 import { GpsIcon } from './GpsIcon'
 import { Z_INDEX } from '../config/constants'
 
@@ -69,12 +69,13 @@ export function MapControlButtons({
       {/* Bouton Play/Stop - masqué quand le StoryPanel est visible (il a son propre bouton Stop) */}
       {!(guideMode && activeStory) && (
         <div id={`${id}-play-wrapper`} style={{ pointerEvents: 'auto' }}>
-          <PlayButton
+          <PlayPauseButton
             id={`${id}-play-button`}
             playing={guideMode}
             onPlayPause={onPlayPause}
             variant="square"
             size="medium"
+            mode="play-stop"
             ariaLabel={guideMode ? 'Arrêter la visite guidée' : 'Démarrer la visite guidée'}
           />
         </div>

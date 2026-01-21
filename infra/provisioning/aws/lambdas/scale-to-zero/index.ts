@@ -143,8 +143,7 @@ async function publishMetric(desiredCount: number, status: string): Promise<void
           Timestamp: new Date(),
           Dimensions: [
             { Name: 'Service', Value: SERVICE_NAME },
-            { Name: 'Cluster', Value: CLUSTER_NAME },
-            { Name: 'Status', Value: status }
+            { Name: 'Cluster', Value: CLUSTER_NAME }
           ]
         },
         {

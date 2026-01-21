@@ -338,11 +338,15 @@ async function showQuickActions(env: EnvironmentName, mode: 'ec2' | 'ecs') {
     console.log(chalk.white('   3. View service logs'));
     console.log(chalk.white('   4. View ALB target health'));
     console.log(chalk.white('   5. Open CloudWatch Dashboard'));
+    console.log(chalk.white('   6. Refresh status'));
+    console.log(chalk.white('   7. Toggle auto-refresh (5s)'));
   } else {
     console.log(chalk.white('   1. Start EC2 instance'));
     console.log(chalk.white('   2. Stop EC2 instance'));
     console.log(chalk.white('   3. SSH into instance'));
     console.log(chalk.white('   4. View instance logs'));
+    console.log(chalk.white('   6. Refresh status'));
+    console.log(chalk.white('   7. Toggle auto-refresh (5s)'));
   }
 
   console.log(chalk.white('   0. Exit\n'));
@@ -367,7 +371,9 @@ async function showQuickActions(env: EnvironmentName, mode: 'ec2' | 'ecs') {
           }
         }
       }
-      break;
+      // Wait a bit for the action to take effect, then refresh
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return true;
     case '2':
       if (mode === 'ecs') {
         console.log(chalk.blue('\n⏸️  Scaling service to 0...'));
@@ -385,7 +391,9 @@ async function showQuickActions(env: EnvironmentName, mode: 'ec2' | 'ecs') {
           }
         }
       }
-      break;
+      // Wait a bit for the action to take effect, then refresh
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return true;
     case '3':
       if (mode === 'ecs') {
         await viewServiceLogs();
@@ -400,14 +408,16 @@ async function showQuickActions(env: EnvironmentName, mode: 'ec2' | 'ecs') {
           );
         }
       }
-      break;
+      // Continue without refresh for logs/ssh
+      return false;
     case '4':
       if (mode === 'ecs') {
         await getTargetHealth();
       } else {
         console.log(chalk.yellow('   (Instance logs viewing not yet implemented)'));
       }
-      break;
+      // Continue without refresh
+      return false;
     case '5':
       if (mode === 'ecs') {
         const dashboardUrl = `https://${AWS_CONFIG.region}.console.aws.amazon.com/cloudwatch/home?region=${AWS_CONFIG.region}#dashboards:name=CityGuided-ECS-ScaleToZero`;
@@ -419,9 +429,17 @@ async function showQuickActions(env: EnvironmentName, mode: 'ec2' | 'ecs') {
           console.log(chalk.yellow('   (Copy the URL above and open it manually)'));
         }
       }
-      break;
+      // Continue without refresh
+      return false;
+    case '6':
+      // Manual refresh
+      return true;
+    case '7':
+      // Toggle auto-refresh - return special value
+      return 'toggle-auto';
     default:
-      break;
+      // Exit on empty or 0
+      return false;
   }
 }
 
@@ -433,6 +451,15 @@ async function main() {
   const args = process.argv.slice(2);
   const env: EnvironmentName = (args[0] as EnvironmentName) || 'staging';
   const modeArg = args[1] || 'auto';
+
+  let autoRefreshEnabled = false;
+
+  // Handle Ctrl+C gracefully
+  process.on('SIGINT', () => {
+    console.log(chalk.yellow('\n\n👋 Exiting...\n'));
+    rl.close();
+    process.exit(0);
+  });
 
   console.log(chalk.bold.cyan('\n╔════════════════════════════════════════════════════════╗'));
   console.log(chalk.bold.cyan(`║         🚀 AWS Infrastructure Status                    ║`));
@@ -449,7 +476,7 @@ async function main() {
     mode = 'ec2';
   } else {
     // Try to detect
-    const ecsStatus = await getECSStatus(env);
+    const ecsStatus = await getECSStatus();
     const ec2Status = await getEC2Status(env);
 
     if (ecsStatus && !ec2Status) {
@@ -463,26 +490,81 @@ async function main() {
 
   console.log(chalk.cyan(`Mode:        ${mode.toUpperCase()}\n`));
 
-  // Display status
-  if (mode === 'ecs') {
-    const ecsStatus = await getECSStatus(env);
-    displayECSStatus(ecsStatus);
-  } else {
-    const ec2Status = await getEC2Status(env);
-    displayEC2Status(ec2Status);
+  // Function to display status
+  async function displayStatus() {
+    if (mode === 'ecs') {
+      const ecsStatus = await getECSStatus();
+      displayECSStatus(ecsStatus);
+    } else {
+      const ec2Status = await getEC2Status(env);
+      displayEC2Status(ec2Status);
+    }
   }
 
-  // Show quick actions
-  await showQuickActions(env, mode);
+  // Function to refresh the screen
+  async function refreshScreen() {
+    console.clear();
+    console.log(chalk.bold.cyan('\n╔════════════════════════════════════════════════════════╗'));
+    console.log(chalk.bold.cyan(`║         🚀 AWS Infrastructure Status                    ║`));
+    console.log(chalk.bold.cyan('╚════════════════════════════════════════════════════════╝\n'));
+    console.log(chalk.cyan(`Environment: ${env}`));
+    console.log(chalk.cyan(`Region:      ${AWS_CONFIG.region}`));
+    console.log(chalk.cyan(`Mode:        ${mode.toUpperCase()}`));
+    if (autoRefreshEnabled) {
+      console.log(chalk.green(`Auto-refresh: ON (every 5s) - Press 7 to disable`));
+    }
+    console.log();
+    await displayStatus();
+  }
+
+  // Main loop to allow refreshing status
+  let shouldContinue = true;
+  while (shouldContinue) {
+    await displayStatus();
+
+    // Show quick actions and check if we should refresh
+    const actionResult = await showQuickActions(env, mode);
+    
+    if (actionResult === 'toggle-auto') {
+      // Toggle auto-refresh
+      autoRefreshEnabled = !autoRefreshEnabled;
+      
+      if (autoRefreshEnabled) {
+        console.log(chalk.green('\n✓ Auto-refresh enabled - Status will refresh every 5 seconds'));
+        console.log(chalk.dim('   Press 7 again to disable\n'));
+      } else {
+        console.log(chalk.yellow('\n✓ Auto-refresh disabled\n'));
+      }
+      
+      // Wait a moment then refresh
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await refreshScreen();
+    } else if (actionResult === true) {
+      // Manual refresh or after action
+      await refreshScreen();
+    } else {
+      // Exit requested
+      shouldContinue = false;
+    }
+    
+    // If auto-refresh is enabled, wait 5 seconds and refresh automatically
+    if (shouldContinue && autoRefreshEnabled) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      await refreshScreen();
+    }
+  }
 
   rl.close();
 }
 
 main().catch((error) => {
-  console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
-  if (error.stack) {
-    console.error(chalk.dim(error.stack));
+  // Only show error if it's not an AbortError (Ctrl+C)
+  if (error.name !== 'AbortError') {
+    console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
+    if (error.stack) {
+      console.error(chalk.dim(error.stack));
+    }
   }
   rl.close();
-  process.exit(1);
+  process.exit(error.name === 'AbortError' ? 0 : 1);
 });

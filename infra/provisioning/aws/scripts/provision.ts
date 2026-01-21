@@ -43,6 +43,13 @@ const projectRoot = join(__dirname, '..', '..', '..', '..');
 
 const rl = createInterface({ input, output });
 
+// Handle Ctrl+C gracefully
+process.on('SIGINT', () => {
+  console.log(chalk.yellow('\n\n👋 Cancelled.\n'));
+  rl.close();
+  process.exit(0);
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ENV FILE LOADER
 // ═══════════════════════════════════════════════════════════════════════════════

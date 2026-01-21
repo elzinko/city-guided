@@ -79,6 +79,92 @@ export class CityGuidedEcsStack extends cdk.Stack {
     this.loadBalancerDnsName = alb.loadBalancerDnsName;
 
     // ============================================
+    // Lambda pour page 503 (économique: ~$0/mois)
+    // ============================================
+    const error503Lambda = new lambda.Function(this, 'Error503Lambda', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromInline(`
+const html = \`<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Service en cours de réveil - CityGuided</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;color:#fff}
+.container{max-width:600px;background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border-radius:20px;padding:40px;text-align:center;box-shadow:0 8px 32px 0 rgba(31,38,135,0.37);border:1px solid rgba(255,255,255,0.18)}
+.icon{width:100px;height:100px;margin:0 auto 30px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:50px;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.05);opacity:0.8}}
+h1{font-size:28px;font-weight:700;margin-bottom:20px}
+p{font-size:16px;line-height:1.6;margin-bottom:15px;color:rgba(255,255,255,0.9)}
+.info-box{background:rgba(255,255,255,0.15);border-radius:12px;padding:20px;margin:25px 0;border-left:4px solid rgba(255,255,255,0.5)}
+.info-box p{font-size:14px;margin-bottom:0}
+.spinner{margin:30px auto;width:50px;height:50px;border:4px solid rgba(255,255,255,0.3);border-top:4px solid #fff;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.progress-text{font-size:14px;color:rgba(255,255,255,0.8);margin-top:20px}
+.footer{margin-top:30px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;color:rgba(255,255,255,0.7)}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="icon">🌙</div>
+<h1>Service en cours de réveil</h1>
+<p>Pour économiser les ressources, notre service se met en veille après <strong>5 minutes d'inactivité</strong>.</p>
+<div class="info-box">
+<p><strong>⏱️ Temps de démarrage : 30-60 secondes</strong></p>
+<p>Le service redémarre automatiquement suite à votre demande.</p>
+</div>
+<div class="spinner"></div>
+<p class="progress-text" id="statusText">Initialisation en cours...</p>
+<div class="footer">CityGuided - Infrastructure éco-responsable 🌱</div>
+</div>
+<script>
+let attempts=0;const maxAttempts=24;
+const statusMessages=["Initialisation en cours...","Démarrage des conteneurs...","Configuration du réseau...","Chargement de l'application...","Presque prêt...","Finalisation..."];
+function updateStatus(){
+attempts++;
+const messageIndex=Math.min(Math.floor(attempts/4),statusMessages.length-1);
+document.getElementById('statusText').textContent=statusMessages[messageIndex];
+if(attempts<maxAttempts){
+setTimeout(()=>{window.location.reload()},5000);
+}else{
+document.getElementById('statusText').textContent="Le démarrage prend plus de temps que prévu. Veuillez réessayer dans quelques instants.";
+}
+}
+setTimeout(updateStatus,5000);
+</script>
+</body>
+</html>\`;
+
+exports.handler = async (event) => {
+  return {
+    statusCode: 503,
+    statusDescription: '503 Service Unavailable',
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
+    body: html
+  };
+};
+      `),
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+    });
+
+    // Add Function URL for direct access (no ALB needed, saves cost)
+    const error503Url = error503Lambda.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+    });
+
+    new cdk.CfnOutput(this, 'Error503PageUrl', {
+      value: error503Url.url,
+      description: 'URL de la page 503 (à utiliser dans Caddy ou comme fallback)',
+    });
+
+    // ============================================
     // ECS Task Definition (Fargate)
     // ============================================
     const taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef', {
@@ -238,7 +324,7 @@ export class CityGuidedEcsStack extends cdk.Stack {
           command: [
             'bash', '-c', [
               'npm install',
-              'npm run build || npx tsc',
+              'npm run build',
               'cp -r node_modules /asset-output/',
               'cp package.json /asset-output/',
               'cp dist/index.js /asset-output/index.js',
@@ -303,7 +389,7 @@ export class CityGuidedEcsStack extends cdk.Stack {
           command: [
             'bash', '-c', [
               'npm install',
-              'npm run build || npx tsc',
+              'npm run build',
               'cp -r node_modules /asset-output/',
               'cp package.json /asset-output/',
               'cp dist/index.js /asset-output/index.js',

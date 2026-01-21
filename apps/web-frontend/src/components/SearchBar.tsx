@@ -95,6 +95,8 @@ export function SearchBar({
 
       {/* Champ de saisie */}
       <input
+        id="search-query"
+        name="search-query"
         autoFocus={autoFocus}
         placeholder="Rechercher"
         value={query}
@@ -103,6 +105,7 @@ export function SearchBar({
           setQuery(e.target.value)
         }}
         onKeyDown={onKeyDown}
+        autoComplete="off"
         style={{
           flex: 1,
           background: 'transparent',

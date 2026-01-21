@@ -3,6 +3,7 @@ import '../styles/utility.css'
 import 'leaflet/dist/leaflet.css'
 import type { AppProps, AppContext } from 'next/app'
 import App from 'next/app'
+import Head from 'next/head'
 import { ConfigProvider } from '../contexts/ConfigContext'
 
 // Read SHOW_DEV_OPTIONS from runtime environment variable
@@ -33,9 +34,15 @@ class MyApp extends App<AppProps & { showDevOptions?: boolean }> {
     const { Component, pageProps, showDevOptions = false } = this.props
     
     return (
-      <ConfigProvider showDevOptions={showDevOptions}>
-        <Component {...pageProps} />
-      </ConfigProvider>
+      <>
+        <Head>
+          <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        </Head>
+        <ConfigProvider showDevOptions={showDevOptions}>
+          <Component {...pageProps} />
+        </ConfigProvider>
+      </>
     )
   }
 }

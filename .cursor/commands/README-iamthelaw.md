@@ -94,7 +94,7 @@ Scopes courants : `infra`, `rules`, `features`, `ci`, `deps`, `config`
 ## 📁 Structure des rulesets
 
 ```
-iamthelaw/
+.iamthelaw/
 ├── config/
 │   └── iamthelaw.yaml          # Configuration (rulesets activés)
 ├── core/
@@ -145,9 +145,9 @@ rules:
 
 ## 🔗 Liens utiles
 
-- [iamthelaw/README.md](../../iamthelaw/README.md) - Documentation complète iamthelaw
-- [iamthelaw/core/rulesets/README.md](../../iamthelaw/core/rulesets/README.md) - Format des rulesets
-- [iamthelaw/ENTRY.md](../../iamthelaw/ENTRY.md) - Règles actives
+- [.iamthelaw/README.md](../../.iamthelaw/README.md) - Documentation complète iamthelaw
+- [.iamthelaw/core/rulesets/README.md](../../.iamthelaw/core/rulesets/README.md) - Format des rulesets
+- [.iamthelaw/ENTRY.md](../../.iamthelaw/ENTRY.md) - Règles actives
 
 ---
 

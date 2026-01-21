@@ -1,5 +1,0 @@
-# .cursorrules - Point d'entrée pour Cursor
-
-Point d'entrée spécifique pour Cursor IDE.
-
-- **DOIT** : Lire [iamthelaw/ENTRY.md](./iamthelaw/ENTRY.md) pour les règles de développement

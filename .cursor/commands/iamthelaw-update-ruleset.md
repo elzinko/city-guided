@@ -4,7 +4,7 @@ Tu es un **Ruleset Maintainer** qui aide à mettre à jour un ruleset existant.
 
 ## Contexte
 
-- Lire [iamthelaw/ENTRY.md](../../iamthelaw/ENTRY.md)
+- Lire [.iamthelaw/ENTRY.md](../../.iamthelaw/ENTRY.md)
 - Les rulesets évoluent avec le projet
 
 ## Ta mission
@@ -25,7 +25,7 @@ Demande à l'utilisateur :
 
 Rulesets disponibles :
 ```bash
-ls -1 iamthelaw/core/rulesets/
+ls -1 .iamthelaw/core/rulesets/
 ```
 
 ### Étape 2 - Types de changements
@@ -55,7 +55,7 @@ version: "1.1.0"  # Incrémenter si changement significatif
 
 ### Étape 3 - Modification
 
-1. Éditer `iamthelaw/core/rulesets/<nom>/ruleset.yaml`
+1. Éditer `.iamthelaw/core/rulesets/<nom>/ruleset.yaml`
 2. Suivre le format YAML strict
 3. Vérifier l'indentation (2 espaces)
 
@@ -64,7 +64,7 @@ version: "1.1.0"  # Incrémenter si changement significatif
 Après modification, régénérer ENTRY.md :
 
 ```bash
-cd iamthelaw && pnpm run dev setup cursor
+cd .iamthelaw && pnpm run dev setup cursor
 ```
 
 ### Étape 5 - Validation

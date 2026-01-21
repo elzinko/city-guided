@@ -23,16 +23,3 @@ export const Z_INDEX = {
   bottomMenu: 99999, // Menu au-dessus du dev-control-block (bottom: 52px)
   mapControlButtons: 100001, // Boutons au-dessus de tout (en haut)
 } as const
-
-// Developer options visibility
-// NOTE: This is now managed via ConfigContext (see contexts/ConfigContext.tsx)
-// The value is read server-side in _app.tsx and passed via React Context
-// This allows the same Docker image to be used for staging and prod
-//
-// Uses SHOW_DEV_OPTIONS (runtime variable, no NEXT_PUBLIC_ prefix needed)
-// Default: false
-const envShowDevOptions = typeof process !== 'undefined' && process.env?.SHOW_DEV_OPTIONS
-export const SHOW_DEV_OPTIONS = envShowDevOptions === 'true' || envShowDevOptions === '1'
-
-// Export a hook-compatible version (preferred way to use in components)
-// Import useConfig from contexts/ConfigContext instead of this constant

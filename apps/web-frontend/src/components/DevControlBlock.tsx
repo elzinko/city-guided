@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Z_INDEX, SHOW_DEV_OPTIONS } from '../config/constants'
+import { Z_INDEX } from '../config/constants'
 
 type RouteOption = {
   id: string
@@ -255,7 +255,7 @@ export function DevControlBlock({
         right: 0,
         bottom: 0,
         zIndex: Z_INDEX.devControlBlock,
-        display: SHOW_DEV_OPTIONS ? 'flex' : 'none', // Masqué si SHOW_DEV_OPTIONS est false
+        display: 'flex',
         flexDirection: 'column',
         background: 'rgba(255, 255, 255, 0.98)',
         backdropFilter: 'blur(12px)',

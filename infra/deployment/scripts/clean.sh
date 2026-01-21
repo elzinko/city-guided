@@ -29,7 +29,7 @@ echo ""
 # Stop all services
 echo "📦 Stopping all services..."
 docker-compose --env-file "$CONFIG_DIR/.env.local" -f compose/docker-compose.yml down -v 2>/dev/null || true
-docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$DOCKER_DIR/docker-compose.osrm.yml" down 2>/dev/null || true
+docker-compose --env-file "$CONFIG_DIR/.env.local" -f compose/docker-compose.osrm.yml down 2>/dev/null || true
 
 echo ""
 

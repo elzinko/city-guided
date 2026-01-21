@@ -63,7 +63,7 @@ fi
 
 echo ""
 echo "🗺️  Stopping OSRM service..."
-docker compose -f compose/docker-compose.yml $ENV_FLAG -f ../docker/docker-compose.osrm.yml down 2>/dev/null || true
+docker compose -f compose/docker-compose.yml $ENV_FLAG -f compose/docker-compose.osrm.yml down 2>/dev/null || true
 
 # ───────────────────────────────────────────────────────────────────────────────
 # CI cleanup: also remove network and volumes

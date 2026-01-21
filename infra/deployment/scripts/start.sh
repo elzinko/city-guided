@@ -73,7 +73,7 @@ echo "[DEBUG] Command 2: docker compose down (app services with build)"
 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.yml -f compose/docker-compose.build.yml down --remove-orphans 2>/dev/null || true
 # Stop OSRM service
 echo "[DEBUG] Command 3: docker compose down (OSRM)"
-docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm.yml down --remove-orphans 2>/dev/null || true
+docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.osrm.yml down --remove-orphans 2>/dev/null || true
 
 # Force remove any orphaned OSRM container (prevents conflict errors)
 echo "[DEBUG] Command 4: force remove orphaned OSRM container"
@@ -108,7 +108,7 @@ elif ! docker volume inspect osrm-data >/dev/null 2>&1; then
     echo "   ⚠️  This may take a while (download + extraction + partition + customize)..."
     docker volume create osrm-data
     # Add timeout to prevent infinite blocking (30 minutes max)
-    timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm-data.yml up || {
+    timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.osrm-data.yml up || {
         echo "⚠️  OSRM data loading timed out or failed"
         echo "   Continuing anyway - OSRM service may not work until data is loaded"
     }
@@ -121,7 +121,7 @@ else
         echo "⚠️  OSRM data not loaded yet"
         echo "   Loading OSRM data (this may take a while)..."
         # Add timeout to prevent infinite blocking (30 minutes max)
-        timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm-data.yml up || {
+        timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.osrm-data.yml up || {
             echo "⚠️  OSRM data loading timed out or failed"
             echo "   Continuing anyway - OSRM service may not work until data is loaded"
         }
@@ -141,7 +141,7 @@ if [ "${SKIP_OSRM_DATA_LOAD:-false}" = "true" ]; then
     echo ""
 else
     echo "🗺️  Starting OSRM service..."
-    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f ../docker/docker-compose.osrm.yml up -d --remove-orphans
+    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.osrm.yml up -d --remove-orphans
 
     # Wait for OSRM to be ready
     echo "⏳ Waiting for OSRM to be ready..."

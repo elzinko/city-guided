@@ -3,9 +3,10 @@
 # même quand l'application est redéployée
 #
 # Usage:
-#   docker-compose --env-file .env.local -f docker-compose.osrm.yml up -d
-#   docker-compose --env-file .env.staging -f docker-compose.osrm.yml up -d
-#   docker-compose --env-file .env.prod -f docker-compose.osrm.yml up -d
+#   cd infra/deployment/compose
+#   docker compose --env-file ../../config/.env.local -f docker-compose.osrm.yml up -d
+#   docker compose --env-file ../../config/.env.staging -f docker-compose.osrm.yml up -d
+#   docker compose --env-file ../../config/.env.prod -f docker-compose.osrm.yml up -d
 
 services:
   osrm:

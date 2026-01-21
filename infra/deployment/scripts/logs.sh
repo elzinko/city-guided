@@ -198,7 +198,7 @@ show_local_logs() {
         echo "📋 Showing OSRM logs (${env})..."
         [ -n "$FOLLOW_FLAG" ] && echo "   Press Ctrl+C to exit"
         echo ""
-        docker compose -f compose/docker-compose.yml $ENV_FLAG -f ../docker/docker-compose.osrm.yml logs $FOLLOW_FLAG
+        docker compose -f compose/docker-compose.yml $ENV_FLAG -f compose/docker-compose.osrm.yml logs $FOLLOW_FLAG
     elif [ -n "$service" ]; then
         echo "📋 Showing logs for ${service} (${env})..."
         [ -n "$FOLLOW_FLAG" ] && echo "   Press Ctrl+C to exit"
@@ -216,7 +216,7 @@ show_local_logs() {
         
         echo ""
         echo "=== OSRM logs ==="
-        docker compose -f compose/docker-compose.yml $ENV_FLAG -f ../docker/docker-compose.osrm.yml logs $FOLLOW_FLAG &
+        docker compose -f compose/docker-compose.yml $ENV_FLAG -f compose/docker-compose.osrm.yml logs $FOLLOW_FLAG &
         OSRM_PID=$!
         
         # Wait for both if following

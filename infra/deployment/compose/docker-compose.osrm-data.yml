@@ -9,19 +9,20 @@
 #   4. Customize: Optimise pour l'algorithme MLD
 #
 # Usage:
+#   cd infra/deployment/compose
 #   # Avec fichier .env
-#   docker-compose --env-file .env.local -f docker-compose.osrm-data.yml up
-#   docker-compose --env-file .env.staging -f docker-compose.osrm-data.yml up
+#   docker compose --env-file ../../config/.env.local -f docker-compose.osrm-data.yml up
+#   docker compose --env-file ../../config/.env.staging -f docker-compose.osrm-data.yml up
 #
 #   # Ou override OSRM_REGION directement
-#   OSRM_REGION=europe/monaco docker-compose -f docker-compose.osrm-data.yml up
+#   OSRM_REGION=europe/monaco docker compose -f docker-compose.osrm-data.yml up
 #
 # Migration de données:
 #   1. Créer un nouveau volume: docker volume create osrm-data-new
 #   2. Charger les nouvelles données dans ce volume (modifier volumes ci-dessous)
-#   3. Arrêter OSRM: docker-compose -f docker-compose.osrm.yml down
+#   3. Arrêter OSRM: docker compose -f docker-compose.osrm.yml down
 #   4. Modifier docker-compose.osrm.yml pour pointer vers osrm-data-new
-#   5. Redémarrer OSRM: docker-compose -f docker-compose.osrm.yml up -d
+#   5. Redémarrer OSRM: docker compose -f docker-compose.osrm.yml up -d
 
 services:
   osrm-download:
@@ -157,7 +158,7 @@ services:
         echo "   Files: /data/$${REGION_NAME}.osrm*"
         echo ""
         echo "Next steps:"
-        echo "  1. Start OSRM service: docker-compose -f docker-compose.osrm.yml up -d"
+        echo "  1. Start OSRM service: docker compose -f docker-compose.osrm.yml up -d"
         echo "  2. Update OSRM_REGION_BASE in docker-compose.osrm.yml to: $${REGION_NAME}"
     depends_on:
       osrm-partition:

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0 --port $PORT",
     "type-check": "tsc --noEmit",
-    "test:e2e": "TS_NODE_PROJECT=tests/tsconfig.json cucumber-js tests/e2e/features"
+    "test:e2e": "TS_NODE_PROJECT=tests/tsconfig.json pnpm exec cucumber-js tests/e2e/features"
   },
   "dependencies": {
     "@city-guided/tts": "workspace:*",

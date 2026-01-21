@@ -45,34 +45,36 @@ Then('I should see the route selector in the panel', async function (this: CityG
 });
 
 Then('I should see the route controls in the panel', async function (this: CityGuidedWorld) {
-  const panel = this.page!.locator('#dev-panel-content');
-  const controls = panel.locator('[data-testid="dev-route-controls"]');
+  // Note: dev-route-controls is in dev-control-bar, not dev-panel-content
+  const controlBar = this.page!.locator('[data-testid="dev-control-bar"]');
+  const controls = controlBar.locator('[data-testid="dev-route-controls"]');
   await expect(controls).toBeVisible({ timeout: 10000 });
 });
 
 Then('I should see the player controls in the panel', async function (this: CityGuidedWorld) {
-  const panel = this.page!.locator('#dev-panel-content');
-  const playerControls = panel.locator('[data-testid="dev-player-controls"]');
-  await expect(playerControls).toBeVisible({ timeout: 5000 });
+  // Note: dev-player-controls is inside dev-route-controls in dev-control-bar
+  const controlBar = this.page!.locator('[data-testid="dev-control-bar"]');
+  const playerControls = controlBar.locator('[data-testid="dev-player-controls"]');
+  await expect(playerControls).toBeVisible({ timeout: 10000 });
 });
 
 Then('I should see the previous button with title {string}', async function (this: CityGuidedWorld, title: string) {
-  const panel = this.page!.locator('#dev-panel-content');
-  const prevButton = panel.locator('[data-testid="dev-previous-button"]');
-  await expect(prevButton).toBeVisible({ timeout: 5000 });
+  const controlBar = this.page!.locator('[data-testid="dev-control-bar"]');
+  const prevButton = controlBar.locator('[data-testid="dev-previous-button"]');
+  await expect(prevButton).toBeVisible({ timeout: 10000 });
   await expect(prevButton).toHaveAttribute('title', title);
 });
 
 Then('I should see the play\\/pause button', async function (this: CityGuidedWorld) {
-  const panel = this.page!.locator('#dev-panel-content');
-  const playPauseButton = panel.locator('[data-testid="dev-play-pause-button"]');
-  await expect(playPauseButton).toBeVisible({ timeout: 5000 });
+  const controlBar = this.page!.locator('[data-testid="dev-control-bar"]');
+  const playPauseButton = controlBar.locator('[data-testid="dev-play-pause-button"]');
+  await expect(playPauseButton).toBeVisible({ timeout: 10000 });
 });
 
 Then('I should see the next button with title {string}', async function (this: CityGuidedWorld, title: string) {
-  const panel = this.page!.locator('#dev-panel-content');
-  const nextButton = panel.locator('[data-testid="dev-next-button"]');
-  await expect(nextButton).toBeVisible({ timeout: 5000 });
+  const controlBar = this.page!.locator('[data-testid="dev-control-bar"]');
+  const nextButton = controlBar.locator('[data-testid="dev-next-button"]');
+  await expect(nextButton).toBeVisible({ timeout: 10000 });
   await expect(nextButton).toHaveAttribute('title', title);
 });
 

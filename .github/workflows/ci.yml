@@ -383,7 +383,7 @@ jobs:
         run: |
           echo "🦆 Updating DuckDNS with reverse proxy Elastic IP..."
           
-          # Get Elastic IP from the reverse proxy stack
+          # Get Elastic IP from the reverse proxy infrastructure
           ELASTIC_IP=$(aws ec2 describe-addresses \
             --filters "Name=tag:Name,Values=city-guided-proxy" \
             --region ${{ env.AWS_REGION }} \

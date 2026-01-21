@@ -2,7 +2,7 @@
 
 This folder contains Infrastructure as Code (AWS CDK) and provisioning scripts to deploy City-Guided on AWS using **ECS Fargate**, with configuration stored in AWS SSM Parameter Store and deployments performed via GitHub Actions.
 
-**Note**: EC2-based deployment has been removed. All environments now use ECS Fargate. See [ec2-removal.md](../../../docs/technical/ec2-removal.md) for migration details.
+**Note**: All infrastructure now uses ECS Fargate. Legacy deployment modes have been removed. See the migration documentation for details.
 
 Key idea: the source of truth for application configuration is `infra/config/.env.<environment>`. Provisioning pushes those values to SSM, and the deployment script updates the ECS task definition with these values.
 
@@ -14,17 +14,15 @@ Key idea: the source of truth for application configuration is `infra/config/.en
 - **Data Transfer**: ~$0.09/GB (first 100GB free)
 
 ### Optional: Reverse Proxy for Fixed IP
-- **EC2 t4g.nano**: ~$3/month (for DuckDNS fixed IP + HTTPS)
+- **Reverse Proxy instance**: ~$3/month (for DuckDNS fixed IP + HTTPS)
 - **Elastic IP**: Free when attached to running instance
 - **Total with proxy**: ~$24-30/month
-
-**Old EC2 setup (deprecated)**: ~$10-20/month
 
 ## Prerequisites
 
 - **Node.js 20+** and **pnpm**
 - **AWS CLI v2** installed and configured (`aws configure`)
-- AWS permissions for **CloudFormation**, **ECS**, **ECR**, **EC2**, **IAM**, **SSM**, **ELB**
+- AWS permissions for **CloudFormation**, **ECS**, **ECR**, **IAM**, **SSM**, **ELB**
 - **GitHub CLI (`gh`)** (optional but recommended) for automatic GitHub Actions secrets setup
 - **Docker** (for local testing)
 
@@ -67,7 +65,7 @@ What it does:
 3. Sets up scale-to-zero Lambda functions
 4. Creates CloudWatch dashboard for monitoring
 
-### 4) Optional: Enable reverse proxy for fixed IP
+### Optional: Reverse Proxy for Fixed IP
 
 If you want to use a custom domain with DuckDNS:
 
@@ -100,7 +98,7 @@ See [reverse-proxy-setup.md](../../../docs/technical/reverse-proxy-setup.md) for
 - Security groups for ALB and ECS tasks
 
 #### Optional: Reverse Proxy Stack (CityGuidedReverseProxyStack)
-- EC2 t4g.nano instance with Elastic IP
+- Reverse proxy instance with Elastic IP
 - Caddy reverse proxy with automatic HTTPS
 - Security group (ports 22, 80, 443)
 - Integration with DuckDNS for fixed domain name
@@ -154,23 +152,9 @@ Where it comes from:
 - `APP_VERSION` and `APP_REPO_URL` are environment variables passed to the `web` container.
 - During staging deployments, `infra/docker/scripts/deploy.sh` automatically sets `APP_VERSION` to the deployed `IMAGE_TAG`.
 
-## Connecting to the EC2 instance
+## Connecting to the reverse proxy
 
-From the repo root:
-
-```bash
-pnpm ssh staging
-```
-
-This uses AWS SSM Session Manager and reads the instance ID from SSM (`/city-guided/staging/SECRET_EC2_INSTANCE_ID`).
-
-Once connected:
-
-```bash
-cd city-guided/infra/docker
-docker ps
-docker compose logs -n 200
-```
+The reverse proxy instance (if deployed) can be accessed via AWS SSM Session Manager using the instance ID from SSM parameters.
 
 ## Common operations
 
@@ -218,14 +202,8 @@ pnpm run destroy
 
 1. Check which commit is deployed on `https://<SITE_DOMAIN>/admin` (Deploy badge).
 2. In GitHub Actions, confirm the latest run completed the `Deploy to AWS Staging` job.
-3. On the server, confirm images were pulled for the expected tag:
-   ```bash
-   cd city-guided/infra/docker
-   grep -E "^(API_IMAGE|WEB_IMAGE|APP_VERSION)=" .env.staging
-   docker images | head
-   ```
+3. Verify ECS service has been updated with new image tags.
 
 ## Notes / limitations
 
 - The CDK app currently provisions a **staging** stack. A production stack is not fully wired yet.
-- There is a cron “activity check” script in the EC2 user-data, but it does **not** stop the instance automatically today (it only logs).

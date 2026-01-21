@@ -23,7 +23,10 @@
     "stack:start": "tsx scripts/stack-control.ts start",
     "stack:stop": "tsx scripts/stack-control.ts stop",
     "stack:restart": "tsx scripts/stack-control.ts restart",
-    "cleanup:ssm": "tsx scripts/cleanup-ssm.ts"
+    "cleanup:ssm": "tsx scripts/cleanup-ssm.ts",
+    "duckdns:ip": "tsx scripts/duckdns.ts ip",
+    "duckdns:check": "tsx scripts/duckdns.ts check",
+    "duckdns:update": "tsx scripts/duckdns.ts update"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",

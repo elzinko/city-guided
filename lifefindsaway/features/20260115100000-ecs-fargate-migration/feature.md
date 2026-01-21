@@ -4,11 +4,11 @@
 FEAT-INFRA-001
 
 ## Résumé
-Migrer l'infrastructure de déploiement d'EC2 vers ECS Fargate pour bénéficier 
+Migrer l'infrastructure de déploiement vers ECS Fargate pour bénéficier 
 du scale-to-zero automatique, réduire les coûts et améliorer la maintenabilité.
 
 ## Problème adressé
-- EC2 coûte ~12-15€/mois même sans trafic
+- Infrastructure costs ~12-15€/mois même sans trafic
 - Pas de scale-to-zero natif
 - Maintenance infrastructure (patches, mises à jour)
 
@@ -39,13 +39,13 @@ maintenance infrastructure, avec un scale-up rapide en cas de besoin.
 
 ## Idées de solution (non exclusives)
 
-### Option A : Mode dual EC2/ECS
-- Flag `--mode ecs` ou `--mode ec2` dans le provisioning
+### Option A : Mode dual infrastructure/ECS
+- Flag `--mode ecs` ou `--mode legacy` dans le provisioning
 - Permet de basculer facilement
 - **Choisie et implémentée**
 
 ### Option B : Migration directe
-- Suppression EC2, passage full ECS
+- Suppression legacy, passage full ECS
 - Plus simple mais moins de rollback
 
 ## Critères d'acceptation (brouillon)
@@ -84,7 +84,7 @@ maintenance infrastructure, avec un scale-up rapide en cas de besoin.
 ## Risques pressentis
 - Cold start trop long pour UX
 - Coût ALB supérieur aux économies
-- Complexité debugging ECS vs EC2
+- Complexité debugging ECS vs infrastructure legacy
 
 ## Indicateurs de succès (indicatifs)
 - Scale-to-zero fonctionne après 5 min
@@ -95,3 +95,4 @@ maintenance infrastructure, avec un scale-up rapide en cas de besoin.
 ## Notes libres
 - Documentation technique détaillée : `docs/technical/ecs-fargate-migration.md`
 - Stack CDK : `infra/provisioning/aws/lib/ecs-stack.ts`
+- Infrastructure legacy mode has been fully removed

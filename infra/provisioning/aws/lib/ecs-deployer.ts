@@ -27,26 +27,73 @@ function execSilent(command: string): string {
 
 export class ECSDeployer implements Deployer {
   async deploy(config: DeploymentConfig): Promise<InfraOutputs> {
-    const { environment } = config;
+    const { environment, envVars } = config;
 
     console.log(chalk.blue(`\n🏗️  Deploying ECS infrastructure for ${environment}...`));
 
-    // Deploy CDK stack
-    execSilent(
-      `cd infra/provisioning/aws && npx cdk deploy CityGuidedEcsStack --require-approval never`
+    // Prepare environment variables for CDK
+    // Pass DuckDNS credentials if available (for reverse proxy stack)
+    const cdkEnv: Record<string, string> = {};
+    
+    // Copy existing environment variables
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value !== undefined) {
+        cdkEnv[key] = value;
+      }
+    }
+
+    // Pass DuckDNS token and domain to CDK
+    if (envVars?.SECRET_DUCKDNS_TOKEN) {
+      cdkEnv.SECRET_DUCKDNS_TOKEN = envVars.SECRET_DUCKDNS_TOKEN;
+    }
+
+    if (envVars?.SITE_DOMAIN) {
+      cdkEnv.SITE_DOMAIN = envVars.SITE_DOMAIN;
+    }
+
+    // Deploy all CDK stacks (ECS + ReverseProxy for staging)
+    // Pass environment via context to enable conditional stack creation
+    execSync(
+      `cd infra/provisioning/aws && npx cdk deploy --all --require-approval never --context environment=${environment}`,
+      {
+        encoding: 'utf8',
+        stdio: 'inherit',
+        cwd: projectRoot,
+        env: cdkEnv
+      }
     );
 
     // Get cluster and service info
-    const clusterName = `city-guided-${environment}`;
-    const serviceName = `city-guided-${environment}-service`;
+    const clusterName = `city-guided-cluster`;
+    const serviceName = `city-guided-service`;
 
     console.log(chalk.green(`✓ ECS infrastructure deployed`));
     console.log(chalk.gray(`   Cluster: ${clusterName}`));
     console.log(chalk.gray(`   Service: ${serviceName}`));
 
+    // Get Elastic IP from ReverseProxyStack if it was deployed (staging only)
+    let elasticIp: string | undefined;
+    if (environment === 'staging') {
+      try {
+        const outputs = execSilent(
+          `aws cloudformation describe-stacks --stack-name CityGuidedReverseProxyStack --query 'Stacks[0].Outputs' --output json`
+        );
+        const parsedOutputs = JSON.parse(outputs);
+        elasticIp = parsedOutputs.find((o: any) => o.OutputKey === 'ElasticIP')?.OutputValue;
+        
+        if (elasticIp) {
+          console.log(chalk.green(`✓ Reverse Proxy Elastic IP: ${elasticIp}`));
+        }
+      } catch {
+        // ReverseProxyStack might not be deployed yet (first run) or doesn't exist
+        console.log(chalk.dim('   No Reverse Proxy Elastic IP found (this is normal on first deployment)'));
+      }
+    }
+
     return {
       clusterName,
-      serviceName
+      serviceName,
+      publicIp: elasticIp, // Only set for staging with reverse proxy
     };
   }
 
@@ -54,9 +101,15 @@ export class ECSDeployer implements Deployer {
     console.log(chalk.blue(`\n💥 Destroying ECS infrastructure for ${environment}...`));
 
     try {
-      // Destroy CDK stack
-      execSilent(
-        `cd infra/provisioning/aws && npx cdk destroy CityGuidedEcsStack --force`
+      // Destroy all CDK stacks (ECS + ReverseProxy if present)
+      // Pass environment via context for proper stack selection
+      execSync(
+        `cd infra/provisioning/aws && npx cdk destroy --all --force --context environment=${environment}`,
+        {
+          encoding: 'utf8',
+          stdio: 'inherit',
+          cwd: projectRoot
+        }
       );
 
       console.log(chalk.green(`✓ ECS infrastructure destroyed`));

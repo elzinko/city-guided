@@ -20,7 +20,7 @@ infra/deployment/
 │   ├── logs.sh                         # Consultation logs
 │   ├── status.sh                       # État des services
 │   ├── build.sh                        # Build images
-│   ├── deploy.sh                       # Déploiement (ECS/EC2)
+│   ├── deploy.sh                       # Déploiement (ECS)
 │   └── clean.sh                        # Nettoyage complet
 └── reverse-proxy/
     ├── Caddyfile.local                 # Config Caddy local

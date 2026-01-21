@@ -12,14 +12,14 @@ export interface ReverseProxyStackProps extends cdk.StackProps {
 /**
  * Reverse Proxy Stack
  * 
- * Creates a minimal EC2 t4g.nano instance with Elastic IP that acts as a
+ * Creates a minimal reverse proxy instance with Elastic IP that acts as a
  * reverse proxy to the ECS Application Load Balancer.
  * 
  * Purpose:
  * - Provides a fixed public IP for DuckDNS
  * - Handles HTTPS/TLS with Let's Encrypt via Caddy
  * - Forwards all traffic to the ECS ALB
- * - Cost: ~$3/month (t4g.nano + minimal data transfer)
+ * - Cost: ~$3/month (instance + minimal data transfer)
  */
 export class ReverseProxyStack extends cdk.Stack {
   public readonly instance: ec2.Instance;
@@ -67,11 +67,11 @@ export class ReverseProxyStack extends cdk.Stack {
     );
 
     // ============================================
-    // IAM Role for EC2
+    // IAM Role for reverse proxy
     // ============================================
     const role = new iam.Role(this, 'ReverseProxyRole', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
-      description: 'IAM role for City-Guided reverse proxy EC2 instance',
+      description: 'IAM role for City-Guided reverse proxy instance',
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
         iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchAgentServerPolicy'),
@@ -99,10 +99,9 @@ export class ReverseProxyStack extends cdk.Stack {
       `${props.duckdnsDomain} {`,
       `  reverse_proxy http://${props.albDnsName}`,
       '  ',
-      '  # Let\'s Encrypt automatic HTTPS',
-      '  tls {',
-      `    dns duckdns ${props.duckdnsToken}`,
-      '  }',
+      '  # Let\'s Encrypt automatic HTTPS (HTTP-01 challenge)',
+      '  # Will automatically obtain and renew certificates',
+      '  # Make sure DuckDNS points to this instance IP',
       '  ',
       '  # Health check endpoint',
       '  handle /health {',
@@ -125,12 +124,35 @@ export class ReverseProxyStack extends cdk.Stack {
       'systemctl enable caddy',
       'systemctl start caddy',
       '',
+      '# Update DuckDNS with current IP',
+      '# Get the Elastic IP from instance metadata',
+      'TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null || true)',
+      'if [ -n "$TOKEN" ]; then',
+      '  PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)',
+      'else',
+      '  PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)',
+      'fi',
+      '',
+      `DUCKDNS_DOMAIN="${props.duckdnsDomain}"`,
+      `DUCKDNS_TOKEN="${props.duckdnsToken}"`,
+      'DUCKDNS_SUBDOMAIN="${DUCKDNS_DOMAIN%.duckdns.org}"',
+      '',
+      'if [ -n "$PUBLIC_IP" ] && [ -n "$DUCKDNS_TOKEN" ]; then',
+      '  echo "Updating DuckDNS: $DUCKDNS_SUBDOMAIN -> $PUBLIC_IP"',
+      '  RESPONSE=$(curl -s "https://www.duckdns.org/update?domains=$DUCKDNS_SUBDOMAIN&token=$DUCKDNS_TOKEN&ip=$PUBLIC_IP")',
+      '  if [ "$RESPONSE" = "OK" ]; then',
+      '    echo "DuckDNS updated successfully"',
+      '  else',
+      '    echo "DuckDNS update failed: $RESPONSE"',
+      '  fi',
+      'fi',
+      '',
       '# Signal successful initialization',
       'touch /var/tmp/init-complete'
     );
 
     // ============================================
-    // EC2 Instance (t4g.nano - ARM64, minimal cost)
+    // Reverse proxy instance (ARM64, minimal cost)
     // ============================================
     this.instance = new ec2.Instance(this, 'ReverseProxyInstance', {
       vpc,
@@ -179,7 +201,7 @@ export class ReverseProxyStack extends cdk.Stack {
     // ============================================
     new cdk.CfnOutput(this, 'InstanceId', {
       value: this.instance.instanceId,
-      description: 'Reverse Proxy EC2 Instance ID',
+      description: 'Reverse Proxy Instance ID',
       exportName: 'CityGuidedReverseProxyInstanceId',
     });
 

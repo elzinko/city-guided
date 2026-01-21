@@ -17,13 +17,12 @@ Explorer la migration vers une approche unifiée Docker Compose pour déployer s
    - **Impact** : Temps de CI/CD ~15-20 min au lieu de ~8-10 min
 
 2. **Dualité de configuration**
-   - `docker-compose.yml` pour local/staging/prod (EC2)
+   - `docker-compose.yml` pour local/staging/prod
    - `ecs-stack.ts` (CDK) pour ECS avec Task Definitions manuelles
    - Script `deploy.ts` qui met à jour les Task Definitions
    - **Impact** : Maintenance de 2 systèmes, risque de désynchronisation
 
 3. **Steps CI/CD incohérents**
-   - Step "Verify deployment (EC2)" s'exécute même en mode ECS (bug SSM)
    - DuckDNS update ne fonctionne pas en ECS (nécessite IP, pas DNS ALB)
 
 4. **Manque de cohérence 12-Factor**
@@ -317,7 +316,7 @@ build-images:
 **Docker Compose** :
 - ✅ `infra/deployment/compose/docker-compose.yml` : Unifié local/staging/prod
 - ✅ Configuration via `.env.*` fichiers
-- ✅ Utilisé pour local et EC2 (staging/prod)
+- ✅ Utilisé pour local et déploiements docker-compose
 
 **ECS** :
 - ✅ `infra/provisioning/aws/lib/ecs-stack.ts` : Stack CDK
@@ -374,6 +373,8 @@ build-images:
 
 ## Statut
 🔍 **EXPLORING** - 2026-01-20
+
+Note: Infrastructure legacy mode has been fully removed. All environments now use ECS.
 
 ### À explorer
 - [ ] Tester ECS Compose-X avec notre docker-compose.yml

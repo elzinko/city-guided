@@ -1,6 +1,6 @@
 /**
  * Infrastructure Deployer Interface
- * Defines the common interface for all deployment modes (EC2, ECS, etc.)
+ * Defines the common interface for infrastructure deployments (ECS)
  */
 
 export interface InfraOutputs {

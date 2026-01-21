@@ -26,7 +26,9 @@
     "cleanup:ssm": "tsx scripts/cleanup-ssm.ts",
     "duckdns:ip": "tsx scripts/duckdns.ts ip",
     "duckdns:check": "tsx scripts/duckdns.ts check",
-    "duckdns:update": "tsx scripts/duckdns.ts update"
+    "duckdns:update": "tsx scripts/duckdns.ts update",
+    "proxy:recreate": "bash scripts/recreate-proxy.sh",
+    "proxy:destroy": "npx cdk destroy CityGuidedReverseProxyStack --region eu-west-3"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",

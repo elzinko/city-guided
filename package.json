@@ -51,7 +51,9 @@
     "cleanup:ssm": "cd infra/provisioning/aws && pnpm run cleanup:ssm",
     "duckdns:ip": "cd infra/provisioning/aws && pnpm run duckdns:ip",
     "duckdns:check": "cd infra/provisioning/aws && pnpm run duckdns:check",
-    "duckdns:update": "cd infra/provisioning/aws && pnpm run duckdns:update"
+    "duckdns:update": "cd infra/provisioning/aws && pnpm run duckdns:update",
+    "proxy:recreate": "cd infra/provisioning/aws && pnpm run proxy:recreate",
+    "proxy:destroy": "cd infra/provisioning/aws && pnpm run proxy:destroy"
   },
   "devDependencies": {
     "turbo": "^1.8.6",

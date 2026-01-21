@@ -20,6 +20,8 @@ services:
       context: ../../..
       dockerfile: infra/deployment/compose/Dockerfile.frontend
       args:
+        # NEXT_PUBLIC_*: Only pass for staging/prod builds
+        # For local: use Next.js rewrites (server-side proxy via Docker network)
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
         NEXT_PUBLIC_OSRM_URL: ${NEXT_PUBLIC_OSRM_URL:-}
         NEXT_PUBLIC_SHOW_DEV_OPTIONS: ${NEXT_PUBLIC_SHOW_DEV_OPTIONS:-true}

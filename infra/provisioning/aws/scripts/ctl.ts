@@ -274,7 +274,18 @@ async function interactiveMode(env: EnvironmentName): Promise<void> {
     console.log(chalk.white('  5. 🔄 Refresh - Update status'));
     console.log(chalk.white('  0. Exit\n'));
     
-    const choice = await rl.question(chalk.cyan('Choose action: '));
+    let choice: string;
+    try {
+      choice = await rl.question(chalk.cyan('Choose action: '));
+    } catch (error: any) {
+      // Handle Ctrl+C gracefully (rl.question throws AbortError)
+      if (error.name === 'AbortError' || error.code === 'ERR_USE_AFTER_CLOSE') {
+        console.log(chalk.yellow('\n\n👋 Bye!\n'));
+        rl.close();
+        process.exit(0);
+      }
+      throw error;
+    }
     console.log();
     
     try {
@@ -288,7 +299,7 @@ async function interactiveMode(env: EnvironmentName): Promise<void> {
         case '3':
           await off(env);
           break;
-        case '4':
+        case '4': {
           const logChoice = await rl.question(chalk.cyan('Logs for [api/web]: '));
           if (logChoice === 'api' || logChoice === 'web') {
             await logs(logChoice);
@@ -297,6 +308,7 @@ async function interactiveMode(env: EnvironmentName): Promise<void> {
           }
           await rl.question(chalk.dim('Press Enter to continue...'));
           break;
+        }
         case '5':
           // Just loop to refresh
           break;
@@ -305,6 +317,7 @@ async function interactiveMode(env: EnvironmentName): Promise<void> {
           console.log(chalk.yellow('Goodbye! 👋\n'));
           rl.close();
           process.exit(0);
+          break;
         default:
           console.log(chalk.red('Invalid choice\n'));
           await rl.question(chalk.dim('Press Enter to continue...'));
@@ -325,8 +338,8 @@ async function main() {
   console.log(chalk.bold.cyan('║         🎮 Infrastructure Control                     ║'));
   console.log(chalk.bold.cyan('╚════════════════════════════════════════════════════════╝\n'));
 
-  try {
-    switch (command) {
+    try {
+      switch (command) {
       case 'start':
       case 'on':
         await start(env);
@@ -337,11 +350,12 @@ async function main() {
       case 'off':
         await off(env);
         break;
-      case 'status':
+      case 'status': {
         const status = await getStatus(env);
         displayStatus(status, env);
         break;
-      case 'logs':
+      }
+      case 'logs': {
         const service = args[1] as 'api' | 'web' | undefined;
         if (!service || (service !== 'api' && service !== 'web')) {
           console.log(chalk.yellow('Usage: pnpm infra:ctl logs [api|web]\n'));
@@ -350,6 +364,7 @@ async function main() {
         const lines = parseInt(args[2]) || 50;
         await logs(service, lines);
         break;
+      }
       case 'help':
       case '--help':
       case '-h':

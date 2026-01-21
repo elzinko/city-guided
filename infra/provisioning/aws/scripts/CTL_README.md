@@ -5,16 +5,32 @@ Quick and easy commands to manage your ECS service and scale-to-zero Lambda.
 ## Quick Start
 
 ```bash
-# Interactive mode (recommended)
+# Interactive mode (recommended for multiple operations)
 pnpm infra:ctl
 
-# Or use direct commands
-pnpm infra:start      # Start service
-pnpm infra:stop       # Scale-to-zero mode
-pnpm infra:off        # Complete shutdown
+# Check current status
+pnpm infra:status        # Quick status view
+
+# Direct commands
+pnpm infra:start         # Start service
+pnpm infra:stop          # Scale-to-zero mode
+pnpm infra:off           # Complete shutdown
 ```
 
 ## Commands
+
+### 📊 Status
+```bash
+pnpm infra:status        # Quick status check
+# or
+pnpm infra:ctl status    # Same as above
+```
+Shows:
+- ECS service desired/running count
+- Lambda enabled/disabled status
+- Current mode (ON/STANDBY/OFF)
+
+**Note**: This replaces the old `status` command with the new unified CLI.
 
 ### 🟢 Start (ON)
 ```bash
@@ -44,15 +60,6 @@ pnpm infra:off
 - **Shows page 503 OFF**: "Service temporairement arrêté" sans auto-refresh
 - **Perfect for testing 503 page** without auto-wake!
 
-### 📊 Status
-```bash
-pnpm infra:ctl status
-```
-Shows:
-- ECS service desired/running count
-- Lambda enabled/disabled status
-- Current mode (ON/STANDBY/OFF)
-
 ### 📜 Logs
 ```bash
 pnpm infra:ctl logs api     # API logs
@@ -64,7 +71,7 @@ pnpm infra:ctl logs api 100 # Last 100 lines
 ```bash
 pnpm infra:ctl
 ```
-Opens an interactive menu with all options.
+Opens an interactive menu with all options. Press **Ctrl+C** to exit gracefully.
 
 ## Modes Explained
 

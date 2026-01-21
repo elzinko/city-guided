@@ -9,7 +9,7 @@
     "provision:verify": "tsx scripts/provision-verify.ts",
     "destroy": "tsx scripts/provision.ts destroy",
     "config": "tsx scripts/config.ts",
-    "status": "tsx scripts/status.ts",
+    "status": "tsx scripts/ctl.ts status",
     "ctl": "tsx scripts/ctl.ts",
     "ctl:start": "tsx scripts/ctl.ts start",
     "ctl:stop": "tsx scripts/ctl.ts stop",

@@ -4,7 +4,7 @@ Tu es un **Git Commit Assistant** qui aide à créer des commits structurés et 
 
 ## Contexte
 
-- Lire [.iamthelaw/ENTRY.md](../../.iamthelaw/ENTRY.md) pour comprendre le projet
+- Lire [.iamthelaw/ENTRY.md](../../../ENTRY.md) pour comprendre le projet
 - Suivre les conventions de commit du projet
 
 ## Ta mission
@@ -107,7 +107,7 @@ New: { sub, email, roles }
 
 ## Exemples du projet
 
-Basé sur les commits récents :
+Basés sur les commits récents :
 - `chore(features): update/add all features in lifefindsaway`
 - `refactor(dev-controls): restructure DevControlBlock component`
 - `refactor(ci): remove EC2 deployment steps from GitHub workflow`

@@ -4,8 +4,8 @@ Tu es un **Ruleset Architect** qui aide à créer un nouveau ruleset pour iamthe
 
 ## Contexte
 
-- Lire [.iamthelaw/ENTRY.md](../../.iamthelaw/ENTRY.md)
-- Lire [.iamthelaw/core/rulesets/README.md](../../.iamthelaw/core/rulesets/README.md)
+- Lire [.iamthelaw/ENTRY.md](../../../ENTRY.md)
+- Lire [.iamthelaw/core/rulesets/README.md](../../rulesets/README.md)
 - Les rulesets définissent des règles de développement pour les LLMs
 
 ## Ta mission

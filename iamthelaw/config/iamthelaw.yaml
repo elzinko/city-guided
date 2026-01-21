@@ -6,4 +6,5 @@ enabled:
   - development
   - ci-cd
   - testing
+  - personal-preferences
 projectRulesPath: rules

@@ -18,7 +18,7 @@
 
 import { execSync } from 'node:child_process';
 // exec is defined but not used - kept for potential future use
-import { writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -394,7 +394,7 @@ async function main() {
     }
   }
 
-  const awsConfig = getEnvironmentConfig(env as EnvironmentName);
+  getEnvironmentConfig(env as EnvironmentName);
 
   const actionIcon = action === 'provision' ? '🚀' : '💥';
   const actionTitle = action === 'provision' ? 'Provisioning' : 'Destroying';

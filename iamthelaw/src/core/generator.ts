@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { existsSync, readdirSync } from 'node:fs';
 import { loadConfig, getProjectRoot } from './config.js';
-import { loadModule, type Module, type Rule } from './modules.js';
+import { loadModule, type Module } from './modules.js';
 
 export interface GeneratedFile {
   path: string;
@@ -28,7 +28,15 @@ Point d'entrée unique pour tous les LLM/agents conversationnels.
 
 - **🔴 MUST / DOIT** : Non-negotiable requirement
 - **🟡 SHOULD / DEVRAIT** : Recommended, exceptions must be justified
-- **🟢 MAY / PEUT** : Optional, use when beneficial`);
+- **🟢 MAY / PEUT** : Optional, use when beneficial
+
+## Instructions pour les LLM
+
+Les modules listés ci-dessous contiennent les règles à appliquer. Vous **DEVEZ** :
+
+1. Lire le fichier \`ruleset.yaml\` de chaque module activé au démarrage
+2. Appliquer les règles selon leur niveau (MUST/SHOULD/MAY)
+3. Ne pas réinventer des règles qui existent déjà dans les modules`);
 
   // Project context
   if (existsSync(resolve(projectRoot, 'RESUME.md'))) {
@@ -47,8 +55,11 @@ Point d'entrée unique pour tous les LLM/agents conversationnels.
 
   // Enabled modules (iamthelaw rulesets)
   const enabledModules = config.enabled
-    .map(name => loadModule(name))
-    .filter((m): m is Module => m !== null);
+    .map(name => {
+      const mod = loadModule(name);
+      return mod ? { module: mod, folderName: name } : null;
+    })
+    .filter((item): item is { module: Module; folderName: string } => item !== null);
 
   if (enabledModules.length === 0) {
     sections.push(`## Modules activés
@@ -57,8 +68,8 @@ Point d'entrée unique pour tous les LLM/agents conversationnels.
   } else {
     sections.push(`## Modules activés`);
     
-    for (const mod of enabledModules) {
-      sections.push(formatModule(mod));
+    for (const { module: mod, folderName } of enabledModules) {
+      sections.push(formatModule(mod, folderName));
     }
   }
 
@@ -83,27 +94,22 @@ ${ruleFiles.map(f => `- **DOIT** : Lire et appliquer [${f.replace('.md', '')}](.
   };
 }
 
-function formatModule(mod: Module): string {
-  const lines: string[] = [];
-  
-  lines.push(`### ${mod.name} (v${mod.version}) [${mod.source}]`);
-  lines.push(`${mod.description}`);
-  
-  for (const rule of mod.rules) {
-    lines.push(formatRule(rule));
-  }
-  
-  return lines.join('\n\n');
-}
-
-function formatRule(rule: Rule): string {
-  const levelEmoji = {
-    'MUST': '🔴',
-    'SHOULD': '🟡',
-    'MAY': '🟢',
+function formatModule(mod: Module, folderName: string): string {
+  const sourcePaths: Record<string, string> = {
+    'core': 'core/rulesets',
+    'imports': 'modules/imports',
+    'exports': 'modules/exports',
+    'custom': 'modules/custom',
   };
   
-  return `#### ${levelEmoji[rule.level]} ${rule.title} [${rule.level}]
+  const rulesetPath = `${sourcePaths[mod.source]}/${folderName}/ruleset.yaml`;
+  const ruleCount = mod.rules.length;
+  const ruleCountText = ruleCount === 1 ? '1 règle' : `${ruleCount} règles`;
+  
+  return `### ${mod.name} (v${mod.version}) [${mod.source}]
 
-${rule.content.trim()}`;
+${mod.description}
+
+- **Règles** : ${ruleCountText}
+- **Fichier** : [${folderName}/ruleset.yaml](${rulesetPath})`;
 }

@@ -148,7 +148,7 @@ async function main() {
   }
 
   switch (command) {
-    case 'ip':
+    case 'ip': {
       // Get Elastic IP from AWS
       const elasticIp = await getElasticIp();
       
@@ -159,8 +159,9 @@ async function main() {
         console.log(chalk.dim('   Run: pnpm infra:provision staging'));
       }
       break;
+    }
 
-    case 'check':
+    case 'check': {
       // Check current DuckDNS IP
       console.log(chalk.blue(`📡 Checking DNS for: ${duckdnsDomain}`));
       
@@ -181,8 +182,9 @@ async function main() {
         console.log(chalk.yellow('⚠️  Could not resolve DNS'));
       }
       break;
+    }
 
-    case 'update':
+    case 'update': {
       // Update DuckDNS with current Elastic IP
       if (!duckdnsToken) {
         console.error(chalk.red('❌ SECRET_DUCKDNS_TOKEN not set in .env file'));
@@ -209,6 +211,7 @@ async function main() {
         console.log(chalk.dim('   Check your token and domain configuration'));
       }
       break;
+    }
 
     case 'help':
     default:

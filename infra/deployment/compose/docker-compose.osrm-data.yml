@@ -17,12 +17,9 @@
 #   # Ou override OSRM_REGION directement
 #   OSRM_REGION=europe/monaco docker compose -f docker-compose.osrm-data.yml up
 #
-# Migration de données:
-#   1. Créer un nouveau volume: docker volume create osrm-data-new
-#   2. Charger les nouvelles données dans ce volume (modifier volumes ci-dessous)
-#   3. Arrêter OSRM: docker compose -f docker-compose.osrm.yml down
-#   4. Modifier docker-compose.osrm.yml pour pointer vers osrm-data-new
-#   5. Redémarrer OSRM: docker compose -f docker-compose.osrm.yml up -d
+# Pour recharger les données (nouvelle région ou mise à jour):
+#   1. Supprimer le volume: docker volume rm osrm-data
+#   2. Relancer: pnpm docker:start local
 
 services:
   osrm-download:
@@ -167,4 +164,5 @@ services:
 volumes:
   osrm-data:
     name: osrm-data
-    external: true  # Le volume doit être créé avant: docker volume create osrm-data
+    # Volume persistant pour les données OSRM prétraitées
+    # Créé automatiquement par Docker Compose si inexistant

@@ -17,6 +17,9 @@ When('I click on the virtual route toggle', async function (this: CityGuidedWorl
   const toggle = this.page!.locator('[data-testid="dev-virtual-route-toggle"]');
   await expect(toggle).toBeVisible({ timeout: 5000 });
   await toggle.click();
+  // Wait for the toggle to be visually active (green background indicates active state)
+  const switchElement = toggle.locator('#dev-virtual-route-switch');
+  await expect(switchElement).toHaveCSS('background-color', 'rgb(34, 197, 94)', { timeout: 5000 });
 });
 
 Then('I should see the dev panel content', async function (this: CityGuidedWorld) {
@@ -61,7 +64,7 @@ Then('I should see the previous button with title {string}', async function (thi
   await expect(prevButton).toHaveAttribute('title', title);
 });
 
-Then('I should see the play/pause button', async function (this: CityGuidedWorld) {
+Then('I should see the play\\/pause button', async function (this: CityGuidedWorld) {
   const panel = this.page!.locator('#dev-panel-content');
   const playPauseButton = panel.locator('[data-testid="dev-play-pause-button"]');
   await expect(playPauseButton).toBeVisible({ timeout: 5000 });

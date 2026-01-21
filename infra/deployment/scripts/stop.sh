@@ -61,9 +61,15 @@ if [ "$ENVIRONMENT" = "local" ]; then
     docker compose -f compose/docker-compose.yml -p city-guided-local down -v 2>/dev/null || true
 fi
 
-echo ""
-echo "🗺️  Stopping OSRM service..."
-docker compose -f compose/docker-compose.yml $ENV_FLAG -f compose/docker-compose.osrm.yml down 2>/dev/null || true
+# Stop OSRM if enabled or if running (cleanup)
+if [ "${ENABLE_OSRM:-false}" = "true" ]; then
+    echo ""
+    echo "🗺️  Stopping OSRM service..."
+    docker compose -f compose/docker-compose.yml $ENV_FLAG -f compose/docker-compose.osrm.yml down 2>/dev/null || true
+else
+    # Silently stop OSRM in case it was started manually
+    docker compose -f compose/docker-compose.yml $ENV_FLAG -f compose/docker-compose.osrm.yml down 2>/dev/null || true
+fi
 
 # ───────────────────────────────────────────────────────────────────────────────
 # CI cleanup: also remove network and volumes
@@ -83,8 +89,10 @@ echo "╚═══════════════════════�
 echo ""
 
 if [ "$ENVIRONMENT" != "ci" ]; then
-    echo "💡 Tip: OSRM data is preserved in the osrm-data volume"
-    echo "   To clean everything: pnpm docker:clean"
-    echo ""
+    if [ "${ENABLE_OSRM:-false}" = "true" ]; then
+        echo "💡 Tip: OSRM data is preserved in the osrm-data volume"
+        echo "   To clean everything: pnpm docker:clean"
+        echo ""
+    fi
 fi
 

@@ -14,6 +14,25 @@
 set -e
 
 # ───────────────────────────────────────────────────────────────────────────────
+# Helper: run_with_timeout - runs a command with optional timeout
+# Uses gtimeout (macOS with coreutils) or timeout (Linux), or runs without timeout
+# ───────────────────────────────────────────────────────────────────────────────
+run_with_timeout() {
+    local timeout_seconds="$1"
+    shift
+    
+    if command -v gtimeout &> /dev/null; then
+        gtimeout "$timeout_seconds" "$@"
+    elif command -v timeout &> /dev/null; then
+        timeout "$timeout_seconds" "$@"
+    else
+        # No timeout command available, run without timeout
+        echo "⚠️  timeout command not found, running without timeout limit"
+        "$@"
+    fi
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
 # Parse arguments
 # ───────────────────────────────────────────────────────────────────────────────
 
@@ -96,32 +115,22 @@ echo "🔗 Creating Docker network..."
 docker network create osrm-network 2>/dev/null || true
 
 # ───────────────────────────────────────────────────────────────────────────────
-# Check and load OSRM data
+# OSRM Service (optional - disabled by default)
 # ───────────────────────────────────────────────────────────────────────────────
+# To enable OSRM, set ENABLE_OSRM=true in your .env file or environment
+# Files are preserved in compose/docker-compose.osrm.yml and docker-compose.osrm-data.yml
 
-# Skip OSRM data loading if SKIP_OSRM_DATA_LOAD is set (useful for CI)
-if [ "${SKIP_OSRM_DATA_LOAD:-false}" = "true" ]; then
-    echo "⏭️  Skipping OSRM data loading (SKIP_OSRM_DATA_LOAD=true)"
-    echo ""
-elif ! docker volume inspect osrm-data >/dev/null 2>&1; then
-    echo "📥 OSRM data volume not found, creating and loading data..."
-    echo "   ⚠️  This may take a while (download + extraction + partition + customize)..."
-    docker volume create osrm-data
-    # Add timeout to prevent infinite blocking (30 minutes max)
-    timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.osrm-data.yml up || {
-        echo "⚠️  OSRM data loading timed out or failed"
-        echo "   Continuing anyway - OSRM service may not work until data is loaded"
-    }
-    echo ""
-else
+if [ "${ENABLE_OSRM:-false}" = "true" ]; then
+    echo "🗺️  OSRM enabled, checking data..."
+    
     # Check if OSRM data is loaded
-    OSRM_FILES=$(docker run --rm -v osrm-data:/data alpine sh -c 'ls /data/*.osrm 2>/dev/null | wc -l' || echo "0")
+    OSRM_FILES=$(docker run --rm -v osrm-data:/data alpine sh -c 'ls /data/*.osrm 2>/dev/null | wc -l' 2>/dev/null || echo "0")
     
     if [ "$OSRM_FILES" = "0" ]; then
-        echo "⚠️  OSRM data not loaded yet"
+        echo "📥 OSRM data not loaded yet"
         echo "   Loading OSRM data (this may take a while)..."
-        # Add timeout to prevent infinite blocking (30 minutes max)
-        timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.osrm-data.yml up || {
+        echo "   ⚠️  First run: download + extraction + partition + customize..."
+        run_with_timeout 1800 docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.osrm-data.yml up || {
             echo "⚠️  OSRM data loading timed out or failed"
             echo "   Continuing anyway - OSRM service may not work until data is loaded"
         }
@@ -129,17 +138,7 @@ else
     else
         echo "✅ OSRM data volume exists with data"
     fi
-fi
 
-# ───────────────────────────────────────────────────────────────────────────────
-# Start OSRM service
-# ───────────────────────────────────────────────────────────────────────────────
-
-# Skip OSRM service if SKIP_OSRM_DATA_LOAD is set (useful for CI)
-if [ "${SKIP_OSRM_DATA_LOAD:-false}" = "true" ]; then
-    echo "⏭️  Skipping OSRM service (SKIP_OSRM_DATA_LOAD=true)"
-    echo ""
-else
     echo "🗺️  Starting OSRM service..."
     docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.osrm.yml up -d --remove-orphans
 
@@ -158,6 +157,9 @@ else
         fi
         sleep 2
     done
+    echo ""
+else
+    echo "⏭️  OSRM disabled (set ENABLE_OSRM=true to enable)"
     echo ""
 fi
 
@@ -189,18 +191,21 @@ if [ "$SHOULD_BUILD_LOCAL" = "true" ]; then
     docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.yml -f compose/docker-compose.build.yml build
     echo ""
     echo "🚀 Starting application services..."
-    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.yml -f compose/docker-compose.build.yml up -d --remove-orphans
+    # Note: Don't use --remove-orphans here to avoid removing OSRM container started earlier
+    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" -f compose/docker-compose.yml -f compose/docker-compose.build.yml up -d
 elif [ -n "${API_IMAGE:-}" ] && [ -n "${WEB_IMAGE:-}" ]; then
     echo "🐳 Using pre-built images:"
     echo "   API: ${API_IMAGE}"
     echo "   Web: ${WEB_IMAGE}"
     echo ""
     echo "🚀 Starting application services..."
-    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" up -d --remove-orphans
+    # Note: Don't use --remove-orphans here to avoid removing OSRM container started earlier
+    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" up -d
 else
     echo "🐳 Using default GHCR images (latest)..."
     echo "🚀 Starting application services..."
-    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" up -d --remove-orphans
+    # Note: Don't use --remove-orphans here to avoid removing OSRM container started earlier
+    docker compose -f compose/docker-compose.yml --env-file "$ENV_FILE" up -d
 fi
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -221,16 +226,22 @@ if [ "$ENVIRONMENT" = "local" ] || [ "$ENVIRONMENT" = "ci" ]; then
     echo "🌍 URLs (via Caddy reverse proxy):"
     echo "   Frontend: http://localhost"
     echo "   API:      http://localhost/api"
-    echo "   OSRM:     http://localhost/osrm"
+    if [ "${ENABLE_OSRM:-false}" = "true" ]; then
+        echo "   OSRM:     http://localhost/osrm"
+    fi
     echo ""
     echo "   Direct access (debug):"
     echo "   Frontend: http://localhost:${WEB_PORT:-3080}"
     echo "   API:      http://localhost:${API_PORT:-4000}"
-    echo "   OSRM:     http://localhost:${OSRM_PORT:-5001}"
+    if [ "${ENABLE_OSRM:-false}" = "true" ]; then
+        echo "   OSRM:     http://localhost:${OSRM_PORT:-5001}"
+    fi
 else
     echo "🌍 URL: https://${SITE_DOMAIN:-example.com}"
     echo "   API:  https://${SITE_DOMAIN:-example.com}/api"
-    echo "   OSRM: https://${SITE_DOMAIN:-example.com}/osrm"
+    if [ "${ENABLE_OSRM:-false}" = "true" ]; then
+        echo "   OSRM: https://${SITE_DOMAIN:-example.com}/osrm"
+    fi
 fi
 
 echo ""

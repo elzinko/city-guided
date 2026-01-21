@@ -39,4 +39,5 @@ networks:
 volumes:
   osrm-data:
     name: osrm-data
-    external: true  # Le volume doit être créé avant: docker volume create osrm-data
+    # Volume persistant pour les données OSRM prétraitées
+    # Créé automatiquement par Docker Compose si inexistant

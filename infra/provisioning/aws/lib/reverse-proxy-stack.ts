@@ -2,6 +2,8 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 export interface ReverseProxyStackProps extends cdk.StackProps {
   albDnsName: string;
@@ -81,6 +83,26 @@ export class ReverseProxyStack extends cdk.Stack {
     // ============================================
     // User Data Script
     // ============================================
+    
+    // Load templates
+    const caddyfileTemplate = readFileSync(
+      join(__dirname, '../config/Caddyfile.template'),
+      'utf-8'
+    );
+    const error503Html = readFileSync(
+      join(__dirname, '../config/error-503.html'),
+      'utf-8'
+    );
+    
+    // Escape HTML for Caddy respond directive (use heredoc format)
+    const htmlForCaddy = `<<HTML\n${error503Html}\nHTML`;
+    
+    // Replace template variables
+    const caddyfile = caddyfileTemplate
+      .replace(/{{DOMAIN}}/g, props.duckdnsDomain)
+      .replace(/{{ALB_DNS}}/g, props.albDnsName)
+      .replace(/{{ERROR_HTML}}/g, htmlForCaddy);
+    
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       '#!/bin/bash',
@@ -107,33 +129,12 @@ export class ReverseProxyStack extends cdk.Stack {
       'setcap cap_net_bind_service=+ep /usr/local/bin/caddy',
       '',
       '# Create Caddyfile',
-      'cat > /etc/caddy/Caddyfile <<EOF',
-      `${props.duckdnsDomain} {`,
-      `  reverse_proxy http://${props.albDnsName}`,
-      '  ',
-      '  # Let\'s Encrypt automatic HTTPS (HTTP-01 challenge)',
-      '  # Will automatically obtain and renew certificates',
-      '  # Make sure DuckDNS points to this instance IP',
-      '  ',
-      '  # Health check endpoint',
-      '  handle /health {',
-      '    respond "OK" 200',
-      '  }',
-      '  ',
-      '  # Logging',
-      '  log {',
-      '    output file /var/log/caddy/access.log',
-      '    format json',
-      '  }',
-      '}',
-      'EOF',
-      '',
-      '# Create log directory',
-      'mkdir -p /var/log/caddy',
-      'chown caddy:caddy /var/log/caddy',
+      'cat > /etc/caddy/Caddyfile <<\'CADDYFILE_EOF\'',
+      caddyfile,
+      'CADDYFILE_EOF',
       '',
       '# Create systemd service',
-      'cat > /etc/systemd/system/caddy.service <<EOF',
+      'cat > /etc/systemd/system/caddy.service <<\'SERVICE_EOF\'',
       '[Unit]',
       'Description=Caddy',
       'Documentation=https://caddyserver.com/docs/',
@@ -155,7 +156,7 @@ export class ReverseProxyStack extends cdk.Stack {
       '',
       '[Install]',
       'WantedBy=multi-user.target',
-      'EOF',
+      'SERVICE_EOF',
       '',
       '# Enable and start Caddy',
       'systemctl daemon-reload',

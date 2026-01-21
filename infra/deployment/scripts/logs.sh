@@ -171,9 +171,11 @@ show_local_logs() {
     if [ ! -f "$ENV_FILE" ]; then
         echo "⚠️  ${ENV_FILE} not found, using defaults"
         ENV_FLAG=""
+        export COMPOSE_PROJECT_NAME="city-guided-${env}"
     else
         source "$ENV_FILE"
         ENV_FLAG="--env-file $ENV_FILE"
+        export COMPOSE_PROJECT_NAME="${PROJECT_NAME:-city-guided}-${env}"
     fi
     
     # In CI, don't follow logs (show snapshot only)

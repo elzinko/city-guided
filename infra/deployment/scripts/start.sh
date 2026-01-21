@@ -79,6 +79,11 @@ echo "[DEBUG] Loading environment file: $ENV_FILE"
 source "$ENV_FILE"
 echo "[DEBUG] Environment file loaded successfully"
 
+# Set COMPOSE_PROJECT_NAME for docker-compose stack naming
+# Format: city-guided-<environment> (ex: city-guided-local, city-guided-staging)
+export COMPOSE_PROJECT_NAME="${PROJECT_NAME:-city-guided}-${ENVIRONMENT}"
+echo "[DEBUG] COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME"
+
 # ───────────────────────────────────────────────────────────────────────────────
 # Stop existing containers first (to avoid port conflicts)
 # ───────────────────────────────────────────────────────────────────────────────
@@ -214,7 +219,7 @@ fi
 
 echo ""
 echo "📋 Container status:"
-docker ps --filter "name=${PROJECT_NAME:-city-guided}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+docker ps --filter "name=${COMPOSE_PROJECT_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 echo ""
 echo "╔════════════════════════════════════════════════════════╗"

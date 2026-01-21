@@ -36,9 +36,12 @@ echo ""
 if [ -f "$ENV_FILE" ]; then
     source "$ENV_FILE"
     ENV_FLAG="--env-file $ENV_FILE"
+    # Set COMPOSE_PROJECT_NAME for docker-compose stack naming
+    export COMPOSE_PROJECT_NAME="${PROJECT_NAME:-city-guided}-${ENVIRONMENT}"
 else
     echo "⚠️  ${ENV_FILE} not found, using defaults"
     ENV_FLAG=""
+    export COMPOSE_PROJECT_NAME="city-guided-${ENVIRONMENT}"
 fi
 
 # ───────────────────────────────────────────────────────────────────────────────

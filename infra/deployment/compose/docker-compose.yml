@@ -12,7 +12,8 @@
 #   Prod:    docker compose --env-file ../../config/.env.prod up -d
 
 # Nom de la stack (préfixe pour tous les conteneurs/réseaux/volumes)
-name: city-guided
+# Format: city-guided-<environment> (ex: city-guided-local, city-guided-staging, city-guided-prod)
+name: ${COMPOSE_PROJECT_NAME:-city-guided}
 
 services:
   api:
@@ -98,7 +99,7 @@ volumes:
   caddy_config:
 
 networks:
-  # Réseau par défaut pour l'application (nommé automatiquement: city-guided_default)
+  # Réseau par défaut pour l'application (nommé automatiquement: <COMPOSE_PROJECT_NAME>_default)
   default:
 
   # Réseau partagé avec OSRM (optionnel pour local)

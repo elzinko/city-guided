@@ -35,6 +35,10 @@ echo ""
 # Check if env file exists
 if [ ! -f "$ENV_FILE" ]; then
     echo "⚠️  ${ENV_FILE} not found, using defaults"
+    export COMPOSE_PROJECT_NAME="city-guided-${ENVIRONMENT}"
+else
+    source "$ENV_FILE"
+    export COMPOSE_PROJECT_NAME="${PROJECT_NAME:-city-guided}-${ENVIRONMENT}"
 fi
 
 # Build images using the build override file

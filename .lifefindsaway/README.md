@@ -6,19 +6,52 @@ Feature ideation and exploration system for Phase A (exploration).
 
 **Sister project**: [iamthelaw](../iamthelaw/) (LLM rules management)
 
+## Installation
+
+### Local usage (recommended for now)
+
+**1. Setup the package (once):**
+```bash
+cd .lifefindsaway
+pnpm install --ignore-workspace
+pnpm build
+pnpm link --global
+```
+
+**2. Use in another project:**
+```bash
+cd ~/mon-autre-projet
+pnpm link --global @bacasable/lifefindsaway
+```
+
+**3. After making changes:**
+```bash
+cd .lifefindsaway
+pnpm build  # Changes are immediately available in linked projects
+```
+
+### Alternative: GitHub Packages (for later)
+
+See [PUBLISH.md](./PUBLISH.md) for publishing to GitHub Packages.
+
 ## Quick Start
 
 ```bash
-cd lifefindsaway
-pnpm install --ignore-workspace
-
 # List available modules
-pnpm dev module list
+lifefindsaway module list
 
 # Import a module
-pnpm dev module import ideation-basics
+lifefindsaway module import ideation-basics
 
 # Setup for Cursor (adds reference + installs commands)
+lifefindsaway setup cursor
+```
+
+Or in development:
+
+```bash
+cd .lifefindsaway
+pnpm dev module list
 pnpm dev setup cursor
 ```
 
@@ -35,6 +68,18 @@ lifefindsaway rule list               # List custom rules
 lifefindsaway setup cursor            # Setup for Cursor
 lifefindsaway setup claude            # Setup for Claude Code
 ```
+
+### Cursor Commands
+
+After running `lifefindsaway setup cursor`, the following commands are available in Cursor:
+
+- **Brainstorm** : Explore and ideate on new features
+- **Create Epic** : Structure a large feature set into an Epic with multiple Features
+- **Explore Feature** : Deep dive into a specific Feature
+- **Review Planning** : Review and update the planning.md file
+- **Report Bug** : Document a bug with structured information
+
+Access these via Cursor's command palette (`Cmd+Shift+P` or `Ctrl+Shift+P`).
 
 ## How It Works
 
@@ -63,7 +108,8 @@ lifefindsaway/
 ├── config/
 │   └── lifefindsaway.yaml # Configuration
 ├── features/              # Feature documents
-├── templates/             # Feature/Epic templates
+├── bugs/                  # Bug reports (Phase A documentation)
+├── templates/             # Feature/Epic/Bug templates
 ├── planning.md            # Status tracking
 ├── ENTRY.md               # Generated entry point
 └── README.md
@@ -120,18 +166,24 @@ agile/
 ├── templates/
 │   ├── epic.md              # Template d'idéation d'Epic
 │   ├── feature.md           # Template d'idéation de Feature
+│   ├── bug.md               # Template de rapport de bug
 │   ├── planning.md          # Template d'initialisation du planning
 │   └── task.md              # (optionnel) Template de Task
-└── features/
-    ├── 20260117100000-epic-mon-epic/           # Epic = répertoire parent
-    │   ├── epic.md                              # Description de l'Epic
-    │   ├── 20260117100100-feature-a/           # Feature enfant
-    │   │   └── feature.md
-    │   └── 20260117100200-feature-b/
-    │       └── feature.md
-    ├── 20260116143012-feature-standalone/      # Feature sans Epic
-    │   ├── feature.md
-    │   └── notes.md
+├── features/
+│   ├── 20260117100000-epic-mon-epic/           # Epic = répertoire parent
+│   │   ├── epic.md                              # Description de l'Epic
+│   │   ├── 20260117100100-feature-a/           # Feature enfant
+│   │   │   └── feature.md
+│   │   └── 20260117100200-feature-b/
+│   │       └── feature.md
+│   ├── 20260116143012-feature-standalone/      # Feature sans Epic
+│   │   ├── feature.md
+│   │   └── notes.md
+│   └── ...
+└── bugs/
+    ├── 20260121190427-bottomsheet-close-discover/
+    │   ├── bug.md                               # Rapport de bug
+    │   └── notes.md                             # (optionnel)
     └── ...
 ```
 
@@ -177,7 +229,48 @@ Exemple :
 - Peut être **enfant d'une Epic** (dans son répertoire) ou **standalone**
 - **Seul élément tracké** dans `planning.md`
 
-### Structure hiérarchique
+---
+
+## Bugs
+
+### Philosophie des bugs
+- Les **bugs sont documentés** dans la Phase A mais **non trackés dans `planning.md`**
+- Un bug peut être référencé dans une Feature ou Epic si pertinent
+- La résolution peut être planifiée séparément (nouvelle Feature, fix technique, etc.)
+- **Phase A = documentation du problème**, pas obligation de résolution immédiate
+
+### Structure d'un bug
+- Répertoire préfixé : `YYYYMMDDHHMMSS-bug-slug/`
+- Fichier principal : `bug.md` (basé sur `templates/bug.md`)
+- Fichiers optionnels : `notes.md`, screenshots, logs
+
+### Format du répertoire
+```
+YYYYMMDDHHMMSS-bug-<slug>/
+```
+
+Exemples :
+```
+20260121190427-bottomsheet-close-discover/
+20260121150000-search-filter-crash/
+```
+
+### Règles
+- Le préfixe temporel garantit un **tri chronologique stable**
+- Le préfixe `bug-` facilite l'identification
+- Le nom du répertoire **ne change jamais**
+- Les bugs peuvent être liés à des Features mais restent indépendants dans leur documentation
+
+### Cycle de vie d'un bug
+1. **Documentation** : Création du rapport dans `bugs/` (Phase A)
+2. **Référencement** : (optionnel) Lien dans une Feature/Epic concernée
+3. **Planification** : (optionnel) Création d'une Feature dédiée au fix si nécessaire
+4. **Résolution** : Implémentation du fix
+5. **Archive** : Le bug reste documenté pour historique
+
+---
+
+## Structure hiérarchique (Features)
 
 ```
 features/

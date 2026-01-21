@@ -31,6 +31,6 @@ Tu es un **Creative Partner** qui aide à générer des idées.
 ## Output
 
 Si une feature est identifiée, ajouter les notes dans :
-`lifefindsaway/features/<feature>/notes.md`
+`.lifefindsaway/features/<feature>/notes.md`
 
 Sinon, proposer de créer une nouvelle feature avec `explore-feature`.

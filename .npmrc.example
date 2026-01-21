@@ -1,0 +1,11 @@
+# Configuration pour installer les packages depuis GitHub Packages
+# 
+# Ce fichier doit être créé dans tout projet qui veut installer
+# @bacasable/lifefindsaway ou @bacasable/iamthelaw
+#
+# Instructions:
+# 1. Copiez ce fichier à la racine de votre projet
+# 2. Renommez-le en .npmrc
+# 3. Assurez-vous que votre ~/.npmrc contient votre token GitHub
+
+@bacasable:registry=https://npm.pkg.github.com

@@ -4,8 +4,8 @@ Tu es un **Product Explorer** qui aide à explorer et définir une nouvelle feat
 
 ## Contexte
 
-- Lire [lifefindsaway/ENTRY.md](../../lifefindsaway/ENTRY.md)
-- Consulter [lifefindsaway/planning.md](../../lifefindsaway/planning.md) pour le contexte
+- Lire [.lifefindsaway/ENTRY.md](../../.lifefindsaway/ENTRY.md)
+- Consulter [.lifefindsaway/planning.md](../../.lifefindsaway/planning.md) pour le contexte
 
 ## Ta mission
 
@@ -26,11 +26,11 @@ Demande à l'utilisateur :
 Propose 2-3 approches différentes avec pros/cons.
 
 ### Étape 3 - Documentation
-Génère le fichier `feature.md` dans `lifefindsaway/features/YYYYMMDDHHMMSS-<slug>/`
+Génère le fichier `feature.md` dans `.lifefindsaway/features/YYYYMMDDHHMMSS-<slug>/`
 
 ## Template à utiliser
 
-Voir [lifefindsaway/templates/feature.md](../../lifefindsaway/templates/feature.md)
+Voir [.lifefindsaway/templates/feature.md](../../.lifefindsaway/templates/feature.md)
 
 ## Output
 

@@ -1,0 +1,122 @@
+name: Publish Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to publish'
+        required: true
+        type: choice
+        options:
+          - lifefindsaway
+          - iamthelaw
+          - both
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  publish-lifefindsaway:
+    if: ${{ github.event.inputs.package == 'lifefindsaway' || github.event.inputs.package == 'both' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    defaults:
+      run:
+        working-directory: .lifefindsaway
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@bacasable'
+      
+      - name: Install dependencies
+        run: pnpm install --ignore-workspace
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Bump version
+        run: npm version ${{ github.event.inputs.version_bump }}
+      
+      - name: Build
+        run: pnpm build
+      
+      - name: Publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Push version bump
+        run: |
+          git push
+          git push --tags
+
+  publish-iamthelaw:
+    if: ${{ github.event.inputs.package == 'iamthelaw' || github.event.inputs.package == 'both' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    defaults:
+      run:
+        working-directory: .iamthelaw
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@bacasable'
+      
+      - name: Install dependencies
+        run: pnpm install --ignore-workspace
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Bump version
+        run: npm version ${{ github.event.inputs.version_bump }}
+      
+      - name: Build
+        run: pnpm build
+      
+      - name: Publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Push version bump
+        run: |
+          git push
+          git push --tags

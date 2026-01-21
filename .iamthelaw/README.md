@@ -6,19 +6,52 @@ LLM rules management system. Import, export, and share development rules.
 
 **Sister project**: [lifefindsaway](../agile/) (ideation & feature exploration)
 
+## Installation
+
+### Local usage (recommended for now)
+
+**1. Setup the package (once):**
+```bash
+cd .iamthelaw
+pnpm install --ignore-workspace
+pnpm build
+pnpm link --global
+```
+
+**2. Use in another project:**
+```bash
+cd ~/mon-autre-projet
+pnpm link --global @bacasable/iamthelaw
+```
+
+**3. After making changes:**
+```bash
+cd .iamthelaw
+pnpm build  # Changes are immediately available in linked projects
+```
+
+### Alternative: GitHub Packages (for later)
+
+See [PUBLISH.md](./PUBLISH.md) for publishing to GitHub Packages.
+
 ## Quick Start
 
 ```bash
-cd iamthelaw
-pnpm install --ignore-workspace
-
 # List available modules
-pnpm dev module list
+iamthelaw module list
 
 # Import a module
-pnpm dev module import clean-code
+iamthelaw module import clean-code
 
 # Setup for Cursor
+iamthelaw setup cursor
+```
+
+Or in development:
+
+```bash
+cd .iamthelaw
+pnpm dev module list
 pnpm dev setup cursor
 ```
 

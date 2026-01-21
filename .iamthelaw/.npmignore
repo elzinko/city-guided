@@ -1,0 +1,18 @@
+# Source files
+src/
+tsconfig.json
+*.ts
+!*.d.ts
+
+# Development
+node_modules/
+*.log
+.DS_Store
+
+# Testing
+test/
+*.test.*
+
+# Project-specific (not needed in package)
+modules/
+pnpm-lock.yaml

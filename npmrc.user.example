@@ -1,0 +1,24 @@
+# Configuration npm pour GitHub Packages
+# 
+# À placer dans votre répertoire home: ~/.npmrc
+# 
+# Instructions:
+# 1. Créez un Personal Access Token (PAT) sur GitHub:
+#    https://github.com/settings/tokens/new
+#    Permissions requises: read:packages, write:packages
+# 
+# 2. Remplacez YOUR_GITHUB_TOKEN ci-dessous par votre token
+# 
+# 3. Copiez ce fichier dans votre home:
+#    cp npmrc.user.example ~/.npmrc
+#    
+# IMPORTANT: Ne commitez JAMAIS ce fichier avec votre token!
+
+@bacasable:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
+
+# Alternative: Utiliser une variable d'environnement (plus sécurisé)
+# //npm.pkg.github.com/:_authToken=${NPM_TOKEN}
+#
+# Puis dans votre shell:
+# export NPM_TOKEN=your_github_token_here

@@ -1,15 +1,41 @@
 {
-  "name": "iamthelaw",
+  "name": "@bacasable/iamthelaw",
   "version": "0.1.0",
   "description": "I AM THE LAW! 🎬 LLM rules management system - Install, share, and enforce development rules",
   "type": "module",
+  "author": "Bacasable",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bacasable/city-guided.git",
+    "directory": ".iamthelaw"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "iamthelaw": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "core",
+    "ENTRY.md",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build",
+    "prepack": "pnpm build",
+    "publish:patch": "npm version patch && npm publish",
+    "publish:minor": "npm version minor && npm publish",
+    "publish:major": "npm version major && npm publish"
   },
   "keywords": [
     "llm",

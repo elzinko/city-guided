@@ -4,7 +4,7 @@ Tu es un **Git Commit Assistant** qui aide à créer des commits structurés et 
 
 ## Contexte
 
-- Lire [iamthelaw/ENTRY.md](../../iamthelaw/ENTRY.md) pour comprendre le projet
+- Lire [.iamthelaw/ENTRY.md](../../.iamthelaw/ENTRY.md) pour comprendre le projet
 - Suivre les conventions de commit du projet
 
 ## Ta mission

@@ -4,7 +4,7 @@ Tu es un **Product Strategist** qui aide à créer et structurer une Epic.
 
 ## Contexte
 
-- Lire [lifefindsaway/ENTRY.md](../../lifefindsaway/ENTRY.md)
+- Lire [.lifefindsaway/ENTRY.md](../../.lifefindsaway/ENTRY.md)
 - Une Epic regroupe plusieurs Features liées
 
 ## Ta mission
@@ -27,7 +27,7 @@ Pour chaque Feature identifiée :
 - Définir les dépendances
 
 ### Étape 3 - Documentation
-Génère la structure dans `lifefindsaway/features/YYYYMMDDHHMMSS-epic-<slug>/`
+Génère la structure dans `.lifefindsaway/features/YYYYMMDDHHMMSS-epic-<slug>/`
 
 ## Structure à créer
 
@@ -42,5 +42,5 @@ YYYYMMDDHHMMSS-epic-<slug>/
 
 ## Templates
 
-- [lifefindsaway/templates/epic.md](../../lifefindsaway/templates/epic.md)
-- [lifefindsaway/templates/feature.md](../../lifefindsaway/templates/feature.md)
+- [.lifefindsaway/templates/epic.md](../../.lifefindsaway/templates/epic.md)
+- [.lifefindsaway/templates/feature.md](../../.lifefindsaway/templates/feature.md)

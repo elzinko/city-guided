@@ -1,15 +1,42 @@
 {
-  "name": "lifefindsaway",
+  "name": "@bacasable/lifefindsaway",
   "version": "0.1.0",
   "description": "Life Finds a Way 🦖 Feature ideation and exploration system",
   "type": "module",
+  "author": "Bacasable",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bacasable/city-guided.git",
+    "directory": ".lifefindsaway"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "lifefindsaway": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "core",
+    "templates",
+    "ENTRY.md",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build",
+    "prepack": "pnpm build",
+    "publish:patch": "npm version patch && npm publish",
+    "publish:minor": "npm version minor && npm publish",
+    "publish:major": "npm version major && npm publish"
   },
   "keywords": [
     "llm",

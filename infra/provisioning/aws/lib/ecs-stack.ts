@@ -68,11 +68,18 @@ export class CityGuidedEcsStack extends cdk.Stack {
 
     // ============================================
     // Application Load Balancer
+    // Limité à 2 AZs pour réduire les coûts (minimum requis)
     // ============================================
+    const publicSubnets = vpc.selectSubnets({
+      subnetType: ec2.SubnetType.PUBLIC,
+      availabilityZones: ['eu-west-3a', 'eu-west-3b'], // Seulement 2 AZs
+    });
+
     const alb = new elbv2.ApplicationLoadBalancer(this, 'ALB', {
       vpc,
       internetFacing: true,
-      loadBalancerName: 'city-guided-alb'
+      loadBalancerName: 'city-guided-alb',
+      vpcSubnets: publicSubnets, // Limite à 2 AZs
     });
 
     // Store ALB DNS name for reverse proxy stack

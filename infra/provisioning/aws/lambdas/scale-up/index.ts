@@ -44,10 +44,13 @@ export const handler = async (): Promise<ScaleUpResponse> => {
     }
     
     // 3. Vérifier les métriques ALB globales (fonctionne même quand service à 0)
+    // Utiliser une fenêtre de 2 minutes avec période de 30s pour une détection plus réactive
+    // Les métriques CloudWatch peuvent avoir un délai, donc on vérifie les dernières 2 minutes
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - 2 * 60 * 1000); // 2 dernières minutes
     
-    const metricResponse = await cloudwatchClient.send(new GetMetricStatisticsCommand({
+    // Vérifier RequestCount (toutes les requêtes)
+    const requestCountResponse = await cloudwatchClient.send(new GetMetricStatisticsCommand({
       Namespace: 'AWS/ApplicationELB',
       MetricName: 'RequestCount',
       Dimensions: [
@@ -55,23 +58,67 @@ export const handler = async (): Promise<ScaleUpResponse> => {
       ],
       StartTime: startTime,
       EndTime: endTime,
-      Period: 60,
+      Period: 30, // Période de 30 secondes pour une détection plus fine
+      Statistics: ['Sum']
+    }));
+    
+    // Vérifier aussi HTTPCode_Target_5XX_Count (erreurs quand service à 0)
+    // Cela peut aider à détecter les requêtes même si RequestCount a un délai
+    const errorCountResponse = await cloudwatchClient.send(new GetMetricStatisticsCommand({
+      Namespace: 'AWS/ApplicationELB',
+      MetricName: 'HTTPCode_Target_5XX_Count',
+      Dimensions: [
+        { Name: 'LoadBalancer', Value: ALB_FULL_NAME }
+      ],
+      StartTime: startTime,
+      EndTime: endTime,
+      Period: 30,
       Statistics: ['Sum']
     }));
     
     // 4. Analyser les données de métriques
-    const datapoints = metricResponse.Datapoints || [];
-    const recentRequests = datapoints.reduce((sum, dp) => sum + (dp.Sum || 0), 0);
+    const requestDatapoints = requestCountResponse.Datapoints || [];
+    const errorDatapoints = errorCountResponse.Datapoints || [];
+    
+    // Calculer le total des requêtes
+    const totalRequests = requestDatapoints.reduce((sum, dp) => sum + (dp.Sum || 0), 0);
+    const totalErrors = errorDatapoints.reduce((sum, dp) => sum + (dp.Sum || 0), 0);
+    
+    // Vérifier aussi les datapoints les plus récents (dernière minute)
+    const oneMinuteAgo = new Date(endTime.getTime() - 60 * 1000);
+    const recentRequestDatapoints = requestDatapoints.filter(dp => 
+      dp.Timestamp && new Date(dp.Timestamp) >= oneMinuteAgo
+    );
+    const recentErrorDatapoints = errorDatapoints.filter(dp => 
+      dp.Timestamp && new Date(dp.Timestamp) >= oneMinuteAgo
+    );
+    const recentRequests = recentRequestDatapoints.reduce((sum, dp) => sum + (dp.Sum || 0), 0);
+    const recentErrors = recentErrorDatapoints.reduce((sum, dp) => sum + (dp.Sum || 0), 0);
     
     console.log('Request analysis', {
-      totalDatapoints: datapoints.length,
+      requestDatapoints: requestDatapoints.length,
+      errorDatapoints: errorDatapoints.length,
+      recentRequestDatapoints: recentRequestDatapoints.length,
+      recentErrorDatapoints: recentErrorDatapoints.length,
+      totalRequests,
+      totalErrors,
       recentRequests,
-      timeWindow: 'Last 2 minutes'
+      recentErrors,
+      timeWindow: 'Last 2 minutes (checking last 1 minute for reactivity)'
     });
     
-    // 5. Si des requêtes sont détectées et le service est à 0, scale-up
-    if (recentRequests > 0) {
-      console.log('Requests detected while service at zero, scaling up to 1');
+    // 5. Si des requêtes sont détectées (même via erreurs 5XX quand service à 0) et le service est à 0, scale-up
+    // On utilise totalRequests OU totalErrors pour capturer toutes les requêtes, même avec délai de métriques
+    // Les erreurs 5XX peuvent indiquer des requêtes qui arrivent quand le service est à 0
+    const hasActivity = totalRequests > 0 || totalErrors > 0;
+    
+    if (hasActivity) {
+      console.log('Activity detected while service at zero, scaling up to 1', {
+        totalRequests,
+        totalErrors,
+        recentRequests,
+        recentErrors
+      });
       
       await ecsClient.send(new UpdateServiceCommand({
         cluster: CLUSTER_NAME,
@@ -81,13 +128,17 @@ export const handler = async (): Promise<ScaleUpResponse> => {
       
       await publishMetric(1, 'scaled_up');
       
+      const reason = totalRequests > 0 
+        ? `${totalRequests} requests detected in last 2 minutes (${recentRequests} in last minute)`
+        : `${totalErrors} 5XX errors detected in last 2 minutes (${recentErrors} in last minute) - indicating incoming requests`;
+      
       return {
         statusCode: 200,
         body: JSON.stringify({
           action: 'scaled_up',
           previousDesiredCount: currentDesiredCount,
           newDesiredCount: 1,
-          reason: `${recentRequests} requests detected in last 2 minutes`
+          reason
         })
       };
     } else {

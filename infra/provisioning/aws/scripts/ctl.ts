@@ -401,7 +401,7 @@ async function getCaddyInstanceId(): Promise<string | null> {
     );
     const outputs = stackResponse.Stacks?.[0]?.Outputs || [];
     return outputs.find(o => o.OutputKey === 'InstanceId')?.OutputValue || null;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -573,7 +573,7 @@ async function diagnose(env: EnvironmentName): Promise<void> {
           warnings.push(`ALB returning unexpected status: ${statusCode}`);
           report.push(chalk.yellow(`   ⚠ Health check: ${statusCode}`));
         }
-      } catch (error) {
+      } catch {
         issues.push('ALB health check failed (timeout or network error)');
         report.push(chalk.red('   ❌ Health check: FAILED'));
       }
@@ -642,6 +642,8 @@ async function diagnose(env: EnvironmentName): Promise<void> {
   try {
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
+    report.push(chalk.dim(`   Start time: ${startTime.toISOString()}`));
+    report.push(chalk.dim(`   End time: ${endTime.toISOString()}`));
     
     // This would require CloudWatch API call - simplified for now
     report.push(chalk.dim('   (Check CloudWatch dashboard for detailed metrics)'));
@@ -805,9 +807,11 @@ async function main() {
         break;
       case 'caddy-logs':
       case 'caddy':
-        const lines = parseInt(args[1]) || 50;
-        await showCaddyLogs(lines);
-        break;
+        { 
+          const lines = parseInt(args[1]) || 50;
+          await showCaddyLogs(lines);
+          break; 
+        }
       case 'help':
       case '--help':
       case '-h':

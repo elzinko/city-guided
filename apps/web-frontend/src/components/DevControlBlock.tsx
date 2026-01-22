@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Z_INDEX } from '../config/constants'
+import { NavigationButton } from './shared'
 
 type RouteOption = {
   id: string
@@ -660,28 +661,23 @@ export function DevControlBlock({
               }}
             >
               {/* Bouton précédent */}
-              <button
+              <NavigationButton
                 id="dev-previous-button"
-                data-testid="dev-previous-button"
+                testId="dev-previous-button"
+                direction="previous"
                 onClick={onPrevious}
                 disabled={!onPrevious}
-                aria-label="POI précédent"
+                ariaLabel="POI précédent"
+                title="POI précédent"
                 style={{
                   ...compactButtonStyle,
                   width: BUTTON_HEIGHT,
                   padding: 0,
                   background: '#ffffff',
                   color: '#64748b',
-                  cursor: onPrevious ? 'pointer' : 'not-allowed',
-                  opacity: onPrevious ? 1 : 0.5,
+                  border: '1px solid #cbd5e1',
                 }}
-                title="POI précédent"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M8.715 6.36694L14.405 10.6669C14.7769 10.9319 14.9977 11.3603 14.9977 11.8169C14.9977 12.2736 14.7769 12.702 14.405 12.9669L8.715 17.6669C8.23425 18.0513 7.58151 18.1412 7.01475 17.9011C6.44799 17.6611 6.05842 17.1297 6 16.5169V7.51694C6.05842 6.90422 6.44799 6.37281 7.01475 6.13275C7.58151 5.89269 8.23425 5.9826 8.715 6.36694Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" transform="rotate(180 10.5 12)"/>
-                  <path d="M18 6.01697V18.017" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" transform="rotate(180 18 12)"/>
-                </svg>
-              </button>
+              />
 
               {/* Bouton play/pause */}
               <button
@@ -708,28 +704,23 @@ export function DevControlBlock({
               </button>
 
               {/* Bouton suivant */}
-              <button
+              <NavigationButton
                 id="dev-next-button"
-                data-testid="dev-next-button"
+                testId="dev-next-button"
+                direction="next"
                 onClick={onNext}
                 disabled={!onNext}
-                aria-label="POI suivant"
+                ariaLabel="POI suivant"
+                title="POI suivant"
                 style={{
                   ...compactButtonStyle,
                   width: BUTTON_HEIGHT,
                   padding: 0,
                   background: '#ffffff',
                   color: '#64748b',
-                  cursor: onNext ? 'pointer' : 'not-allowed',
-                  opacity: onNext ? 1 : 0.5,
+                  border: '1px solid #cbd5e1',
                 }}
-                title="POI suivant"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M8.715 6.36694L14.405 10.6669C14.7769 10.9319 14.9977 11.3603 14.9977 11.8169C14.9977 12.2736 14.7769 12.702 14.405 12.9669L8.715 17.6669C8.23425 18.0513 7.58151 18.1412 7.01475 17.9011C6.44799 17.6611 6.05842 17.1297 6 16.5169V7.51694C6.05842 6.90422 6.44799 6.37281 7.01475 6.13275C7.58151 5.89269 8.23425 5.9826 8.715 6.36694Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M18 6.01697V18.017" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
+              />
             </div>
 
             {/* Vitesse */}

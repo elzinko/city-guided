@@ -62,6 +62,47 @@ Placeholder coloré pour les guides sans image.
 <GuidePlaceholder title="Mon Guide" size={70} />
 ```
 
+### NavigationButton
+
+Bouton de navigation réutilisable pour précédent/suivant. Utilise la même icône avec rotation pour garantir la cohérence visuelle.
+
+**Usage:**
+```tsx
+// Bouton précédent
+<NavigationButton
+  id="prev-button"
+  testId="prev-button"
+  direction="previous"
+  onClick={handlePrevious}
+  disabled={!hasPrevious}
+  ariaLabel="Élément précédent"
+  title="Élément précédent"
+  style={buttonStyle}
+/>
+
+// Bouton suivant
+<NavigationButton
+  id="next-button"
+  testId="next-button"
+  direction="next"
+  onClick={handleNext}
+  disabled={!hasNext}
+  ariaLabel="Élément suivant"
+  title="Élément suivant"
+  style={buttonStyle}
+/>
+```
+
+**Props:**
+- `id`: Identifiant HTML
+- `testId`: Attribut `data-testid`
+- `direction`: `'previous'` | `'next'` (détermine la rotation de l'icône)
+- `onClick`: Handler de clic
+- `disabled`: État désactivé
+- `ariaLabel`: Label d'accessibilité
+- `title`: Tooltip
+- `style`: Styles personnalisés
+
 ## Principes
 
 - **Réutilisabilité**: Chaque composant doit être utilisable dans plusieurs contextes

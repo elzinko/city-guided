@@ -62,11 +62,13 @@ export const handler = async (): Promise<ScaleUpResponse> => {
       Statistics: ['Sum']
     }));
     
-    // Vérifier aussi HTTPCode_Target_5XX_Count (erreurs quand service à 0)
-    // Cela peut aider à détecter les requêtes même si RequestCount a un délai
+    // Vérifier HTTPCode_ELB_5XX_Count (erreurs générées par l'ALB lui-même)
+    // IMPORTANT: Quand le service est à 0, il n'y a pas de target, donc l'ALB génère les 503
+    // HTTPCode_Target_5XX_Count serait 0 car il n'y a pas de target pour répondre
+    // HTTPCode_ELB_5XX_Count contient TOUTES les requêtes qui arrivent quand service=0
     const errorCountResponse = await cloudwatchClient.send(new GetMetricStatisticsCommand({
       Namespace: 'AWS/ApplicationELB',
-      MetricName: 'HTTPCode_Target_5XX_Count',
+      MetricName: 'HTTPCode_ELB_5XX_Count',
       Dimensions: [
         { Name: 'LoadBalancer', Value: ALB_FULL_NAME }
       ],
@@ -107,9 +109,10 @@ export const handler = async (): Promise<ScaleUpResponse> => {
       timeWindow: 'Last 2 minutes (checking last 1 minute for reactivity)'
     });
     
-    // 5. Si des requêtes sont détectées (même via erreurs 5XX quand service à 0) et le service est à 0, scale-up
-    // On utilise totalRequests OU totalErrors pour capturer toutes les requêtes, même avec délai de métriques
-    // Les erreurs 5XX peuvent indiquer des requêtes qui arrivent quand le service est à 0
+    // 5. Si des requêtes sont détectées et le service est à 0, scale-up
+    // - totalRequests: requêtes routées vers un target (quand service running)
+    // - totalErrors: erreurs 503 générées par l'ALB (quand service à 0, pas de target)
+    // En mode STANDBY (service=0), seul totalErrors sera > 0 car l'ALB génère les 503
     const hasActivity = totalRequests > 0 || totalErrors > 0;
     
     if (hasActivity) {
@@ -129,8 +132,8 @@ export const handler = async (): Promise<ScaleUpResponse> => {
       await publishMetric(1, 'scaled_up');
       
       const reason = totalRequests > 0 
-        ? `${totalRequests} requests detected in last 2 minutes (${recentRequests} in last minute)`
-        : `${totalErrors} 5XX errors detected in last 2 minutes (${recentErrors} in last minute) - indicating incoming requests`;
+        ? `${totalRequests} requests routed to targets in last 2 minutes`
+        : `${totalErrors} ALB 503 errors in last 2 minutes (users waiting for service to wake up)`;
       
       return {
         statusCode: 200,

@@ -3,7 +3,11 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface ReverseProxyStackProps extends cdk.StackProps {
   albDnsName: string;
@@ -89,8 +93,9 @@ export class ReverseProxyStack extends cdk.Stack {
       join(__dirname, '../config/Caddyfile.template'),
       'utf-8'
     );
+    // Use standby page by default (update-caddy.ts will change it later if needed)
     const error503Html = readFileSync(
-      join(__dirname, '../config/error-503.html'),
+      join(__dirname, '../config/error-503-standby.html'),
       'utf-8'
     );
     

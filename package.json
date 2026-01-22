@@ -38,6 +38,7 @@
     "infra:off": "cd infra/provisioning/aws && pnpm run ctl:off",
     "infra:on": "cd infra/provisioning/aws && pnpm run ctl:on",
     "infra:update:caddy": "cd infra/provisioning/aws && pnpm run update:caddy",
+    "infra:update:lambdas": "cd infra/provisioning/aws && pnpm run update:lambdas",
     "infra:logs": "cd infra/provisioning/aws && pnpm run logs",
     "infra:logs:api": "cd infra/provisioning/aws && pnpm run logs:api",
     "infra:logs:web": "cd infra/provisioning/aws && pnpm run logs:web",

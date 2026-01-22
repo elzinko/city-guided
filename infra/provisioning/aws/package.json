@@ -35,6 +35,7 @@
     "duckdns:check": "tsx scripts/duckdns.ts check",
     "duckdns:update": "tsx scripts/duckdns.ts update",
     "update:caddy": "tsx scripts/update-caddy.ts",
+    "update:lambdas": "tsx scripts/update-lambdas.ts",
     "proxy:recreate": "bash scripts/recreate-proxy.sh",
     "proxy:destroy": "npx cdk destroy CityGuidedReverseProxyStack --region eu-west-3"
   },

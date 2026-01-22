@@ -99,14 +99,10 @@ export class ReverseProxyStack extends cdk.Stack {
       'utf-8'
     );
     
-    // Escape HTML for Caddy respond directive (use heredoc format)
-    const htmlForCaddy = `<<HTML\n${error503Html}\nHTML`;
-    
-    // Replace template variables
+    // Replace template variables (HTML is served as a separate file, not inline)
     const caddyfile = caddyfileTemplate
       .replace(/{{DOMAIN}}/g, props.duckdnsDomain)
-      .replace(/{{ALB_DNS}}/g, props.albDnsName)
-      .replace(/{{ERROR_HTML}}/g, htmlForCaddy);
+      .replace(/{{ALB_DNS}}/g, props.albDnsName);
     
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
@@ -132,6 +128,13 @@ export class ReverseProxyStack extends cdk.Stack {
       '',
       '# Set capabilities for binding to privileged ports',
       'setcap cap_net_bind_service=+ep /usr/local/bin/caddy',
+      '',
+      '# Create error page directory and HTML file',
+      'mkdir -p /var/www/caddy',
+      'cat > /var/www/caddy/error-503.html <<\'ERROR_HTML_EOF\'',
+      error503Html,
+      'ERROR_HTML_EOF',
+      'chown -R caddy:caddy /var/www/caddy',
       '',
       '# Create Caddyfile',
       'cat > /etc/caddy/Caddyfile <<\'CADDYFILE_EOF\'',

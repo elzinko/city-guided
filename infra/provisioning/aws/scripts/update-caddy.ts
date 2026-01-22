@@ -208,14 +208,24 @@ if sudo /usr/local/bin/caddy validate --config /tmp/Caddyfile.new; then
   sudo mv /tmp/Caddyfile.new /etc/caddy/Caddyfile
   sudo chown caddy:caddy /etc/caddy/Caddyfile
   
-  # Reload Caddy (zero downtime)
-  if sudo systemctl reload caddy; then
-    echo "✓ Caddy reloaded successfully"
+  # Reload or start Caddy (reload for zero downtime if running, start if not)
+  if sudo systemctl is-active --quiet caddy; then
+    if sudo systemctl reload caddy; then
+      echo "✓ Caddy reloaded successfully"
+    else
+      echo "✗ Caddy reload failed, restoring backup"
+      sudo mv /etc/caddy/Caddyfile.backup /etc/caddy/Caddyfile
+      sudo systemctl reload caddy
+      exit 1
+    fi
   else
-    echo "✗ Caddy reload failed, restoring backup"
-    sudo mv /etc/caddy/Caddyfile.backup /etc/caddy/Caddyfile
-    sudo systemctl reload caddy
-    exit 1
+    if sudo systemctl start caddy; then
+      echo "✓ Caddy started successfully"
+    else
+      echo "✗ Caddy start failed, restoring backup"
+      sudo mv /etc/caddy/Caddyfile.backup /etc/caddy/Caddyfile
+      exit 1
+    fi
   fi
 else
   echo "✗ Caddyfile validation failed"

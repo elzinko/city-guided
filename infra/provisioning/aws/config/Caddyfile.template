@@ -1,5 +1,5 @@
 # Caddyfile template for CityGuided reverse proxy
-# Variables: {{DOMAIN}}, {{ALB_DNS}}, {{ERROR_HTML}}
+# Variables: {{DOMAIN}}, {{ALB_DNS}}
 
 {{DOMAIN}} {
   reverse_proxy http://{{ALB_DNS}} {

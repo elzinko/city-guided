@@ -147,7 +147,7 @@ export function getAwsConsoleUrls(_env: EnvironmentName): Record<string, string>
     'ECS Task Definitions': `${baseUrl}/ecs/v2/task-definitions?region=${region}&search=city-guided`,
     
     // Load Balancing
-    'Application Load Balancer': `${baseUrl}/ec2/home?region=${region}#LoadBalancers:search=city-guided-alb-v2`,
+    'Application Load Balancer': `${baseUrl}/ec2/home?region=${region}#LoadBalancers:search=city-guided-alb`,
     'Target Groups': `${baseUrl}/ec2/home?region=${region}#TargetGroups:search=city-guided`,
     
     // Logging

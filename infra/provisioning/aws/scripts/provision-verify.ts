@@ -173,14 +173,14 @@ async function verifyECS(env: EnvironmentName): Promise<void> {
   console.log(chalk.cyan('\n🔀 Application Load Balancer'));
   try {
     const albDns = execSilent(
-      `aws elbv2 describe-load-balancers --names city-guided-alb-v2 --region ${AWS_CONFIG.region} --query "LoadBalancers[0].DNSName" --output text`
+      `aws elbv2 describe-load-balancers --names city-guided-alb --region ${AWS_CONFIG.region} --query "LoadBalancers[0].DNSName" --output text`
     );
     
     console.log(chalk.green(`   ✓ ALB DNS: ${albDns}`));
     
     // Check target health
     const albArn = execSilent(
-      `aws elbv2 describe-load-balancers --names city-guided-alb-v2 --region ${AWS_CONFIG.region} --query "LoadBalancers[0].LoadBalancerArn" --output text`
+      `aws elbv2 describe-load-balancers --names city-guided-alb --region ${AWS_CONFIG.region} --query "LoadBalancers[0].LoadBalancerArn" --output text`
     );
     
     const targetGroups = execSilent(

@@ -172,7 +172,7 @@ async function verifyECSApp(env: EnvironmentName): Promise<void> {
   try {
     const albDns = execSilent(`
       aws elbv2 describe-load-balancers \\
-        --names city-guided-alb-v2 \\
+        --names city-guided-alb \\
         --region ${AWS_CONFIG.region} \\
         --query 'LoadBalancers[0].DNSName' \\
         --output text

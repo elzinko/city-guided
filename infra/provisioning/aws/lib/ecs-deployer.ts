@@ -257,32 +257,152 @@ export class ECSDeployer implements Deployer {
       }
     }
 
-    // Clean up EventBridge Rules (for Lambda triggers)
-    const eventRules = ['CityGuidedEcsStack-ScaleToZeroRule', 'CityGuidedEcsStack-ScaleUpRule'];
-    for (const rule of eventRules) {
-      try {
-        // First remove targets, then delete rule
-        execSilent(`aws events remove-targets --rule "${rule}" --ids "Target0" --region eu-west-3 2>/dev/null || true`);
-        execSilent(`aws events delete-rule --name "${rule}" --region eu-west-3 2>/dev/null || true`);
-        console.log(chalk.green(`   ✓ Deleted EventBridge Rule: ${rule}`));
-      } catch {
-        // Rule doesn't exist - fine
+    // Clean up EventBridge Rules (CDK generates names with suffixes like CityGuidedEcsStack-ScaleUpRuleXXXXX-XXX)
+    try {
+      const rulesResult = execSilent(
+        `aws events list-rules --name-prefix "CityGuidedEcsStack-" --region eu-west-3 --output json 2>/dev/null || echo '{"Rules":[]}'`
+      );
+      const rules = JSON.parse(rulesResult);
+      for (const rule of rules.Rules || []) {
+        console.log(chalk.yellow(`   ⚠️  Found orphaned EventBridge Rule: ${rule.Name}`));
+        try {
+          // List and remove all targets first
+          const targetsResult = execSilent(
+            `aws events list-targets-by-rule --rule "${rule.Name}" --region eu-west-3 --output json 2>/dev/null || echo '{"Targets":[]}'`
+          );
+          const targets = JSON.parse(targetsResult);
+          if (targets.Targets && targets.Targets.length > 0) {
+            const targetIds = targets.Targets.map((t: any) => t.Id).join(' ');
+            execSilent(`aws events remove-targets --rule "${rule.Name}" --ids ${targetIds} --region eu-west-3 2>/dev/null || true`);
+          }
+          execSilent(`aws events delete-rule --name "${rule.Name}" --region eu-west-3 2>/dev/null || true`);
+          console.log(chalk.green(`   ✓ Deleted EventBridge Rule: ${rule.Name}`));
+        } catch {
+          // Rule deletion failed - continue
+        }
       }
+    } catch {
+      // No rules or error - continue
     }
 
-    // Clean up Lambda Functions
-    const lambdas = [
-      'CityGuidedEcsStack-ScaleUpLambda',
-      'CityGuidedEcsStack-ScaleToZeroLambda', 
-      'CityGuidedEcsStack-Error503Lambda'
-    ];
-    for (const lambda of lambdas) {
-      try {
-        execSilent(`aws lambda delete-function --function-name "${lambda}" --region eu-west-3 2>/dev/null || true`);
-        console.log(chalk.green(`   ✓ Deleted Lambda Function: ${lambda}`));
-      } catch {
-        // Lambda doesn't exist - fine
+    // Clean up Lambda Functions (CDK generates names with suffixes like CityGuidedEcsStack-ScaleUpLambda15B5729A-XXX)
+    try {
+      const lambdasResult = execSilent(
+        `aws lambda list-functions --region eu-west-3 --output json 2>/dev/null || echo '{"Functions":[]}'`
+      );
+      const lambdas = JSON.parse(lambdasResult);
+      for (const lambda of lambdas.Functions || []) {
+        if (lambda.FunctionName.startsWith('CityGuidedEcsStack-')) {
+          console.log(chalk.yellow(`   ⚠️  Found orphaned Lambda: ${lambda.FunctionName}`));
+          try {
+            execSilent(`aws lambda delete-function --function-name "${lambda.FunctionName}" --region eu-west-3 2>/dev/null || true`);
+            console.log(chalk.green(`   ✓ Deleted Lambda Function: ${lambda.FunctionName}`));
+          } catch {
+            // Lambda deletion failed - continue
+          }
+        }
       }
+    } catch {
+      // No lambdas or error - continue
+    }
+
+    // Clean up ECS Cluster (if orphaned)
+    try {
+      const clusterResult = execSilent(
+        `aws ecs describe-clusters --clusters city-guided-cluster --region eu-west-3 --output json 2>/dev/null || echo '{"clusters":[]}'`
+      );
+      const clusters = JSON.parse(clusterResult);
+      for (const cluster of clusters.clusters || []) {
+        if (cluster.status === 'ACTIVE') {
+          console.log(chalk.yellow(`   ⚠️  Found orphaned ECS Cluster: ${cluster.clusterName}`));
+          // First, delete any services
+          try {
+            execSilent(`aws ecs update-service --cluster city-guided-cluster --service city-guided-service --desired-count 0 --region eu-west-3 2>/dev/null || true`);
+            execSilent(`aws ecs delete-service --cluster city-guided-cluster --service city-guided-service --force --region eu-west-3 2>/dev/null || true`);
+            console.log(chalk.green(`   ✓ Deleted ECS Service: city-guided-service`));
+          } catch {
+            // Service might not exist
+          }
+          // Then delete cluster
+          try {
+            execSilent(`aws ecs delete-cluster --cluster city-guided-cluster --region eu-west-3 2>/dev/null || true`);
+            console.log(chalk.green(`   ✓ Deleted ECS Cluster: city-guided-cluster`));
+          } catch {
+            // Cluster deletion failed
+          }
+        }
+      }
+    } catch {
+      // No cluster or error - continue
+    }
+
+    // Clean up orphaned EIPs with CityGuided tags (ReverseProxy EIP if orphaned)
+    try {
+      const eipResult = execSilent(
+        `aws ec2 describe-addresses --region eu-west-3 --output json`
+      );
+      const addresses = JSON.parse(eipResult);
+      
+      for (const eip of addresses.Addresses || []) {
+        const isCityGuided = eip.Tags?.some((t: any) => t.Key === 'Project' && t.Value === 'CityGuided');
+        if (isCityGuided && !eip.InstanceId) {
+          // EIP is tagged but not associated with an instance = orphaned
+          console.log(chalk.yellow(`   ⚠️  Found orphaned CityGuided EIP: ${eip.PublicIp}`));
+          try {
+            execSilent(`aws ec2 release-address --allocation-id "${eip.AllocationId}" --region eu-west-3`);
+            console.log(chalk.green(`   ✓ Released orphaned EIP: ${eip.PublicIp}`));
+          } catch {
+            console.log(chalk.dim(`   (EIP release failed)`));
+          }
+        }
+      }
+    } catch {
+      // Error - continue
+    }
+
+    // Clean up IAM Roles created by CDK (CityGuidedEcsStack-*)
+    try {
+      const rolesResult = execSilent(
+        `aws iam list-roles --path-prefix "/" --region eu-west-3 --output json 2>/dev/null || echo '{"Roles":[]}'`
+      );
+      const roles = JSON.parse(rolesResult);
+      for (const role of roles.Roles || []) {
+        if (role.RoleName.startsWith('CityGuidedEcsStack-') || role.RoleName.startsWith('CityGuidedReverseProxyStack-')) {
+          console.log(chalk.yellow(`   ⚠️  Found orphaned IAM Role: ${role.RoleName}`));
+          try {
+            // First detach all policies
+            const attachedResult = execSilent(
+              `aws iam list-attached-role-policies --role-name "${role.RoleName}" --output json 2>/dev/null || echo '{"AttachedPolicies":[]}'`
+            );
+            const attached = JSON.parse(attachedResult);
+            for (const policy of attached.AttachedPolicies || []) {
+              execSilent(`aws iam detach-role-policy --role-name "${role.RoleName}" --policy-arn "${policy.PolicyArn}" 2>/dev/null || true`);
+            }
+            // Delete inline policies
+            const inlineResult = execSilent(
+              `aws iam list-role-policies --role-name "${role.RoleName}" --output json 2>/dev/null || echo '{"PolicyNames":[]}'`
+            );
+            const inline = JSON.parse(inlineResult);
+            for (const policyName of inline.PolicyNames || []) {
+              execSilent(`aws iam delete-role-policy --role-name "${role.RoleName}" --policy-name "${policyName}" 2>/dev/null || true`);
+            }
+            // Delete instance profiles
+            try {
+              execSilent(`aws iam remove-role-from-instance-profile --instance-profile-name "${role.RoleName}" --role-name "${role.RoleName}" 2>/dev/null || true`);
+              execSilent(`aws iam delete-instance-profile --instance-profile-name "${role.RoleName}" 2>/dev/null || true`);
+            } catch {
+              // No instance profile
+            }
+            // Delete role
+            execSilent(`aws iam delete-role --role-name "${role.RoleName}" 2>/dev/null || true`);
+            console.log(chalk.green(`   ✓ Deleted IAM Role: ${role.RoleName}`));
+          } catch {
+            console.log(chalk.dim(`   (IAM Role deletion failed - might have dependencies)`));
+          }
+        }
+      }
+    } catch {
+      // No roles or error - continue
     }
 
     console.log(chalk.green(`✓ Orphan cleanup complete`));

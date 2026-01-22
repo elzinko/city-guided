@@ -482,7 +482,31 @@ exports.handler = async (event) => {
       },
       statistic: 'Sum',
       period: cdk.Duration.minutes(1),
-      label: 'ALB Request Count',
+      label: 'Total Requests',
+    });
+
+    // Widget 3b: Erreurs 5XX ALB (Target)
+    const alb5xxMetric = new cloudwatch.Metric({
+      namespace: 'AWS/ApplicationELB',
+      metricName: 'HTTPCode_Target_5XX_Count',
+      dimensionsMap: {
+        LoadBalancer: alb.loadBalancerFullName,
+      },
+      statistic: 'Sum',
+      period: cdk.Duration.minutes(1),
+      label: '5XX Errors (Target)',
+    });
+
+    // Widget 3c: Erreurs 5XX ALB (ELB)
+    const albELB5xxMetric = new cloudwatch.Metric({
+      namespace: 'AWS/ApplicationELB',
+      metricName: 'HTTPCode_ELB_5XX_Count',
+      dimensionsMap: {
+        LoadBalancer: alb.loadBalancerFullName,
+      },
+      statistic: 'Sum',
+      period: cdk.Duration.minutes(1),
+      label: '5XX Errors (ELB)',
     });
 
     // Widget 4: Nombre de tâches ECS en cours d'exécution
@@ -522,8 +546,9 @@ exports.handler = async (event) => {
         },
       }),
       new cloudwatch.GraphWidget({
-        title: 'Requêtes ALB',
+        title: 'Requêtes ALB & Erreurs 5XX',
         left: [albRequestMetric],
+        right: [alb5xxMetric, albELB5xxMetric],
         width: 24,
         height: 6,
       }),

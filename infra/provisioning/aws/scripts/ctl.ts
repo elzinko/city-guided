@@ -14,6 +14,7 @@
  *   on        - Alias for 'start'
  *   logs      - View service logs (api or web)
  *   status    - Show current status
+ *   links     - Show AWS Console links (dashboards, ECS, logs, etc.)
  *   [none]    - Interactive mode
  */
 
@@ -26,7 +27,7 @@ import { execSync } from 'child_process';
 import chalk from 'chalk';
 import { createInterface } from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
-import { AWS_CONFIG, getEnvironmentConfig, type EnvironmentName } from '../constants.js';
+import { AWS_CONFIG, getEnvironmentConfig, getAwsConsoleUrls, type EnvironmentName } from '../constants.js';
 
 const AWS_REGION = AWS_CONFIG.region;
 const ecsClient = new ECSClient({ region: AWS_REGION });
@@ -325,6 +326,66 @@ async function logs(service: 'api' | 'web', lines: number = 50): Promise<void> {
   }
 }
 
+async function showLinks(env: EnvironmentName): Promise<void> {
+  const urls = getAwsConsoleUrls(env);
+  
+  console.log(chalk.bold.cyan('🔗 AWS Console Links\n'));
+  
+  // Group links by category
+  const categories = {
+    '📊 Dashboards & Monitoring': [
+      'CloudWatch Dashboard (Scale-to-Zero)',
+      'CloudWatch Container Insights',
+      'CloudWatch Alarms',
+      'Cost Explorer (Service Costs)',
+    ],
+    '🐳 ECS Resources': [
+      'ECS Cluster',
+      'ECS Service',
+      'ECS Tasks (Running)',
+      'ECS Task Definitions',
+    ],
+    '⚖️ Load Balancing': [
+      'Application Load Balancer',
+      'Target Groups',
+    ],
+    '📝 Logging': [
+      'CloudWatch Logs (API)',
+      'CloudWatch Logs (Web)',
+      'CloudWatch Log Groups (All)',
+    ],
+    '⚡ Serverless': [
+      'Lambda Functions',
+    ],
+    '⚙️ Configuration': [
+      'SSM Parameters',
+      'CloudFormation Stack',
+      'ECR Repositories',
+    ],
+    '🌐 Networking': [
+      'VPC Dashboard',
+      'Security Groups',
+    ],
+    '🔄 Reverse Proxy': [
+      'EC2 Instance (Caddy)',
+    ],
+  };
+  
+  for (const [category, linkNames] of Object.entries(categories)) {
+    console.log(chalk.bold.white(category));
+    for (const name of linkNames) {
+      const url = urls[name];
+      if (url) {
+        console.log(chalk.dim('  •'), chalk.cyan(name));
+        console.log(chalk.dim('    '), chalk.gray(url));
+      }
+    }
+    console.log();
+  }
+  
+  console.log(chalk.dim('💡 Tip: Copy any URL above and paste in your browser\n'));
+}
+
 async function interactiveMode(env: EnvironmentName): Promise<void> {
   while (true) {
     const status = await getStatus(env);
@@ -335,7 +396,8 @@ async function interactiveMode(env: EnvironmentName): Promise<void> {
     console.log(chalk.white('  2. 🟡 STANDBY - Scale-to-zero mode (scale=0, lambda=on)'));
     console.log(chalk.white('  3. 🔴 OFF     - Complete shutdown (scale=0, lambda=off)'));
     console.log(chalk.white('  4. 📜 Logs    - View recent logs'));
-    console.log(chalk.white('  5. 🔄 Refresh - Update status'));
+    console.log(chalk.white('  5. 🔗 Links   - Show AWS Console links'));
+    console.log(chalk.white('  6. 🔄 Refresh - Update status'));
     console.log(chalk.white('  0. Exit\n'));
     
     let choice: string;
@@ -374,6 +436,10 @@ async function interactiveMode(env: EnvironmentName): Promise<void> {
           break;
         }
         case '5':
+          await showLinks(env);
+          await rl.question(chalk.dim('Press Enter to continue...'));
+          break;
+        case '6':
           // Just loop to refresh
           break;
         case '0':
@@ -429,6 +495,10 @@ async function main() {
         await logs(service, lines);
         break;
       }
+      case 'links':
+      case 'dashboards':
+        await showLinks(env);
+        break;
       case 'help':
       case '--help':
       case '-h':
@@ -440,6 +510,7 @@ async function main() {
         console.log(chalk.white('  off        🔴 Complete shutdown (scale=0, lambda=off)'));
         console.log(chalk.white('  status     📊 Show current status'));
         console.log(chalk.white('  logs       📜 View logs: logs [api|web] [lines]'));
+        console.log(chalk.white('  links      🔗 Show AWS Console links'));
         console.log(chalk.white('  [none]     🎮 Interactive mode\n'));
         break;
       default:

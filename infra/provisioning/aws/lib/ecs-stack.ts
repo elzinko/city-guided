@@ -319,6 +319,11 @@ exports.handler = async (event) => {
     });
 
     // ============================================
+    // SSM Parameter pour stocker le timestamp de dernière activité
+    // ============================================
+    const ssmTimestampParam = '/city-guided/last-activity-timestamp';
+
+    // ============================================
     // Scale-to-Zero Lambda Function
     // Surveille l'inactivité et met à l'échelle à 0 après 5 minutes
     // ============================================
@@ -345,7 +350,7 @@ exports.handler = async (event) => {
       environment: {
         CLUSTER_NAME: cluster.clusterName,
         SERVICE_NAME: service.serviceName,
-        ALB_FULL_NAME: alb.loadBalancerFullName,
+        SSM_TIMESTAMP_PARAM: ssmTimestampParam,
       },
     });
 
@@ -365,10 +370,9 @@ exports.handler = async (event) => {
     scaleToZeroLambda.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        'cloudwatch:GetMetricStatistics',
-        'cloudwatch:PutMetricData',
+        'ssm:GetParameter',
       ],
-      resources: ['*'],
+      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${ssmTimestampParam}`],
     }));
 
     // ============================================
@@ -382,10 +386,8 @@ exports.handler = async (event) => {
     scaleToZeroRule.addTarget(new targets.LambdaFunction(scaleToZeroLambda));
 
     // ============================================
-    // Lambda pour scale-up automatique sur première requête
-    // IMPORTANT: L'auto-scaling ECS natif ne peut pas scaler de 0→1
-    // car RequestCountPerTarget = undefined quand il n'y a pas de targets
-    // Cette Lambda surveille RequestCount global de l'ALB (qui fonctionne même à 0)
+    // Lambda pour scale-up - appelée par Caddy via Function URL
+    // Quand Caddy détecte un 503, il appelle cette Lambda pour réveiller le service
     // ============================================
     const scaleUpLambda = new lambda.Function(this, 'ScaleUpLambda', {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -405,12 +407,21 @@ exports.handler = async (event) => {
           user: 'root',
         },
       }),
-      timeout: cdk.Duration.minutes(1),
+      timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
         CLUSTER_NAME: cluster.clusterName,
         SERVICE_NAME: service.serviceName,
-        ALB_FULL_NAME: alb.loadBalancerFullName,
+        SSM_TIMESTAMP_PARAM: ssmTimestampParam,
+      },
+    });
+
+    // Function URL pour que Caddy puisse appeler la Lambda directement
+    const scaleUpFunctionUrl = scaleUpLambda.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE, // Public, appelé par Caddy
+      cors: {
+        allowedOrigins: ['*'],
+        allowedMethods: [lambda.HttpMethod.GET, lambda.HttpMethod.POST],
       },
     });
 
@@ -429,23 +440,10 @@ exports.handler = async (event) => {
     scaleUpLambda.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        'cloudwatch:PutMetricData',
-        'cloudwatch:GetMetricStatistics',
+        'ssm:PutParameter',
       ],
-      resources: ['*'],
+      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${ssmTimestampParam}`],
     }));
-
-    // ============================================
-    // EventBridge Rule pour scale-up automatique
-    // Déclenche la Lambda scale-up toutes les minutes pour vérifier
-    // si des requêtes arrivent alors que le service est à 0
-    // ============================================
-    const scaleUpRule = new events.Rule(this, 'ScaleUpRule', {
-      schedule: events.Schedule.rate(cdk.Duration.minutes(1)),
-      description: 'Check for incoming requests and scale up ECS service if needed',
-    });
-
-    scaleUpRule.addTarget(new targets.LambdaFunction(scaleUpLambda));
 
     // ============================================
     // CloudWatch Dashboard
@@ -604,7 +602,13 @@ exports.handler = async (event) => {
 
     new cdk.CfnOutput(this, 'ScaleUpLambdaArn', {
       value: scaleUpLambda.functionArn,
-      description: 'Scale-Up Lambda ARN (monitors ALB for requests when service is at zero)',
+      description: 'Scale-Up Lambda ARN',
+    });
+
+    new cdk.CfnOutput(this, 'ScaleUpLambdaUrl', {
+      value: scaleUpFunctionUrl.url,
+      description: 'Scale-Up Lambda Function URL (called by Caddy on 503)',
+      exportName: 'CityGuidedScaleUpLambdaUrl',
     });
 
     new cdk.CfnOutput(this, 'ScaleToZeroLambdaArn', {

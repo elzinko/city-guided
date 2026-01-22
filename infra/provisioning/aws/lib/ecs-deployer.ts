@@ -360,6 +360,17 @@ export class ECSDeployer implements Deployer {
       // Error - continue
     }
 
+    // Clean up SSM Parameters (activity timestamp for scale-to-zero)
+    const ssmParams = ['/city-guided/last-activity-timestamp'];
+    for (const param of ssmParams) {
+      try {
+        execSilent(`aws ssm delete-parameter --name "${param}" --region eu-west-3 2>/dev/null || true`);
+        console.log(chalk.green(`   ✓ Deleted SSM Parameter: ${param}`));
+      } catch {
+        // Parameter doesn't exist - fine
+      }
+    }
+
     // Clean up IAM Roles created by CDK (CityGuidedEcsStack-*)
     try {
       const rolesResult = execSilent(

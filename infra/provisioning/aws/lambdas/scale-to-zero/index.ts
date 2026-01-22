@@ -1,12 +1,12 @@
 import { ECSClient, UpdateServiceCommand, DescribeServicesCommand } from '@aws-sdk/client-ecs';
-import { CloudWatchClient, GetMetricStatisticsCommand, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
 const ecsClient = new ECSClient({});
-const cloudwatchClient = new CloudWatchClient({});
+const ssmClient = new SSMClient({});
 
 const CLUSTER_NAME = process.env.CLUSTER_NAME!;
 const SERVICE_NAME = process.env.SERVICE_NAME!;
-const ALB_FULL_NAME = process.env.ALB_FULL_NAME!;
+const SSM_TIMESTAMP_PARAM = process.env.SSM_TIMESTAMP_PARAM!;
 const IDLE_DURATION_MINUTES = 5;
 
 interface ScaleToZeroResponse {
@@ -14,6 +14,14 @@ interface ScaleToZeroResponse {
   body: string;
 }
 
+/**
+ * ScaleToZero Lambda - Vérifie toutes les minutes si le service doit être arrêté
+ * 
+ * Logique simple:
+ * 1. Lit le timestamp de dernière activité depuis SSM
+ * 2. Si service running ET timestamp > 5 min → scale down
+ * 3. Si service en transition (desired != running) → ne rien faire
+ */
 export const handler = async (): Promise<ScaleToZeroResponse> => {
   console.log('Scale-to-zero check triggered', { timestamp: new Date().toISOString() });
   
@@ -32,86 +40,56 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
     
     const currentDesiredCount = service.desiredCount || 0;
     const runningCount = service.runningCount || 0;
-    const pendingCount = service.pendingCount || 0;
     
     console.log('Current service state', { 
       desiredCount: currentDesiredCount, 
-      runningCount,
-      pendingCount
+      runningCount 
     });
     
-    // 2. Si le service est déjà à 0, publier métrique et sortir
+    // 2. Si le service est déjà à 0, rien à faire
     if (currentDesiredCount === 0) {
-      await publishMetric(0, 'idle');
       return { 
         statusCode: 200, 
         body: JSON.stringify({ 
           action: 'noop', 
-          reason: 'Service already at zero',
-          desiredCount: 0 
+          reason: 'Service already at zero'
         }) 
       };
     }
     
-    // 3. PROTECTION: Ne pas scale-down si le service est en cours de démarrage
-    // Cela évite la race condition où ScaleUp démarre le service et ScaleToZero
-    // le redescend avant que les tasks ne soient enregistrées
-    if (currentDesiredCount > runningCount) {
-      console.log('Service is starting up, skipping scale-down check', {
+    // 3. PROTECTION: Ne pas scale-down si le service est en transition
+    if (currentDesiredCount !== runningCount) {
+      console.log('Service is in transition, skipping scale-down', {
         desiredCount: currentDesiredCount,
-        runningCount,
-        pendingCount
+        runningCount
       });
-      await publishMetric(currentDesiredCount, 'starting');
       return {
         statusCode: 200,
         body: JSON.stringify({
           action: 'noop',
-          reason: 'Service is starting up (desiredCount > runningCount)',
-          desiredCount: currentDesiredCount,
-          runningCount
+          reason: 'Service is in transition (desiredCount != runningCount)'
         })
       };
     }
     
-    // 4. Vérifier les métriques ALB pour les 5 dernières minutes
-    // On utilise LoadBalancer-level RequestCount (pas TargetGroup) car:
-    // - TargetGroup RequestCount = 0 quand pas de targets healthy
-    // - LoadBalancer RequestCount compte TOUTES les requêtes arrivant à l'ALB
-    const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - (IDLE_DURATION_MINUTES + 1) * 60 * 1000);
+    // 4. Lire le timestamp de dernière activité depuis SSM
+    const lastActivityTime = await getLastActivityTimestamp();
+    const now = Date.now();
+    const idleTimeMs = now - lastActivityTime;
+    const idleTimeMinutes = Math.round(idleTimeMs / 60000);
     
-    const metricResponse = await cloudwatchClient.send(new GetMetricStatisticsCommand({
-      Namespace: 'AWS/ApplicationELB',
-      MetricName: 'RequestCount',
-      Dimensions: [
-        { Name: 'LoadBalancer', Value: ALB_FULL_NAME }
-      ],
-      StartTime: startTime,
-      EndTime: endTime,
-      Period: 60, // 1 minute
-      Statistics: ['Sum']
-    }));
-    
-    // 5. Analyser les données de métriques
-    const datapoints = metricResponse.Datapoints || [];
-    const recentRequests = datapoints
-      .filter(dp => {
-        const dpTime = new Date(dp.Timestamp!);
-        const minutesAgo = (endTime.getTime() - dpTime.getTime()) / (1000 * 60);
-        return minutesAgo <= IDLE_DURATION_MINUTES;
-      })
-      .reduce((sum, dp) => sum + (dp.Sum || 0), 0);
-    
-    console.log('Request analysis', {
-      totalDatapoints: datapoints.length,
-      recentRequests,
-      timeWindow: `Last ${IDLE_DURATION_MINUTES} minutes`
+    console.log('Activity analysis', {
+      lastActivityTime: new Date(lastActivityTime).toISOString(),
+      idleTimeMinutes,
+      idleThresholdMinutes: IDLE_DURATION_MINUTES
     });
     
-    // 6. Décision : scale-to-zero si aucune requête dans les 5 dernières minutes
-    if (recentRequests === 0) {
-      console.log('No requests detected, scaling to zero');
+    // 5. Décision: scale-down si inactif depuis plus de 5 minutes
+    if (idleTimeMs > IDLE_DURATION_MINUTES * 60 * 1000) {
+      console.log('Service idle for too long, scaling to zero', {
+        idleTimeMinutes,
+        threshold: IDLE_DURATION_MINUTES
+      });
       
       await ecsClient.send(new UpdateServiceCommand({
         cluster: CLUSTER_NAME,
@@ -119,27 +97,25 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
         desiredCount: 0
       }));
       
-      await publishMetric(0, 'scaled_to_zero');
-      
       return {
         statusCode: 200,
         body: JSON.stringify({
           action: 'scaled_to_zero',
           previousDesiredCount: currentDesiredCount,
           newDesiredCount: 0,
-          reason: 'No requests in last 5 minutes'
+          reason: `No activity for ${idleTimeMinutes} minutes (threshold: ${IDLE_DURATION_MINUTES} min)`
         })
       };
     } else {
-      // Publier métrique indiquant que le service est actif
-      await publishMetric(currentDesiredCount, 'active');
-      
+      console.log('Service still active, keeping running', {
+        idleTimeMinutes,
+        threshold: IDLE_DURATION_MINUTES
+      });
       return {
         statusCode: 200,
         body: JSON.stringify({
           action: 'noop',
-          desiredCount: currentDesiredCount,
-          reason: `${recentRequests} requests detected in last 5 minutes`
+          reason: `Activity detected ${idleTimeMinutes} minutes ago (threshold: ${IDLE_DURATION_MINUTES} min)`
         })
       };
     }
@@ -150,42 +126,31 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
     return {
       statusCode: 500,
       body: JSON.stringify({ 
-        error: err.message,
-        stack: err.stack 
+        error: err.message
       })
     };
   }
 };
 
-async function publishMetric(desiredCount: number, status: string): Promise<void> {
+async function getLastActivityTimestamp(): Promise<number> {
   try {
-    await cloudwatchClient.send(new PutMetricDataCommand({
-      Namespace: 'CityGuided/ECS',
-      MetricData: [
-        {
-          MetricName: 'ServiceDesiredCount',
-          Value: desiredCount,
-          Unit: 'Count',
-          Timestamp: new Date(),
-          Dimensions: [
-            { Name: 'Service', Value: SERVICE_NAME },
-            { Name: 'Cluster', Value: CLUSTER_NAME }
-          ]
-        },
-        {
-          MetricName: 'ServiceStatus',
-          Value: status === 'active' ? 1 : 0,
-          Unit: 'None',
-          Timestamp: new Date(),
-          Dimensions: [
-            { Name: 'Service', Value: SERVICE_NAME },
-            { Name: 'Cluster', Value: CLUSTER_NAME }
-          ]
-        }
-      ]
+    const response = await ssmClient.send(new GetParameterCommand({
+      Name: SSM_TIMESTAMP_PARAM,
     }));
-    console.log('Metrics published', { desiredCount, status });
-  } catch (error) {
-    console.error('Error publishing metrics', error);
+    
+    const timestamp = parseInt(response.Parameter?.Value || '0', 10);
+    if (timestamp > 0) {
+      return timestamp;
+    }
+  } catch (error: any) {
+    // Si le paramètre n'existe pas, on considère qu'il n'y a pas eu d'activité
+    if (error.name === 'ParameterNotFound') {
+      console.log('No activity timestamp found in SSM, assuming no recent activity');
+    } else {
+      console.error('Error reading activity timestamp', error);
+    }
   }
+  
+  // Par défaut, retourner un timestamp très ancien (force scale-down si pas d'activité)
+  return 0;
 }

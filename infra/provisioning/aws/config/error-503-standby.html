@@ -14,11 +14,7 @@
     p{font-size:16px;line-height:1.6;margin-bottom:15px;color:rgba(255,255,255,0.9)}
     .info-box{background:rgba(255,255,255,0.15);border-radius:12px;padding:20px;margin:25px 0;border-left:4px solid rgba(255,255,255,0.5)}
     .info-box p{font-size:14px;margin-bottom:0}
-    .btn{display:inline-block;margin-top:25px;padding:15px 40px;background:#fff;color:#667eea;font-size:16px;font-weight:600;border:none;border-radius:30px;cursor:pointer;transition:all 0.3s ease;text-decoration:none}
-    .btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(0,0,0,0.2)}
-    .btn:active{transform:translateY(0)}
-    .spinner{display:none;margin:20px auto 0;width:40px;height:40px;border:3px solid rgba(255,255,255,0.3);border-top:3px solid #fff;border-radius:50%;animation:spin 1s linear infinite}
-    .spinner.active{display:block}
+    .spinner{margin:20px auto 0;width:40px;height:40px;border:3px solid rgba(255,255,255,0.3);border-top:3px solid #fff;border-radius:50%;animation:spin 1s linear infinite}
     @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
     .status-text{font-size:14px;color:rgba(255,255,255,0.8);margin-top:15px;min-height:20px}
     .footer{margin-top:30px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;color:rgba(255,255,255,0.7)}
@@ -27,31 +23,38 @@
 <body>
   <div class="container">
     <div class="icon">🌙</div>
-    <h1>Service en veille</h1>
+    <h1>Réveil du service...</h1>
     <p>Pour économiser les ressources, notre service se met en veille après <strong>5 minutes d'inactivité</strong>.</p>
     <div class="info-box">
       <p><strong>⏱️ Temps de démarrage : 30-60 secondes</strong></p>
-      <p>Cliquez sur le bouton ci-dessous pour réveiller le service.</p>
+      <p>Le service redémarre automatiquement. Patientez quelques instants.</p>
     </div>
-    <button class="btn" id="wakeBtn" onclick="wakeService()">Réveiller le service</button>
     <div class="spinner" id="spinner"></div>
-    <p class="status-text" id="status"></p>
+    <p class="status-text" id="status">Réveil en cours...</p>
     <div class="footer">CityGuided - Infrastructure éco-responsable 🌱</div>
   </div>
   <script>
-    let attempts = 0;
-    const maxAttempts = 20;
+    // URL de la Lambda de réveil (injectée par update-caddy.ts)
+    const WAKE_UP_URL = '{{LAMBDA_URL}}';
     
-    function wakeService() {
-      const btn = document.getElementById('wakeBtn');
-      const spinner = document.getElementById('spinner');
-      const status = document.getElementById('status');
+    let attempts = 0;
+    const maxAttempts = 30; // 30 * 2s = 60s max
+    
+    // Appeler la Lambda immédiatement au chargement de la page
+    async function triggerWakeUp() {
+      try {
+        // Fire-and-forget: on n'attend pas la réponse
+        fetch(WAKE_UP_URL, { 
+          method: 'POST',
+          mode: 'no-cors', // La Lambda n'a pas besoin de CORS pour le trigger
+        }).catch(() => {}); // Ignorer les erreurs
+        
+        console.log('Wake-up trigger sent to Lambda');
+      } catch (e) {
+        console.log('Could not trigger wake-up:', e);
+      }
       
-      btn.style.display = 'none';
-      spinner.classList.add('active');
-      status.textContent = 'Réveil en cours...';
-      attempts = 0;
-      
+      // Commencer à vérifier si le service est prêt
       checkService();
     }
     
@@ -63,32 +66,33 @@
       fetch(window.location.href, { method: 'HEAD', cache: 'no-store' })
         .then(response => {
           if (response.ok) {
-            window.location.reload();
+            status.textContent = 'Service prêt ! Redirection...';
+            setTimeout(() => window.location.reload(), 500);
           } else if (attempts < maxAttempts) {
-            setTimeout(checkService, 3000);
+            setTimeout(checkService, 2000);
           } else {
-            showRetry();
+            showError();
           }
         })
         .catch(() => {
           if (attempts < maxAttempts) {
-            setTimeout(checkService, 3000);
+            setTimeout(checkService, 2000);
           } else {
-            showRetry();
+            showError();
           }
         });
     }
     
-    function showRetry() {
-      const btn = document.getElementById('wakeBtn');
-      const spinner = document.getElementById('spinner');
+    function showError() {
       const status = document.getElementById('status');
+      const spinner = document.getElementById('spinner');
       
-      spinner.classList.remove('active');
-      btn.style.display = 'inline-block';
-      btn.textContent = 'Réessayer';
-      status.textContent = 'Le service prend plus de temps que prévu...';
+      spinner.style.display = 'none';
+      status.innerHTML = 'Le service prend plus de temps que prévu...<br><a href="javascript:location.reload()" style="color:#fff;text-decoration:underline">Réessayer</a>';
     }
+    
+    // Lancer le réveil dès le chargement de la page
+    triggerWakeUp();
   </script>
 </body>
 </html>

@@ -119,6 +119,35 @@ async function main() {
   
   console.log(chalk.green(`✓ Found instance: ${instanceId} (${publicIp})\n`));
 
+  // Get ALB DNS and Lambda URL from CloudFormation stack outputs
+  console.log(chalk.blue('🔍 Finding ALB DNS and Lambda URL from CloudFormation...'));
+  const stackResponse = await cfnClient.send(
+    new DescribeStacksCommand({
+      StackName: config.STACK_NAME,
+    })
+  );
+
+  const stack = stackResponse.Stacks?.[0];
+  const albDnsOutput = stack?.Outputs?.find(o => o.OutputKey === 'LoadBalancerDNS');
+  const albDns = albDnsOutput?.OutputValue;
+  const lambdaUrlOutput = stack?.Outputs?.find(o => o.OutputKey === 'ScaleUpLambdaUrl');
+  const lambdaUrl = lambdaUrlOutput?.OutputValue || '';
+
+  if (!albDns) {
+    console.error(chalk.red('❌ ALB DNS not found in CloudFormation stack outputs'));
+    console.error(chalk.yellow('Available outputs:'));
+    console.error(chalk.dim(stack?.Outputs?.map(o => o.OutputKey).join(', ') || 'none'));
+    process.exit(1);
+  }
+
+  console.log(chalk.green(`✓ ALB: ${albDns}`));
+  if (lambdaUrl) {
+    console.log(chalk.green(`✓ Lambda URL: ${lambdaUrl}`));
+  } else {
+    console.log(chalk.yellow('⚠️ Lambda URL not found (will use empty string)'));
+  }
+  console.log('');
+
   // Load and generate Caddyfile
   console.log(chalk.blue('📝 Generating Caddyfile...'));
   
@@ -129,33 +158,15 @@ async function main() {
   
   // Choose the appropriate 503 HTML based on mode
   const htmlFilename = mode === 'off' ? 'error-503-off.html' : 'error-503-standby.html';
-  const error503Html = readFileSync(
+  let error503Html = readFileSync(
     join(__dirname, '../config', htmlFilename),
     'utf-8'
   );
   
+  // Inject Lambda URL into the HTML (for auto-wake feature)
+  error503Html = error503Html.replace(/{{LAMBDA_URL}}/g, lambdaUrl);
+  
   console.log(chalk.dim(`   Using: ${htmlFilename}`));
-
-  // Get ALB DNS from CloudFormation stack outputs
-  console.log(chalk.blue('🔍 Finding ALB DNS from CloudFormation...'));
-  const stackResponse = await cfnClient.send(
-    new DescribeStacksCommand({
-      StackName: config.STACK_NAME,
-    })
-  );
-
-  const stack = stackResponse.Stacks?.[0];
-  const albDnsOutput = stack?.Outputs?.find(o => o.OutputKey === 'LoadBalancerDNS');
-  const albDns = albDnsOutput?.OutputValue;
-
-  if (!albDns) {
-    console.error(chalk.red('❌ ALB DNS not found in CloudFormation stack outputs'));
-    console.error(chalk.yellow('Available outputs:'));
-    console.error(chalk.dim(stack?.Outputs?.map(o => o.OutputKey).join(', ') || 'none'));
-    process.exit(1);
-  }
-
-  console.log(chalk.green(`✓ ALB: ${albDns}\n`));
 
   // We'll upload the HTML as a separate file and use file_server instead of inline HTML
   // This avoids issues with special characters (like CSS braces) being interpreted by Caddy

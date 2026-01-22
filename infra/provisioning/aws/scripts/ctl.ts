@@ -21,6 +21,7 @@ import { ECSClient, UpdateServiceCommand, DescribeServicesCommand } from '@aws-s
 import { LambdaClient, PutFunctionConcurrencyCommand, DeleteFunctionConcurrencyCommand, GetFunctionCommand } from '@aws-sdk/client-lambda';
 import { CloudFormationClient, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
 import { CloudWatchLogsClient, FilterLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
+import { ApplicationAutoScalingClient, RegisterScalableTargetCommand, DescribeScalableTargetsCommand } from '@aws-sdk/client-application-auto-scaling';
 import { execSync } from 'child_process';
 import chalk from 'chalk';
 import { createInterface } from 'readline/promises';
@@ -32,6 +33,7 @@ const ecsClient = new ECSClient({ region: AWS_REGION });
 const lambdaClient = new LambdaClient({ region: AWS_REGION });
 const cfnClient = new CloudFormationClient({ region: AWS_REGION });
 const logsClient = new CloudWatchLogsClient({ region: AWS_REGION });
+const autoScalingClient = new ApplicationAutoScalingClient({ region: AWS_REGION });
 
 const rl = createInterface({ input, output });
 
@@ -139,6 +141,24 @@ async function setLambdaEnabled(lambdaArn: string, enabled: boolean): Promise<vo
   }
 }
 
+async function setAutoScalingEnabled(enabled: boolean): Promise<void> {
+  try {
+    await autoScalingClient.send(
+      new RegisterScalableTargetCommand({
+        ServiceNamespace: 'ecs',
+        ResourceId: 'service/city-guided-cluster/city-guided-service',
+        ScalableDimension: 'ecs:service:DesiredCount',
+        SuspendedState: {
+          DynamicScalingInSuspended: !enabled,
+          DynamicScalingOutSuspended: !enabled,
+        },
+      })
+    );
+  } catch (error: any) {
+    console.log(chalk.yellow(`⚠ Could not update autoscaling state: ${error.message}`));
+  }
+}
+
 async function updateCaddyMode(env: EnvironmentName, mode: 'standby' | 'off'): Promise<void> {
   console.log(chalk.blue(`📝 Updating Caddy to ${mode} mode...`));
   try {
@@ -191,6 +211,10 @@ async function start(env: EnvironmentName): Promise<void> {
   await scaleService(1);
   console.log(chalk.green('✓ Scaled service to 1'));
   
+  // Enable ECS autoscaling
+  await setAutoScalingEnabled(true);
+  console.log(chalk.green('✓ Enabled ECS autoscaling'));
+  
   // Enable both Lambdas for normal operation
   if (status.scaleUpLambdaArn && !status.scaleUpLambdaEnabled) {
     await setLambdaEnabled(status.scaleUpLambdaArn, true);
@@ -214,10 +238,14 @@ async function stop(env: EnvironmentName): Promise<void> {
   await scaleService(0);
   console.log(chalk.green('✓ Scaled service to 0'));
   
+  // Enable ECS autoscaling (for auto-wake)
+  await setAutoScalingEnabled(true);
+  console.log(chalk.green('✓ Enabled ECS autoscaling (auto-wake)'));
+  
   // Enable both Lambdas: scale-to-zero will keep it at 0, scale-up will wake it
   if (status.scaleUpLambdaArn && !status.scaleUpLambdaEnabled) {
     await setLambdaEnabled(status.scaleUpLambdaArn, true);
-    console.log(chalk.green('✓ Enabled scale-up Lambda (auto-wake)'));
+    console.log(chalk.green('✓ Enabled scale-up Lambda'));
   }
   
   if (status.scaleToZeroLambdaArn && !status.scaleToZeroLambdaEnabled) {
@@ -240,10 +268,14 @@ async function off(env: EnvironmentName): Promise<void> {
   await scaleService(0);
   console.log(chalk.green('✓ Scaled service to 0'));
   
+  // Disable ECS autoscaling (prevents auto-wake from ALB requests)
+  await setAutoScalingEnabled(false);
+  console.log(chalk.green('✓ Suspended ECS autoscaling (no auto-wake)'));
+  
   // Disable BOTH Lambdas: no auto-wake, no scale-down
   if (status.scaleUpLambdaArn) {
     await setLambdaEnabled(status.scaleUpLambdaArn, false);
-    console.log(chalk.green('✓ Disabled scale-up Lambda (no auto-wake)'));
+    console.log(chalk.green('✓ Disabled scale-up Lambda'));
   }
   
   if (status.scaleToZeroLambdaArn) {

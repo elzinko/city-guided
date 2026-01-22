@@ -220,6 +220,32 @@ export class ECSDeployer implements Deployer {
       // No EIPs or error - continue
     }
 
+    // Clean up Log Groups (have RETAIN policy or created outside stack)
+    const logGroups = ['/ecs/city-guided-api', '/ecs/city-guided-web'];
+    for (const logGroup of logGroups) {
+      try {
+        execSilent(`aws logs delete-log-group --log-group-name "${logGroup}" --region eu-west-3 2>/dev/null || true`);
+        console.log(chalk.green(`   ✓ Deleted Log Group: ${logGroup}`));
+      } catch {
+        // Log group doesn't exist - fine
+      }
+    }
+
+    // Clean up ECR Repositories (have RETAIN policy to preserve images during updates)
+    // On destroy, we explicitly delete them
+    const ecrRepos = ['city-guided-api', 'city-guided-web'];
+    for (const repo of ecrRepos) {
+      try {
+        // First delete all images (required before repo deletion)
+        execSilent(`aws ecr batch-delete-image --repository-name "${repo}" --image-ids "$(aws ecr list-images --repository-name "${repo}" --region eu-west-3 --query 'imageIds[*]' --output json 2>/dev/null || echo '[]')" --region eu-west-3 2>/dev/null || true`);
+        // Then delete the repository
+        execSilent(`aws ecr delete-repository --repository-name "${repo}" --region eu-west-3 --force 2>/dev/null || true`);
+        console.log(chalk.green(`   ✓ Deleted ECR Repository: ${repo}`));
+      } catch {
+        // Repository doesn't exist - fine
+      }
+    }
+
     console.log(chalk.green(`✓ Orphan cleanup complete`));
   }
 

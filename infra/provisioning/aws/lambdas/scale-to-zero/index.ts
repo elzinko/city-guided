@@ -32,10 +32,12 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
     
     const currentDesiredCount = service.desiredCount || 0;
     const runningCount = service.runningCount || 0;
+    const pendingCount = service.pendingCount || 0;
     
     console.log('Current service state', { 
       desiredCount: currentDesiredCount, 
-      runningCount 
+      runningCount,
+      pendingCount
     });
     
     // 2. Si le service est déjà à 0, publier métrique et sortir
@@ -51,7 +53,28 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
       };
     }
     
-    // 3. Vérifier les métriques ALB pour les 5 dernières minutes
+    // 3. PROTECTION: Ne pas scale-down si le service est en cours de démarrage
+    // Cela évite la race condition où ScaleUp démarre le service et ScaleToZero
+    // le redescend avant que les tasks ne soient enregistrées
+    if (currentDesiredCount > runningCount) {
+      console.log('Service is starting up, skipping scale-down check', {
+        desiredCount: currentDesiredCount,
+        runningCount,
+        pendingCount
+      });
+      await publishMetric(currentDesiredCount, 'starting');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          action: 'noop',
+          reason: 'Service is starting up (desiredCount > runningCount)',
+          desiredCount: currentDesiredCount,
+          runningCount
+        })
+      };
+    }
+    
+    // 4. Vérifier les métriques ALB pour les 5 dernières minutes
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - (IDLE_DURATION_MINUTES + 1) * 60 * 1000);
     
@@ -67,7 +90,7 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
       Statistics: ['Sum']
     }));
     
-    // 4. Analyser les données de métriques
+    // 5. Analyser les données de métriques
     const datapoints = metricResponse.Datapoints || [];
     const recentRequests = datapoints
       .filter(dp => {
@@ -83,7 +106,7 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
       timeWindow: `Last ${IDLE_DURATION_MINUTES} minutes`
     });
     
-    // 5. Décision : scale-to-zero si aucune requête dans les 5 dernières minutes
+    // 6. Décision : scale-to-zero si aucune requête dans les 5 dernières minutes
     if (recentRequests === 0) {
       console.log('No requests detected, scaling to zero');
       

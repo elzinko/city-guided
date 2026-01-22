@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="5">
-  <title>Service en cours de réveil - CityGuided</title>
+  <title>Service en veille - CityGuided</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;color:#fff}
@@ -15,24 +14,81 @@
     p{font-size:16px;line-height:1.6;margin-bottom:15px;color:rgba(255,255,255,0.9)}
     .info-box{background:rgba(255,255,255,0.15);border-radius:12px;padding:20px;margin:25px 0;border-left:4px solid rgba(255,255,255,0.5)}
     .info-box p{font-size:14px;margin-bottom:0}
-    .spinner{margin:30px auto;width:50px;height:50px;border:4px solid rgba(255,255,255,0.3);border-top:4px solid #fff;border-radius:50%;animation:spin 1s linear infinite}
+    .btn{display:inline-block;margin-top:25px;padding:15px 40px;background:#fff;color:#667eea;font-size:16px;font-weight:600;border:none;border-radius:30px;cursor:pointer;transition:all 0.3s ease;text-decoration:none}
+    .btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(0,0,0,0.2)}
+    .btn:active{transform:translateY(0)}
+    .spinner{display:none;margin:20px auto 0;width:40px;height:40px;border:3px solid rgba(255,255,255,0.3);border-top:3px solid #fff;border-radius:50%;animation:spin 1s linear infinite}
+    .spinner.active{display:block}
     @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-    .progress-text{font-size:14px;color:rgba(255,255,255,0.8);margin-top:20px}
+    .status-text{font-size:14px;color:rgba(255,255,255,0.8);margin-top:15px;min-height:20px}
     .footer{margin-top:30px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;color:rgba(255,255,255,0.7)}
   </style>
 </head>
 <body>
   <div class="container">
     <div class="icon">🌙</div>
-    <h1>Service en cours de réveil</h1>
+    <h1>Service en veille</h1>
     <p>Pour économiser les ressources, notre service se met en veille après <strong>5 minutes d'inactivité</strong>.</p>
     <div class="info-box">
       <p><strong>⏱️ Temps de démarrage : 30-60 secondes</strong></p>
-      <p>Le service redémarre automatiquement suite à votre demande.</p>
+      <p>Cliquez sur le bouton ci-dessous pour réveiller le service.</p>
     </div>
-    <div class="spinner"></div>
-    <p class="progress-text">Démarrage en cours...</p>
+    <button class="btn" id="wakeBtn" onclick="wakeService()">Réveiller le service</button>
+    <div class="spinner" id="spinner"></div>
+    <p class="status-text" id="status"></p>
     <div class="footer">CityGuided - Infrastructure éco-responsable 🌱</div>
   </div>
+  <script>
+    let attempts = 0;
+    const maxAttempts = 20;
+    
+    function wakeService() {
+      const btn = document.getElementById('wakeBtn');
+      const spinner = document.getElementById('spinner');
+      const status = document.getElementById('status');
+      
+      btn.style.display = 'none';
+      spinner.classList.add('active');
+      status.textContent = 'Réveil en cours...';
+      attempts = 0;
+      
+      checkService();
+    }
+    
+    function checkService() {
+      attempts++;
+      const status = document.getElementById('status');
+      status.textContent = 'Réveil en cours... (' + attempts + '/' + maxAttempts + ')';
+      
+      fetch(window.location.href, { method: 'HEAD', cache: 'no-store' })
+        .then(response => {
+          if (response.ok) {
+            window.location.reload();
+          } else if (attempts < maxAttempts) {
+            setTimeout(checkService, 3000);
+          } else {
+            showRetry();
+          }
+        })
+        .catch(() => {
+          if (attempts < maxAttempts) {
+            setTimeout(checkService, 3000);
+          } else {
+            showRetry();
+          }
+        });
+    }
+    
+    function showRetry() {
+      const btn = document.getElementById('wakeBtn');
+      const spinner = document.getElementById('spinner');
+      const status = document.getElementById('status');
+      
+      spinner.classList.remove('active');
+      btn.style.display = 'inline-block';
+      btn.textContent = 'Réessayer';
+      status.textContent = 'Le service prend plus de temps que prévu...';
+    }
+  </script>
 </body>
 </html>

@@ -8,21 +8,25 @@
  *   pnpm infra:ctl [command]
  * 
  * Commands:
- *   start     - Scale to 1 + enable Lambda
- *   stop      - Scale to 0 + enable Lambda (scale-to-zero mode)
- *   off       - Scale to 0 + disable Lambda (completely OFF)
- *   on        - Alias for 'start'
- *   logs      - View service logs (api or web)
- *   status    - Show current status
- *   links     - Show AWS Console links (dashboards, ECS, logs, etc.)
- *   [none]    - Interactive mode
+ *   start       - Scale to 1 + enable Lambda
+ *   stop        - Scale to 0 + enable Lambda (scale-to-zero mode)
+ *   off         - Scale to 0 + disable Lambda (completely OFF)
+ *   on          - Alias for 'start'
+ *   logs        - View service logs (api or web)
+ *   status      - Show current status
+ *   links       - Show AWS Console links (dashboards, ECS, logs, etc.)
+ *   diagnose    - Run diagnostic report (Caddy, ALB, DuckDNS, etc.)
+ *   caddy-logs  - View Caddy reverse proxy logs
+ *   [none]      - Interactive mode
  */
 
 import { ECSClient, UpdateServiceCommand, DescribeServicesCommand } from '@aws-sdk/client-ecs';
 import { LambdaClient, PutFunctionConcurrencyCommand, DeleteFunctionConcurrencyCommand, GetFunctionCommand } from '@aws-sdk/client-lambda';
 import { CloudFormationClient, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
 import { CloudWatchLogsClient, FilterLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
-import { ApplicationAutoScalingClient, RegisterScalableTargetCommand, DescribeScalableTargetsCommand } from '@aws-sdk/client-application-auto-scaling';
+import { ApplicationAutoScalingClient, RegisterScalableTargetCommand } from '@aws-sdk/client-application-auto-scaling';
+import { SSMClient, SendCommandCommand, GetCommandInvocationCommand } from '@aws-sdk/client-ssm';
+import { EC2Client, DescribeInstancesCommand } from '@aws-sdk/client-ec2';
 import { execSync } from 'child_process';
 import chalk from 'chalk';
 import { createInterface } from 'readline/promises';
@@ -35,6 +39,8 @@ const lambdaClient = new LambdaClient({ region: AWS_REGION });
 const cfnClient = new CloudFormationClient({ region: AWS_REGION });
 const logsClient = new CloudWatchLogsClient({ region: AWS_REGION });
 const autoScalingClient = new ApplicationAutoScalingClient({ region: AWS_REGION });
+const ssmClient = new SSMClient({ region: AWS_REGION });
+const ec2Client = new EC2Client({ region: AWS_REGION });
 
 const rl = createInterface({ input, output });
 
@@ -386,18 +392,303 @@ async function showLinks(env: EnvironmentName): Promise<void> {
   console.log(chalk.dim('💡 Tip: Copy any URL above and paste in your browser\n'));
 }
 
+async function getCaddyInstanceId(): Promise<string | null> {
+  try {
+    const stackResponse = await cfnClient.send(
+      new DescribeStacksCommand({
+        StackName: 'CityGuidedReverseProxyStack',
+      })
+    );
+    const outputs = stackResponse.Stacks?.[0]?.Outputs || [];
+    return outputs.find(o => o.OutputKey === 'InstanceId')?.OutputValue || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function runSSMCommand(instanceId: string, commands: string[]): Promise<string> {
+  const response = await ssmClient.send(
+    new SendCommandCommand({
+      InstanceIds: [instanceId],
+      DocumentName: 'AWS-RunShellScript',
+      Parameters: {
+        commands,
+      },
+    })
+  );
+
+  const commandId = response.Command?.CommandId;
+  if (!commandId) {
+    throw new Error('Failed to get command ID');
+  }
+
+  // Wait for command to complete
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  let attempts = 0;
+  while (attempts < 10) {
+    const result = await ssmClient.send(
+      new GetCommandInvocationCommand({
+        CommandId: commandId,
+        InstanceId: instanceId,
+      })
+    );
+
+    if (result.Status === 'Success') {
+      return result.StandardOutputContent || '';
+    } else if (result.Status === 'Failed') {
+      throw new Error(result.StandardErrorContent || 'Command failed');
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    attempts++;
+  }
+
+  throw new Error('Command timed out');
+}
+
+async function showCaddyLogs(lines: number = 50): Promise<void> {
+  console.log(chalk.blue('📜 Fetching Caddy logs...\n'));
+
+  const instanceId = await getCaddyInstanceId();
+  if (!instanceId) {
+    console.log(chalk.red('❌ Could not find Caddy instance\n'));
+    return;
+  }
+
+  try {
+    const output = await runSSMCommand(instanceId, [
+      `sudo journalctl -u caddy -n ${lines} --no-pager`
+    ]);
+
+    console.log(chalk.dim('=== Caddy Logs ===\n'));
+    console.log(output);
+    console.log();
+  } catch (error: any) {
+    console.log(chalk.red(`❌ Error: ${error.message}\n`));
+  }
+}
+
+async function diagnose(env: EnvironmentName): Promise<void> {
+  console.log(chalk.bold.cyan('🔍 Running Infrastructure Diagnostics\n'));
+  console.log(chalk.dim('This may take 10-15 seconds...\n'));
+
+  const report: string[] = [];
+  const issues: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. Check Caddy instance
+  report.push(chalk.bold.white('1️⃣  Caddy Reverse Proxy'));
+  try {
+    const instanceId = await getCaddyInstanceId();
+    if (!instanceId) {
+      issues.push('Caddy instance not found in CloudFormation outputs');
+      report.push(chalk.red('   ❌ Instance: NOT FOUND'));
+    } else {
+      const ec2Response = await ec2Client.send(
+        new DescribeInstancesCommand({
+          InstanceIds: [instanceId],
+        })
+      );
+      const instance = ec2Response.Reservations?.[0]?.Instances?.[0];
+      
+      if (instance) {
+        const state = instance.State?.Name;
+        const ip = instance.PublicIpAddress;
+        
+        if (state === 'running') {
+          report.push(chalk.green(`   ✓ Instance: ${instanceId} (${state})`));
+          report.push(chalk.green(`   ✓ Public IP: ${ip}`));
+        } else {
+          issues.push(`Caddy instance is ${state}, not running`);
+          report.push(chalk.red(`   ❌ Instance: ${instanceId} (${state})`));
+        }
+      }
+    }
+  } catch (error: any) {
+    issues.push(`Caddy check failed: ${error.message}`);
+    report.push(chalk.red(`   ❌ Error: ${error.message}`));
+  }
+  report.push('');
+
+  // 2. Check DuckDNS resolution
+  report.push(chalk.bold.white('2️⃣  DuckDNS Configuration'));
+  try {
+    const dnsResult = execSync('nslookup cityguided.duckdns.org', { encoding: 'utf8' });
+    const ipMatch = dnsResult.match(/Address: ([\d.]+)/);
+    
+    if (ipMatch) {
+      const resolvedIP = ipMatch[1];
+      report.push(chalk.green(`   ✓ Domain: cityguided.duckdns.org`));
+      report.push(chalk.green(`   ✓ Resolves to: ${resolvedIP}`));
+      
+      // Compare with Caddy IP
+      const instanceId = await getCaddyInstanceId();
+      if (instanceId) {
+        const ec2Response = await ec2Client.send(
+          new DescribeInstancesCommand({ InstanceIds: [instanceId] })
+        );
+        const caddyIP = ec2Response.Reservations?.[0]?.Instances?.[0]?.PublicIpAddress;
+        
+        if (caddyIP && resolvedIP !== caddyIP) {
+          issues.push(`DuckDNS points to ${resolvedIP} but Caddy is at ${caddyIP}`);
+          report.push(chalk.red(`   ❌ IP Mismatch: DuckDNS=${resolvedIP}, Caddy=${caddyIP}`));
+        }
+      }
+    } else {
+      issues.push('DuckDNS resolution failed');
+      report.push(chalk.red('   ❌ Could not resolve domain'));
+    }
+  } catch (error: any) {
+    issues.push(`DNS check failed: ${error.message}`);
+    report.push(chalk.red(`   ❌ Error: ${error.message}`));
+  }
+  report.push('');
+
+  // 3. Check ALB
+  report.push(chalk.bold.white('3️⃣  Application Load Balancer'));
+  try {
+    const stackResponse = await cfnClient.send(
+      new DescribeStacksCommand({
+        StackName: getEnvironmentConfig(env).STACK_NAME,
+      })
+    );
+    const outputs = stackResponse.Stacks?.[0]?.Outputs || [];
+    const albDNS = outputs.find(o => o.OutputKey === 'LoadBalancerDNS')?.OutputValue;
+    
+    if (albDNS) {
+      report.push(chalk.green(`   ✓ ALB DNS: ${albDNS}`));
+      
+      // Test ALB connectivity
+      try {
+        const testResult = execSync(`curl -s -o /dev/null -w "%{http_code}" http://${albDNS}/api/health --max-time 5`, { encoding: 'utf8' });
+        const statusCode = testResult.trim();
+        
+        if (statusCode === '200') {
+          report.push(chalk.green('   ✓ Health check: Responding (200)'));
+        } else if (statusCode === '503') {
+          warnings.push('ALB returning 503 (service may be scaled to zero)');
+          report.push(chalk.yellow(`   ⚠ Health check: 503 (service scaled to zero?)`));
+        } else {
+          warnings.push(`ALB returning unexpected status: ${statusCode}`);
+          report.push(chalk.yellow(`   ⚠ Health check: ${statusCode}`));
+        }
+      } catch (error) {
+        issues.push('ALB health check failed (timeout or network error)');
+        report.push(chalk.red('   ❌ Health check: FAILED'));
+      }
+    } else {
+      issues.push('ALB DNS not found in stack outputs');
+      report.push(chalk.red('   ❌ ALB DNS: NOT FOUND'));
+    }
+  } catch (error: any) {
+    issues.push(`ALB check failed: ${error.message}`);
+    report.push(chalk.red(`   ❌ Error: ${error.message}`));
+  }
+  report.push('');
+
+  // 4. Check Caddy configuration
+  report.push(chalk.bold.white('4️⃣  Caddy Configuration'));
+  try {
+    const instanceId = await getCaddyInstanceId();
+    if (instanceId) {
+      const caddyfile = await runSSMCommand(instanceId, ['cat /etc/caddy/Caddyfile']);
+      
+      // Extract ALB URL from Caddyfile
+      const albMatch = caddyfile.match(/reverse_proxy\s+http:\/\/([^\s]+)/);
+      if (albMatch) {
+        report.push(chalk.green(`   ✓ Reverse proxy to: ${albMatch[1]}`));
+      } else {
+        issues.push('Could not find reverse_proxy directive in Caddyfile');
+        report.push(chalk.red('   ❌ Reverse proxy: NOT CONFIGURED'));
+      }
+      
+      // Check if Caddy is running
+      const caddyStatus = await runSSMCommand(instanceId, ['systemctl is-active caddy']);
+      if (caddyStatus.trim() === 'active') {
+        report.push(chalk.green('   ✓ Caddy service: RUNNING'));
+      } else {
+        issues.push(`Caddy service is ${caddyStatus.trim()}`);
+        report.push(chalk.red(`   ❌ Caddy service: ${caddyStatus.trim()}`));
+      }
+    }
+  } catch (error: any) {
+    warnings.push(`Caddy config check failed: ${error.message}`);
+    report.push(chalk.yellow(`   ⚠ Could not check config: ${error.message}`));
+  }
+  report.push('');
+
+  // 5. Check ECS Service
+  report.push(chalk.bold.white('5️⃣  ECS Service'));
+  const status = await getStatus(env);
+  report.push(chalk.white(`   Desired: ${status.desired}, Running: ${status.running}`));
+  
+  if (status.desired === 0 && status.running === 0) {
+    if (status.scaleUpLambdaEnabled) {
+      report.push(chalk.yellow('   ⚠ Service scaled to zero (STANDBY mode)'));
+    } else {
+      report.push(chalk.yellow('   ⚠ Service scaled to zero (OFF mode)'));
+    }
+  } else if (status.running < status.desired) {
+    warnings.push(`ECS service: ${status.running}/${status.desired} tasks running`);
+    report.push(chalk.yellow(`   ⚠ Starting: ${status.running}/${status.desired} tasks`));
+  } else {
+    report.push(chalk.green('   ✓ Service: RUNNING'));
+  }
+  report.push('');
+
+  // 6. Check recent ALB metrics
+  report.push(chalk.bold.white('6️⃣  Recent ALB Activity (last 5 min)'));
+  try {
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - 5 * 60 * 1000);
+    
+    // This would require CloudWatch API call - simplified for now
+    report.push(chalk.dim('   (Check CloudWatch dashboard for detailed metrics)'));
+  } catch (error: any) {
+    report.push(chalk.dim(`   Could not fetch metrics: ${error.message}`));
+  }
+  report.push('');
+
+  // Print report
+  console.log(report.join('\n'));
+
+  // Summary
+  console.log(chalk.bold.cyan('📊 Summary\n'));
+  
+  if (issues.length === 0 && warnings.length === 0) {
+    console.log(chalk.green.bold('✅ All checks passed!\n'));
+  } else {
+    if (issues.length > 0) {
+      console.log(chalk.red.bold(`❌ ${issues.length} Critical Issue(s):\n`));
+      issues.forEach(issue => console.log(chalk.red(`   • ${issue}`)));
+      console.log();
+    }
+    
+    if (warnings.length > 0) {
+      console.log(chalk.yellow.bold(`⚠️  ${warnings.length} Warning(s):\n`));
+      warnings.forEach(warning => console.log(chalk.yellow(`   • ${warning}`)));
+      console.log();
+    }
+  }
+
+  console.log(chalk.dim('💡 Tip: Use "pnpm infra:ctl caddy-logs" to view Caddy logs\n'));
+}
+
 async function interactiveMode(env: EnvironmentName): Promise<void> {
   while (true) {
     const status = await getStatus(env);
     displayStatus(status, env);
     
     console.log(chalk.bold.cyan('⚡ Quick Actions\n'));
-    console.log(chalk.white('  1. 🟢 ON      - Start service (scale=1, lambda=on)'));
-    console.log(chalk.white('  2. 🟡 STANDBY - Scale-to-zero mode (scale=0, lambda=on)'));
-    console.log(chalk.white('  3. 🔴 OFF     - Complete shutdown (scale=0, lambda=off)'));
-    console.log(chalk.white('  4. 📜 Logs    - View recent logs'));
-    console.log(chalk.white('  5. 🔗 Links   - Show AWS Console links'));
-    console.log(chalk.white('  6. 🔄 Refresh - Update status'));
+    console.log(chalk.white('  1. 🟢 ON        - Start service (scale=1, lambda=on)'));
+    console.log(chalk.white('  2. 🟡 STANDBY   - Scale-to-zero mode (scale=0, lambda=on)'));
+    console.log(chalk.white('  3. 🔴 OFF       - Complete shutdown (scale=0, lambda=off)'));
+    console.log(chalk.white('  4. 📜 Logs      - View recent logs'));
+    console.log(chalk.white('  5. 🔗 Links     - Show AWS Console links'));
+    console.log(chalk.white('  6. 🔍 Diagnose  - Run diagnostic report'));
+    console.log(chalk.white('  7. 📋 Caddy     - View Caddy logs'));
+    console.log(chalk.white('  8. 🔄 Refresh   - Update status'));
     console.log(chalk.white('  0. Exit\n'));
     
     let choice: string;
@@ -440,6 +731,14 @@ async function interactiveMode(env: EnvironmentName): Promise<void> {
           await rl.question(chalk.dim('Press Enter to continue...'));
           break;
         case '6':
+          await diagnose(env);
+          await rl.question(chalk.dim('Press Enter to continue...'));
+          break;
+        case '7':
+          await showCaddyLogs(50);
+          await rl.question(chalk.dim('Press Enter to continue...'));
+          break;
+        case '8':
           // Just loop to refresh
           break;
         case '0':
@@ -499,19 +798,31 @@ async function main() {
       case 'dashboards':
         await showLinks(env);
         break;
+      case 'diagnose':
+      case 'diag':
+      case 'check':
+        await diagnose(env);
+        break;
+      case 'caddy-logs':
+      case 'caddy':
+        const lines = parseInt(args[1]) || 50;
+        await showCaddyLogs(lines);
+        break;
       case 'help':
       case '--help':
       case '-h':
         console.log(chalk.white('Usage: pnpm infra:ctl [command]\n'));
         console.log(chalk.white('Commands:'));
-        console.log(chalk.white('  start      🟢 Start service (scale=1, lambda=on)'));
-        console.log(chalk.white('  on         🟢 Alias for "start"'));
-        console.log(chalk.white('  stop       🟡 Scale-to-zero mode (scale=0, lambda=on)'));
-        console.log(chalk.white('  off        🔴 Complete shutdown (scale=0, lambda=off)'));
-        console.log(chalk.white('  status     📊 Show current status'));
-        console.log(chalk.white('  logs       📜 View logs: logs [api|web] [lines]'));
-        console.log(chalk.white('  links      🔗 Show AWS Console links'));
-        console.log(chalk.white('  [none]     🎮 Interactive mode\n'));
+        console.log(chalk.white('  start        🟢 Start service (scale=1, lambda=on)'));
+        console.log(chalk.white('  on           🟢 Alias for "start"'));
+        console.log(chalk.white('  stop         🟡 Scale-to-zero mode (scale=0, lambda=on)'));
+        console.log(chalk.white('  off          🔴 Complete shutdown (scale=0, lambda=off)'));
+        console.log(chalk.white('  status       📊 Show current status'));
+        console.log(chalk.white('  logs         📜 View logs: logs [api|web] [lines]'));
+        console.log(chalk.white('  links        🔗 Show AWS Console links'));
+        console.log(chalk.white('  diagnose     🔍 Run diagnostic report'));
+        console.log(chalk.white('  caddy-logs   📋 View Caddy logs: caddy-logs [lines]'));
+        console.log(chalk.white('  [none]       🎮 Interactive mode\n'));
         break;
       default:
         // Interactive mode

@@ -34,6 +34,8 @@
     "infra:status": "cd infra/provisioning/aws && pnpm run status",
     "infra:ctl": "cd infra/provisioning/aws && pnpm run ctl",
     "infra:links": "cd infra/provisioning/aws && pnpm run ctl links",
+    "infra:diagnose": "cd infra/provisioning/aws && pnpm run ctl diagnose",
+    "infra:caddy-logs": "cd infra/provisioning/aws && pnpm run ctl caddy-logs",
     "infra:start": "cd infra/provisioning/aws && pnpm run ctl:start",
     "infra:stop": "cd infra/provisioning/aws && pnpm run ctl:stop",
     "infra:off": "cd infra/provisioning/aws && pnpm run ctl:off",

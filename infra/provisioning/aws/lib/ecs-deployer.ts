@@ -246,6 +246,45 @@ export class ECSDeployer implements Deployer {
       }
     }
 
+    // Clean up CloudWatch Dashboards
+    const dashboards = ['CityGuided-ECS-ScaleToZero'];
+    for (const dashboard of dashboards) {
+      try {
+        execSilent(`aws cloudwatch delete-dashboards --dashboard-names "${dashboard}" --region eu-west-3 2>/dev/null || true`);
+        console.log(chalk.green(`   ✓ Deleted CloudWatch Dashboard: ${dashboard}`));
+      } catch {
+        // Dashboard doesn't exist - fine
+      }
+    }
+
+    // Clean up EventBridge Rules (for Lambda triggers)
+    const eventRules = ['CityGuidedEcsStack-ScaleToZeroRule', 'CityGuidedEcsStack-ScaleUpRule'];
+    for (const rule of eventRules) {
+      try {
+        // First remove targets, then delete rule
+        execSilent(`aws events remove-targets --rule "${rule}" --ids "Target0" --region eu-west-3 2>/dev/null || true`);
+        execSilent(`aws events delete-rule --name "${rule}" --region eu-west-3 2>/dev/null || true`);
+        console.log(chalk.green(`   ✓ Deleted EventBridge Rule: ${rule}`));
+      } catch {
+        // Rule doesn't exist - fine
+      }
+    }
+
+    // Clean up Lambda Functions
+    const lambdas = [
+      'CityGuidedEcsStack-ScaleUpLambda',
+      'CityGuidedEcsStack-ScaleToZeroLambda', 
+      'CityGuidedEcsStack-Error503Lambda'
+    ];
+    for (const lambda of lambdas) {
+      try {
+        execSilent(`aws lambda delete-function --function-name "${lambda}" --region eu-west-3 2>/dev/null || true`);
+        console.log(chalk.green(`   ✓ Deleted Lambda Function: ${lambda}`));
+      } catch {
+        // Lambda doesn't exist - fine
+      }
+    }
+
     console.log(chalk.green(`✓ Orphan cleanup complete`));
   }
 

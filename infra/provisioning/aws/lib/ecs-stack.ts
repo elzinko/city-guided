@@ -68,14 +68,18 @@ export class CityGuidedEcsStack extends cdk.Stack {
 
     // ============================================
     // Application Load Balancer
-    // Note: 3 EIPs orphelins sont associés à cet ALB (ServiceManaged: alb)
-    // et ne peuvent pas être supprimés sans recréer toute l'infrastructure.
-    // Coût: ~$11/mois - accepté pour éviter un downtime.
+    // Limité à 2 AZs pour réduire les coûts (minimum requis pour un ALB)
     // ============================================
+    const publicSubnets = vpc.selectSubnets({
+      subnetType: ec2.SubnetType.PUBLIC,
+      availabilityZones: ['eu-west-3a', 'eu-west-3b'],
+    });
+
     const alb = new elbv2.ApplicationLoadBalancer(this, 'ALB', {
       vpc,
       internetFacing: true,
       loadBalancerName: 'city-guided-alb',
+      vpcSubnets: publicSubnets,
     });
 
     // Store ALB DNS name for reverse proxy stack

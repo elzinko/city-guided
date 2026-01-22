@@ -1,0 +1,45 @@
+---
+description: Assure la parité entre provisioning et destroy des ressources infrastructure
+alwaysApply: true
+---
+
+# Provision / Destroy Parity
+
+Quand tu modifies le provisioning d'une ressource, pense **systématiquement** à modifier la partie destroy.
+
+## Principe
+
+Toute ressource créée par `provision` doit pouvoir être supprimée par `destroy`.
+
+## Checklist
+
+Lors de l'ajout/modification d'une ressource :
+
+- [ ] La ressource est créée dans `provision` ?
+- [ ] La ressource est supprimée dans `destroy` ?
+- [ ] Si `removalPolicy: RETAIN`, ajouter un cleanup explicite dans `destroy`
+
+## Ressources concernées
+
+```
+ALB, Target Groups, Security Groups, EC2, ECS, ECR, 
+Log Groups, Lambda, EIP, ENI, SSM Parameters...
+```
+
+## Exemple
+
+```typescript
+// ❌ BAD - ECR avec RETAIN mais pas de cleanup
+const repo = new ecr.Repository(this, 'Repo', {
+  removalPolicy: cdk.RemovalPolicy.RETAIN,
+});
+
+// ✅ GOOD - RETAIN + cleanup explicite dans destroy
+// ecs-stack.ts
+const repo = new ecr.Repository(this, 'Repo', {
+  removalPolicy: cdk.RemovalPolicy.RETAIN, // Évite perte accidentelle
+});
+
+// ecs-deployer.ts destroy()
+execSilent(`aws ecr delete-repository --repository-name "${repo}" --force`);
+```

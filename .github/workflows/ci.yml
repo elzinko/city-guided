@@ -365,7 +365,7 @@ jobs:
         id: alb
         run: |
           ALB_DNS=$(aws elbv2 describe-load-balancers \
-            --names city-guided-alb \
+            --names city-guided-alb-v2 \
             --region ${{ env.AWS_REGION }} \
             --query 'LoadBalancers[0].DNSName' \
             --output text 2>/dev/null || echo "")

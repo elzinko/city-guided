@@ -6,7 +6,7 @@ const cloudwatchClient = new CloudWatchClient({});
 
 const CLUSTER_NAME = process.env.CLUSTER_NAME!;
 const SERVICE_NAME = process.env.SERVICE_NAME!;
-const TARGET_GROUP_NAME = process.env.TARGET_GROUP_NAME!;
+const ALB_FULL_NAME = process.env.ALB_FULL_NAME!;
 const IDLE_DURATION_MINUTES = 5;
 
 interface ScaleToZeroResponse {
@@ -75,6 +75,9 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
     }
     
     // 4. Vérifier les métriques ALB pour les 5 dernières minutes
+    // On utilise LoadBalancer-level RequestCount (pas TargetGroup) car:
+    // - TargetGroup RequestCount = 0 quand pas de targets healthy
+    // - LoadBalancer RequestCount compte TOUTES les requêtes arrivant à l'ALB
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - (IDLE_DURATION_MINUTES + 1) * 60 * 1000);
     
@@ -82,7 +85,7 @@ export const handler = async (): Promise<ScaleToZeroResponse> => {
       Namespace: 'AWS/ApplicationELB',
       MetricName: 'RequestCount',
       Dimensions: [
-        { Name: 'TargetGroup', Value: TARGET_GROUP_NAME }
+        { Name: 'LoadBalancer', Value: ALB_FULL_NAME }
       ],
       StartTime: startTime,
       EndTime: endTime,

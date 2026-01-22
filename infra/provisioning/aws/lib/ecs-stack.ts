@@ -345,7 +345,7 @@ exports.handler = async (event) => {
       environment: {
         CLUSTER_NAME: cluster.clusterName,
         SERVICE_NAME: service.serviceName,
-        TARGET_GROUP_NAME: webTargetGroup.targetGroupFullName,
+        ALB_FULL_NAME: alb.loadBalancerFullName,
       },
     });
 

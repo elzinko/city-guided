@@ -112,12 +112,115 @@ export class ECSDeployer implements Deployer {
         }
       );
 
+      console.log(chalk.green(`✓ CDK stacks destroyed`));
+
+      // Clean up orphaned resources that might remain after stack deletion
+      // This can happen if stacks were in UPDATE_ROLLBACK_COMPLETE state
+      await this.cleanupOrphanedResources();
+
       console.log(chalk.green(`✓ ECS infrastructure destroyed`));
 
     } catch (error: any) {
       console.error(chalk.red(`   ❌ ECS destruction failed: ${error.message}`));
       throw error;
     }
+  }
+
+  /**
+   * Clean up orphaned resources that might remain after CloudFormation stack deletion.
+   * This handles edge cases where stacks were in rollback state or partially deleted.
+   */
+  private async cleanupOrphanedResources(): Promise<void> {
+    console.log(chalk.blue(`\n🧹 Checking for orphaned resources...`));
+
+    // Check for orphaned ALB
+    try {
+      const albResult = execSilent(
+        `aws elbv2 describe-load-balancers --names city-guided-alb --region eu-west-3 --output json 2>/dev/null || echo '{"LoadBalancers":[]}'`
+      );
+      const albs = JSON.parse(albResult);
+      
+      if (albs.LoadBalancers && albs.LoadBalancers.length > 0) {
+        const albArn = albs.LoadBalancers[0].LoadBalancerArn;
+        console.log(chalk.yellow(`   ⚠️  Found orphaned ALB: city-guided-alb`));
+        
+        // Delete ALB
+        execSilent(`aws elbv2 delete-load-balancer --load-balancer-arn "${albArn}" --region eu-west-3`);
+        console.log(chalk.green(`   ✓ Deleted orphaned ALB`));
+        
+        // Wait for ALB deletion to propagate
+        console.log(chalk.dim(`   Waiting for ALB deletion to complete...`));
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    } catch {
+      // ALB doesn't exist or already deleted - this is fine
+    }
+
+    // Check for orphaned Target Groups
+    try {
+      const tgResult = execSilent(
+        `aws elbv2 describe-target-groups --region eu-west-3 --output json`
+      );
+      const targetGroups = JSON.parse(tgResult);
+      
+      for (const tg of targetGroups.TargetGroups || []) {
+        if (tg.TargetGroupName.startsWith('CityGu-')) {
+          console.log(chalk.yellow(`   ⚠️  Found orphaned Target Group: ${tg.TargetGroupName}`));
+          execSilent(`aws elbv2 delete-target-group --target-group-arn "${tg.TargetGroupArn}" --region eu-west-3`);
+          console.log(chalk.green(`   ✓ Deleted orphaned Target Group`));
+        }
+      }
+    } catch {
+      // No target groups or error - continue
+    }
+
+    // Check for orphaned Security Groups (except default)
+    try {
+      const sgResult = execSilent(
+        `aws ec2 describe-security-groups --filters "Name=group-name,Values=CityGuided*" --region eu-west-3 --output json`
+      );
+      const securityGroups = JSON.parse(sgResult);
+      
+      for (const sg of securityGroups.SecurityGroups || []) {
+        console.log(chalk.yellow(`   ⚠️  Found orphaned Security Group: ${sg.GroupName}`));
+        try {
+          execSilent(`aws ec2 delete-security-group --group-id "${sg.GroupId}" --region eu-west-3`);
+          console.log(chalk.green(`   ✓ Deleted orphaned Security Group`));
+        } catch {
+          console.log(chalk.dim(`   (Security Group in use, will be cleaned up later)`));
+        }
+      }
+    } catch {
+      // No security groups or error - continue
+    }
+
+    // Check for orphaned Elastic IPs without tags (likely ALB-related)
+    try {
+      const eipResult = execSilent(
+        `aws ec2 describe-addresses --region eu-west-3 --output json`
+      );
+      const addresses = JSON.parse(eipResult);
+      
+      for (const eip of addresses.Addresses || []) {
+        // Only clean up untagged EIPs that are associated with ALB (ServiceManaged: alb)
+        if (eip.ServiceManaged === 'alb' && (!eip.Tags || eip.Tags.length === 0)) {
+          console.log(chalk.yellow(`   ⚠️  Found orphaned EIP: ${eip.PublicIp}`));
+          try {
+            if (eip.AssociationId) {
+              execSilent(`aws ec2 disassociate-address --association-id "${eip.AssociationId}" --region eu-west-3`);
+            }
+            execSilent(`aws ec2 release-address --allocation-id "${eip.AllocationId}" --region eu-west-3`);
+            console.log(chalk.green(`   ✓ Released orphaned EIP`));
+          } catch {
+            console.log(chalk.dim(`   (EIP managed by service, will be released when service is deleted)`));
+          }
+        }
+      }
+    } catch {
+      // No EIPs or error - continue
+    }
+
+    console.log(chalk.green(`✓ Orphan cleanup complete`));
   }
 
   async setupDependencies(_outputs: InfraOutputs): Promise<void> {

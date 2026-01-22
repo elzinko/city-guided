@@ -50,6 +50,20 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
+// Helper to ask questions with Ctrl+C handling
+async function ask(prompt: string): Promise<string> {
+  try {
+    return await rl.question(prompt);
+  } catch (error: any) {
+    if (error.name === 'AbortError' || error.code === 'ERR_USE_AFTER_CLOSE') {
+      console.log(chalk.yellow('\n\n👋 Cancelled.\n'));
+      rl.close();
+      process.exit(0);
+    }
+    throw error;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ENV FILE LOADER
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -123,8 +137,8 @@ async function getAWSCredentials(): Promise<{ accessKeyId: string; secretAccessK
 
   console.log(chalk.yellow('   AWS credentials not found in config'));
   
-  const accessKeyId = await rl.question(chalk.yellow('AWS Access Key ID: '));
-  const secretAccessKey = await rl.question(chalk.yellow('AWS Secret Access Key: '));
+  const accessKeyId = await ask(chalk.yellow('AWS Access Key ID: '));
+  const secretAccessKey = await ask(chalk.yellow('AWS Secret Access Key: '));
   
   return { accessKeyId: accessKeyId.trim(), secretAccessKey: secretAccessKey.trim() };
 }
@@ -393,8 +407,8 @@ async function main() {
   if (!['staging', 'prod'].includes(env)) {
     console.error(chalk.yellow(`\n⚠️  Warning: Unknown environment '${env}'`));
     console.error(chalk.yellow(`   Known environments: staging, prod`));
-    const proceed = await rl.question(chalk.yellow(`Continue anyway? (y/n): `));
-    if (!['y', 'yes'].includes(proceed.trim().toLowerCase())) {
+    const continueAnyway = await ask(chalk.yellow(`Continue anyway? (y/n): `));
+    if (!['y', 'yes'].includes(continueAnyway.trim().toLowerCase())) {
       console.log(chalk.yellow('\n👋 Cancelled.\n'));
       rl.close();
       process.exit(0);
@@ -428,7 +442,7 @@ async function main() {
   }
 
   const actionWord = action === 'provision' ? 'provisioning' : 'destroying';
-  const proceed = await rl.question(chalk.yellow(`\nProceed with ${actionWord}? (y/n): `));
+  const proceed = await ask(chalk.yellow(`\nProceed with ${actionWord}? (y/n): `));
 
   if (!['y', 'yes'].includes(proceed.trim().toLowerCase())) {
     console.log(chalk.yellow('\n👋 Cancelled.\n'));

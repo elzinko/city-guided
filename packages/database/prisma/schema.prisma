@@ -1,0 +1,76 @@
+// Prisma schema for City-Guided POI database
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Zone géographique pour l'import de POIs
+model Zone {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  lat       Float
+  lng       Float
+  radiusKm  Int      @default(5)
+  
+  // Métadonnées d'import
+  lastImportAt DateTime?
+  poiCount     Int       @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  pois      Poi[]
+}
+
+// Point d'intérêt touristique
+model Poi {
+  id               String   @id @default(cuid())
+  name             String
+  lat              Float
+  lng              Float
+  radiusMeters     Int      @default(50)
+  category         Category
+  shortDescription String
+  fullDescription  String?
+  
+  // Text-to-speech
+  ttsText          String?
+  storySegments    String[]
+  
+  // Données OpenTripMap
+  otmId            String?  @unique
+  otmKinds         String[]
+  otmRate          Int?     // Rating OpenTripMap (1-7)
+  
+  // Données Wikidata
+  wikidataId       String?
+  wikidataDescription String?
+  imageUrl         String?
+  wikipediaUrl     String?
+  
+  // Relations
+  zoneId           String
+  zone             Zone     @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  
+  // Métadonnées
+  importedAt       DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([category])
+  @@index([lat, lng])
+}
+
+enum Category {
+  Monuments
+  Musees
+  Art
+  Insolite
+  Autre
+}

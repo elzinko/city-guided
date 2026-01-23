@@ -1,0 +1,26 @@
+{
+  "name": "apps-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p ${ADMIN_PORT:-3081}",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0 --port ${PORT:-3081}",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.0",
+    "next": "^14.2.35",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/leaflet": "^1.9.0",
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.0.0"
+  }
+}

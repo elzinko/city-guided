@@ -1,0 +1,6 @@
+# Environment files (contain local DB credentials)
+.env
+.env.local
+
+# Prisma
+node_modules/.prisma

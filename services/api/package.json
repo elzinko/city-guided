@@ -16,7 +16,8 @@
     "@fastify/cors": "^8.0.0",
     "pino": "^8.0.0",
     "uuid": "^9.0.0",
-    "@city-guided/domain": "workspace:*"
+    "@city-guided/domain": "workspace:*",
+    "@city-guided/database": "workspace:*"
   },
   "devDependencies": {
     "ts-node-dev": "^2.0.0",

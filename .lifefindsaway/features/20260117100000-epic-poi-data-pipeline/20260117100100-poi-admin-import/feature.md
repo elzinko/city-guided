@@ -86,10 +86,10 @@ ce qui est importé.
 - Base PostgreSQL (existante)
 
 ## Questions ouvertes
-- Rayon d'import par défaut ? (5km, 10km ?)
-- Catégories de POI à filtrer ? (tout tourisme ou sélection)
-- Faut-il un mode "preview" avant import définitif ?
-- Comment gérer les doublons (POI déjà importé) ?
+- Rayon d'import par défaut ? (5km, 10km ?) : 5km
+- Catégories de POI à filtrer ? (tout tourisme ou sélection): liées à l'application si possible. Pas de restaurants ou autres POIs qui ne sont pas adaptés à cette application
+- Faut-il un mode "preview" avant import définitif ? non pas forcément, le stockage des fichiers / données d'import peuvent servir pour savoir si les données ont changées
+- Comment gérer les doublons (POI déjà importé) ? les écraser je pense car si les données sont mises à jour il faut les mettre à jour dans notre appli. Peut etre indiquer le nombre de mises à jour. Mais ca va dependre de la facon dont les données sont exposées. Il faudra veiller à savoir si c'est possible de faire des updates plutot que de tout réintégrer.
 
 ## Risques pressentis
 - Trop de POIs retournés → filtrage nécessaire
@@ -97,11 +97,11 @@ ce qui est importé.
 - Descriptions Wikidata manquantes pour certains POIs
 
 ## Indicateurs de succès (indicatifs)
-- Temps d'import d'une ville < 2 minutes
+- Temps d'import d'une ville < 2 minutes, mais pas forcé .. il peut y avoir de grosses villes plus tard
 - > 80% des POIs ont une description Wikidata
 - Admin peut naviguer facilement dans les données
 
 ## Notes libres
 - Inspiration UI : admin panel minimaliste type Retool/AdminJS
 - Leaflet déjà utilisé dans le frontend principal
-- Prévoir extension future : import automatique planifié
+- Prévoir extension future : import (mode update ?) automatique planifié

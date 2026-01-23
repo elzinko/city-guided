@@ -16,6 +16,29 @@
 name: ${COMPOSE_PROJECT_NAME:-city-guided}
 
 services:
+  # PostgreSQL - Base de données principale
+  postgres:
+    image: postgres:16-alpine
+    # container_name omis pour utiliser le préfixe automatique du projet
+    # Résultat: city-guided-local-postgres-1, city-guided-staging-postgres-1, etc.
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-cityguided}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cityguided}
+      - POSTGRES_DB=${POSTGRES_DB:-cityguided}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - default
+    restart: ${RESTART_POLICY:-no}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cityguided} -d ${POSTGRES_DB:-cityguided}"]
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-10s}
+
   api:
     image: ${API_IMAGE:-ghcr.io/elzinko/city-guided-api:latest}
     container_name: api
@@ -25,10 +48,15 @@ services:
       - NODE_ENV=${NODE_ENV:-development}
       - PORT=${API_PORT:-4000}
       - OSRM_URL=${OSRM_URL:-http://osrm:5000}
-      - DATABASE_URL=${DATABASE_URL:-}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://cityguided:cityguided@postgres:5432/cityguided}
+      - OPENTRIPMAP_API_KEY=${SECRET_OPENTRIPMAP_API_KEY:-}
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-dev-secret}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - APP_VERSION=${APP_VERSION:-}
       - APP_REPO_URL=${APP_REPO_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - default
       - osrm-network
@@ -93,6 +121,8 @@ services:
     restart: ${RESTART_POLICY:-no}
 
 volumes:
+  # PostgreSQL data
+  postgres_data:
   # Caddy data (SSL certificates)
   caddy_data:
   # Caddy config

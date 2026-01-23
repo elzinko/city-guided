@@ -1,9 +1,17 @@
 import { createPoiController } from './controllers'
+import { createAdminController } from './admin-controllers'
+import type { PoiRepository } from '../persistence/in-memory-poi-repo'
+import type { ExtendedPoiRepository, ZoneRepository } from '../persistence/prisma-poi-repo'
 
-export function createRoutes({ poiRepo }: { poiRepo: any }): any[] {
+interface RoutesDeps {
+  poiRepo: PoiRepository | ExtendedPoiRepository
+  zoneRepo?: ZoneRepository | null
+}
+
+export function createRoutes({ poiRepo, zoneRepo }: RoutesDeps): any[] {
   const controller = createPoiController({ poiRepo })
 
-  return [
+  const routes = [
     {
       method: 'GET',
       url: '/api/pois',
@@ -40,4 +48,49 @@ export function createRoutes({ poiRepo }: { poiRepo: any }): any[] {
       handler: controller.proxyOsrmRoute,
     },
   ]
+
+  // Ajouter les routes admin si le zoneRepo est disponible (Prisma)
+  if (zoneRepo) {
+    const adminController = createAdminController({ 
+      poiRepo: poiRepo as ExtendedPoiRepository, 
+      zoneRepo 
+    })
+
+    routes.push(
+      // Zones
+      {
+        method: 'GET',
+        url: '/api/admin/zones',
+        handler: adminController.getZones,
+      },
+      {
+        method: 'GET',
+        url: '/api/admin/zones/:id',
+        handler: adminController.getZone,
+      },
+      {
+        method: 'POST',
+        url: '/api/admin/zones',
+        handler: adminController.createZone,
+      },
+      {
+        method: 'GET',
+        url: '/api/admin/zones/:id/pois',
+        handler: adminController.getZonePois,
+      },
+      // Import
+      {
+        method: 'POST',
+        url: '/api/admin/import/:id',
+        handler: adminController.startImport,
+      },
+      {
+        method: 'GET',
+        url: '/api/admin/import/:id/status',
+        handler: adminController.getImportStatus,
+      },
+    )
+  }
+
+  return routes
 }

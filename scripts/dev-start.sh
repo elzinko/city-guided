@@ -58,6 +58,26 @@ if [ "$SKIP_OSRM" != "1" ]; then
     export COMPOSE_PROJECT_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
     docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$COMPOSE_DIR/docker-compose.osrm.yml" up -d
 
+    # Start PostgreSQL if DATABASE_URL is configured
+    if [ -n "${DATABASE_URL:-}" ] || [ "${START_POSTGRES:-1}" = "1" ]; then
+        echo "🐘 Starting PostgreSQL..."
+        docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$COMPOSE_DIR/docker-compose.yml" up -d postgres
+        
+        # Wait for PostgreSQL to be ready
+        echo "⏳ Waiting for PostgreSQL to be ready..."
+        for i in {1..30}; do
+            if docker-compose --env-file "$CONFIG_DIR/.env.local" -f "$COMPOSE_DIR/docker-compose.yml" exec -T postgres pg_isready -U cityguided > /dev/null 2>&1; then
+                echo "✅ PostgreSQL is ready!"
+                break
+            fi
+            if [ $i -eq 30 ]; then
+                echo "⚠️  PostgreSQL didn't become ready in time, but continuing anyway..."
+            fi
+            sleep 1
+        done
+        echo ""
+    fi
+
     # Wait for OSRM to be healthy
     echo "⏳ Waiting for OSRM to be ready..."
     for i in {1..30}; do

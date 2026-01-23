@@ -37,6 +37,7 @@ Ce fichier est la **source de vérité unique** pour :
 ### idea
 
 ### exploring
+
 - [ ] 20260120171923-docker-compose-ecs-unification
 - [ ] 20260117100000-epic-poi-data-pipeline/20260117100100-poi-admin-import
 - [ ] 20260117100000-epic-poi-data-pipeline/20260117100200-audio-guide-generation
@@ -52,7 +53,7 @@ Ce fichier est la **source de vérité unique** pour :
 - [ ] 20260120232900-epic-refonte-technique-frontend (Epic technique, à découper)
 - [ ] 20260120232600-bouton-feedback-github
 - [ ] 20260115100000-ecs-fargate-migration
-- [ ] 20260116100000-ecs-scale-to-zero
+- [x] 20260116100000-ecs-scale-to-zero
 
 ### on_hold
 

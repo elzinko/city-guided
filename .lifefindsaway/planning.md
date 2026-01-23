@@ -42,8 +42,6 @@ Ce fichier est la **source de vérité unique** pour :
 - [ ] 20260123053501-epic-adaptive-audio-guide/20260123053503-fil-pois-predictif
 - [ ] 20260123053501-epic-adaptive-audio-guide/20260123053504-modalite-audio-adaptative
 - [ ] 20260120171923-docker-compose-ecs-unification
-- [ ] 20260117100000-epic-poi-data-pipeline/20260117100100-poi-admin-import
-- [ ] 20260117100000-epic-poi-data-pipeline/20260117100200-audio-guide-generation
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232500-recherche-avancee
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232501-decouvertes-personnalisees
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232502-vue-decouvrir-categories
@@ -55,12 +53,15 @@ Ce fichier est la **source de vérité unique** pour :
 - [ ] 20260120232800-epic-crud-trajets-virtuels (Epic, à découper en features)
 - [ ] 20260120232900-epic-refonte-technique-frontend (Epic technique, à découper)
 - [ ] 20260120232600-bouton-feedback-github
-- [ ] 20260115100000-ecs-fargate-migration
-- [x] 20260116100000-ecs-scale-to-zero
 
 ### on_hold
 
 ### ready_for_crystallization
+
+- [x] 20260115100000-ecs-fargate-migration
+- [x] 20260116100000-ecs-scale-to-zero
+- [x] 20260117100000-epic-poi-data-pipeline/20260117100100-poi-admin-import
+- [x] 20260117100000-epic-poi-data-pipeline/20260117100200-audio-guide-generation
 
 ### discarded
 
@@ -68,15 +69,21 @@ Ce fichier est la **source de vérité unique** pour :
 
 ## Notes globales
 
-### Infrastructure
-- **OSRM** : code conservé mais non déployé. Utile plus tard pour trajets utilisateur.
-- **ECS Fargate** : stack CDK opérationnelle, en test staging
-- **Scale-to-zero** : implémenté via Lambda + EventBridge
+### Infrastructure (✅ Implémentées)
+- **ECS Fargate** : Stack CDK complète déployée en production/staging
+- **Scale-to-zero** : Lambdas opérationnelles avec dashboard CloudWatch et webhook Caddy
+- **OSRM** : Code conservé mais non déployé. Utile plus tard pour trajets utilisateur
 
-### POI & Audio Guide (Epic en cours)
-- **Zones initiales** : Fontainebleau (dev) + Marseille (validation)
-- **LLM Gateway** : LiteLLM, URL à configurer par environnement
-- **Sources POI** : OpenTripMap (5000 req/jour) + Wikidata
+### POI & Audio Guide (✅ Implémentées à ~80%)
+- **Admin App** : Interface web complète (`apps/admin/`) avec carte Leaflet
+- **Import POIs** : Via Overpass API (OSM) + enrichissement Wikidata + Wikipedia
+- **Zones configurées** : Fontainebleau (dev) + Marseille (validation)
+- **Audio Guide LLM** : Génération via Ollama avec segments modulaires (express/standard/complet)
+- **Stockage** : PostgreSQL avec schéma étendu pour segments et métadonnées
+
+### En exploration active
+- **Audio Guide Adaptatif** : Système temps réel (contexte, fil POIs, modalités) - Epic prioritaire
+- **Docker Compose / ECS Unification** : Simplification des workflows de déploiement
 
 ### Documentation technique
-- `docs/technical/*.md` : docs détaillées des features infra
+- `docs/technical/*.md` : Docs détaillées des features infra

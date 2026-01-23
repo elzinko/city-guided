@@ -89,6 +89,22 @@ export function createRoutes({ poiRepo, zoneRepo }: RoutesDeps): any[] {
         url: '/api/admin/import/:id/status',
         handler: adminController.getImportStatus,
       },
+      // Audio Guide Generation (Ollama)
+      {
+        method: 'GET',
+        url: '/api/admin/ollama/status',
+        handler: adminController.checkOllamaStatus,
+      },
+      {
+        method: 'POST',
+        url: '/api/admin/pois/:id/generate-audio',
+        handler: adminController.generateAudioGuide as any,
+      },
+      {
+        method: 'GET',
+        url: '/api/admin/pois/:id/segments',
+        handler: adminController.getPoiSegments,
+      },
     )
   }
 

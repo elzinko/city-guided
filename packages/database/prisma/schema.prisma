@@ -41,7 +41,7 @@ model Poi {
   
   // Text-to-speech
   ttsText          String?
-  storySegments    String[]
+  storySegments    Json?    // Array of AudioSegment objects
   
   // Données OpenTripMap
   otmId            String?  @unique

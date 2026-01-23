@@ -3,6 +3,7 @@ import type { ExtendedPoiRepository, ZoneRepository, ExtendedPoi } from '../pers
 import { getOverpassService, type ImportedPoi } from '../external/overpass'
 import { getWikidataService } from '../external/wikidata'
 import { getWikipediaService } from '../external/wikipedia'
+import { getOllamaService, PLAYBACK_MODES } from '../external/ollama'
 
 // État des imports en cours (en mémoire pour simplifier)
 const importStatus = new Map<string, {
@@ -243,6 +244,128 @@ export function createAdminController({
     return reply.send(status)
   }
 
+  // === AUDIO GUIDE GENERATION ===
+
+  async function checkOllamaStatus(_req: FastifyRequest, reply: FastifyReply) {
+    const ollama = getOllamaService()
+    
+    try {
+      const available = await ollama.isAvailable()
+      if (!available) {
+        return reply.send({ 
+          available: false, 
+          error: 'Ollama not reachable',
+          url: process.env.OLLAMA_URL || 'http://localhost:11434'
+        })
+      }
+
+      const models = await ollama.listModels()
+      return reply.send({ 
+        available: true, 
+        models,
+        currentModel: process.env.OLLAMA_MODEL || 'mistral:7b',
+        playbackModes: PLAYBACK_MODES
+      })
+    } catch (error) {
+      return reply.send({ 
+        available: false, 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+  }
+
+  async function generateAudioGuide(
+    req: FastifyRequest<{ 
+      Params: { id: string }
+      Body?: { customPrompt?: string }
+    }>, 
+    reply: FastifyReply
+  ) {
+    if (!checkAdmin(req)) {
+      return reply.status(401).send({ error: 'Unauthorized' })
+    }
+
+    const poiId = req.params.id
+    const { customPrompt } = req.body || {}
+
+    // Récupérer le POI (cast as ExtendedPoi car poiRepo est un ExtendedPoiRepository)
+    const poi = await poiRepo.findById(poiId) as ExtendedPoi | null
+    if (!poi) {
+      return reply.status(404).send({ error: 'POI not found' })
+    }
+
+    // Vérifier qu'on a du contenu Wikipedia
+    if (!poi.wikipediaContent) {
+      return reply.status(400).send({ 
+        error: 'POI has no Wikipedia content. Import data first.',
+        poiName: poi.name 
+      })
+    }
+
+    // Vérifier Ollama
+    const ollama = getOllamaService()
+    const available = await ollama.isAvailable()
+    if (!available) {
+      return reply.status(503).send({ 
+        error: 'Ollama service not available',
+        hint: 'Make sure Ollama is running: docker start city-guided-ollama'
+      })
+    }
+
+    try {
+      // Générer l'audio-guide
+      console.log(`Generating audio guide for POI: ${poi.name}`)
+      const result = await ollama.generateAudioGuide(
+        poi.name,
+        poi.wikipediaContent,
+        poi.category,
+        customPrompt
+      )
+
+      // Sauvegarder les segments en base
+      await poiRepo.updateStorySegments(poiId, result.segments)
+
+      // Générer aussi le ttsText complet (concaténation de tous les segments)
+      const fullText = result.segments.map(s => s.content).join('\n\n')
+      await poiRepo.updateTtsText(poiId, fullText)
+
+      return reply.send({
+        success: true,
+        poiId,
+        poiName: poi.name,
+        segments: result.segments,
+        totalDuration: result.totalDuration,
+        model: result.model,
+        generatedAt: result.generatedAt
+      })
+    } catch (error) {
+      console.error('Error generating audio guide:', error)
+      return reply.status(500).send({ 
+        error: 'Failed to generate audio guide',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+  }
+
+  async function getPoiSegments(
+    req: FastifyRequest<{ Params: { id: string } }>, 
+    reply: FastifyReply
+  ) {
+    const poi = await poiRepo.findById(req.params.id) as ExtendedPoi | null
+    if (!poi) {
+      return reply.status(404).send({ error: 'POI not found' })
+    }
+
+    return reply.send({
+      poiId: poi.id,
+      poiName: poi.name,
+      segments: poi.storySegments || [],
+      ttsText: poi.ttsText,
+      hasWikipediaContent: !!poi.wikipediaContent,
+      playbackModes: PLAYBACK_MODES
+    })
+  }
+
   return {
     getZones,
     getZone,
@@ -250,5 +373,8 @@ export function createAdminController({
     getZonePois,
     startImport,
     getImportStatus,
+    checkOllamaStatus,
+    generateAudioGuide,
+    getPoiSegments,
   }
 }

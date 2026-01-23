@@ -22,6 +22,8 @@ interface Poi {
   category: string
   shortDescription: string
   fullDescription?: string
+  ttsText?: string
+  storySegments?: AudioSegment[]
   otmId?: string
   otmKinds?: string[]
   otmRate?: number
@@ -29,8 +31,44 @@ interface Poi {
   wikidataDescription?: string
   imageUrl?: string
   wikipediaUrl?: string
+  wikipediaContent?: string
   importedAt?: string
   updatedAt?: string
+}
+
+interface AudioSegment {
+  id: string
+  type: 'hook' | 'essential' | 'context' | 'anecdotes' | 'details' | 'transition'
+  title: string
+  content: string
+  durationEstimate: number
+}
+
+interface OllamaStatus {
+  available: boolean
+  models?: string[]
+  currentModel?: string
+  error?: string
+  playbackModes?: Record<string, { name: string; description: string; segments: string[] }>
+}
+
+interface AudioGuideResult {
+  success: boolean
+  poiId: string
+  poiName: string
+  segments: AudioSegment[]
+  totalDuration: number
+  model: string
+  generatedAt: string
+}
+
+interface PoiSegments {
+  poiId: string
+  poiName: string
+  segments: AudioSegment[]
+  ttsText?: string
+  hasWikipediaContent: boolean
+  playbackModes: Record<string, { name: string; description: string; segments: string[] }>
 }
 
 interface ImportStatus {
@@ -107,4 +145,20 @@ export async function getImportStatus(zoneId: string): Promise<ImportStatus> {
   return apiFetch<ImportStatus>(`/api/admin/import/${zoneId}/status`)
 }
 
-export type { Zone, Poi, ImportStatus }
+// Audio Guide (Ollama)
+export async function getOllamaStatus(): Promise<OllamaStatus> {
+  return apiFetch<OllamaStatus>('/api/admin/ollama/status')
+}
+
+export async function generateAudioGuide(poiId: string, customPrompt?: string): Promise<AudioGuideResult> {
+  return apiFetch<AudioGuideResult>(`/api/admin/pois/${poiId}/generate-audio`, {
+    method: 'POST',
+    body: customPrompt ? JSON.stringify({ customPrompt }) : undefined,
+  })
+}
+
+export async function getPoiSegments(poiId: string): Promise<PoiSegments> {
+  return apiFetch<PoiSegments>(`/api/admin/pois/${poiId}/segments`)
+}
+
+export type { Zone, Poi, ImportStatus, AudioSegment, OllamaStatus, AudioGuideResult }

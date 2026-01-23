@@ -40,6 +40,8 @@ export interface ExtendedPoiRepository extends PoiRepository {
   findByOtmId(otmId: string): Promise<ExtendedPoi | null>
   upsertFromImport(poi: Omit<ExtendedPoi, 'id'>, zoneId: string): Promise<ExtendedPoi>
   bulkUpsertFromImport(pois: Array<Omit<ExtendedPoi, 'id'>>, zoneId: string): Promise<{ created: number; updated: number }>
+  updateStorySegments(poiId: string, segments: unknown[]): Promise<void>
+  updateTtsText(poiId: string, ttsText: string): Promise<void>
 }
 
 // Convertir Prisma Poi → Domain Poi
@@ -54,7 +56,7 @@ function prismaToDomain(p: PrismaPoi): ExtendedPoi {
     shortDescription: p.shortDescription,
     fullDescription: p.fullDescription || undefined,
     ttsText: p.ttsText || undefined,
-    storySegments: p.storySegments,
+    storySegments: p.storySegments ?? undefined,
     otmId: p.otmId,
     otmKinds: p.otmKinds,
     otmRate: p.otmRate,
@@ -122,7 +124,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
         shortDescription: p.shortDescription,
         fullDescription: p.fullDescription,
         ttsText: p.ttsText,
-        storySegments: p.storySegments || [],
+        storySegments: (p.storySegments || []) as unknown as undefined,
         otmId: p.otmId,
         otmKinds: p.otmKinds || [],
         otmRate: p.otmRate,
@@ -149,7 +151,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
           shortDescription: p.shortDescription,
           fullDescription: p.fullDescription,
           ttsText: p.ttsText,
-          storySegments: p.storySegments,
+          storySegments: (p.storySegments ?? undefined) as unknown as undefined,
           otmId: p.otmId,
           otmKinds: p.otmKinds,
           otmRate: p.otmRate,
@@ -191,7 +193,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
         shortDescription: poi.shortDescription,
         fullDescription: poi.fullDescription,
         ttsText: poi.ttsText,
-        storySegments: poi.storySegments || [],
+        storySegments: (poi.storySegments || []) as unknown as undefined,
         otmId: poi.otmId,
         otmKinds: poi.otmKinds || [],
         otmRate: poi.otmRate,
@@ -266,7 +268,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
                 shortDescription: poi.shortDescription,
                 fullDescription: poi.fullDescription,
                 ttsText: poi.ttsText,
-                storySegments: poi.storySegments || [],
+                storySegments: (poi.storySegments || []) as unknown as undefined,
                 otmId: poi.otmId,
                 otmKinds: poi.otmKinds || [],
                 otmRate: poi.otmRate,
@@ -291,7 +293,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
               shortDescription: poi.shortDescription,
               fullDescription: poi.fullDescription,
               ttsText: poi.ttsText,
-              storySegments: poi.storySegments || [],
+              storySegments: (poi.storySegments || []) as unknown as undefined,
               otmKinds: poi.otmKinds || [],
               otmRate: poi.otmRate,
               wikidataId: poi.wikidataId,
@@ -308,6 +310,20 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
     })
 
     return { created, updated }
+  }
+
+  async updateStorySegments(poiId: string, segments: unknown[]): Promise<void> {
+    await prisma.poi.update({
+      where: { id: poiId },
+      data: { storySegments: segments as any },
+    })
+  }
+
+  async updateTtsText(poiId: string, ttsText: string): Promise<void> {
+    await prisma.poi.update({
+      where: { id: poiId },
+      data: { ttsText },
+    })
   }
 }
 

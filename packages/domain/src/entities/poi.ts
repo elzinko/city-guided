@@ -10,5 +10,5 @@ export type Poi = {
   shortDescription: string
   fullDescription?: string
   ttsText?: string
-  storySegments?: string[]
+  storySegments?: unknown // JSON field - can be AudioSegment[] at runtime
 }

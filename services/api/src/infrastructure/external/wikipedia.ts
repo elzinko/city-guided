@@ -126,13 +126,15 @@ export class WikipediaService {
 
   /**
    * Récupère le contenu complet d'un article Wikipedia
+   * Utilise l'API MediaWiki action=query avec prop=extracts
+   * (l'ancienne API mobile-text a été décommissionnée)
    */
   private async getArticleContent(title: string, lang: string): Promise<WikipediaContent | null> {
     await this.rateLimiter.acquire()
 
-    // Utiliser l'API REST de Wikipedia pour le contenu en texte brut
+    // Utiliser l'API MediaWiki avec prop=extracts pour le texte brut
     const encodedTitle = encodeURIComponent(title)
-    const url = `https://${lang}.wikipedia.org/api/rest_v1/page/mobile-text/${encodedTitle}`
+    const url = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodedTitle}&prop=extracts&explaintext=1&format=json`
     
     const response = await fetch(url, {
       headers: {
@@ -147,96 +149,32 @@ export class WikipediaService {
     }
 
     const data = (await response.json()) as {
-      title: string
-      extract?: string
-      sections?: Array<{
-        id: number
-        text: string
-      }>
-    }
-
-    // Extraire le texte de toutes les sections
-    let fullContent = ''
-    if (data.sections) {
-      for (const section of data.sections) {
-        if (section.text) {
-          // Nettoyer le HTML basique
-          const cleanText = this.stripHtml(section.text)
-          if (cleanText.trim()) {
-            fullContent += cleanText + '\n\n'
-          }
-        }
+      query?: {
+        pages?: Record<string, {
+          pageid?: number
+          title?: string
+          extract?: string
+        }>
       }
     }
 
-    // Si pas de contenu via sections, essayer l'API de résumé
-    if (!fullContent) {
-      const summaryContent = await this.getArticleSummary(title, lang)
-      if (summaryContent) {
-        fullContent = summaryContent
-      }
-    }
+    // Extraire le contenu de la première page
+    const pages = data.query?.pages
+    if (!pages) return null
 
+    const page = Object.values(pages)[0]
+    if (!page || !page.extract || page.pageid === undefined) return null
+
+    const fullContent = page.extract.trim()
     if (!fullContent) return null
 
     return {
-      title: data.title || title,
-      extract: data.extract || fullContent.substring(0, 500),
-      content: fullContent.trim(),
+      title: page.title || title,
+      extract: fullContent.substring(0, 500),
+      content: fullContent,
       url: `https://${lang}.wikipedia.org/wiki/${encodedTitle}`,
       language: lang,
     }
-  }
-
-  /**
-   * Récupère le résumé d'un article (fallback)
-   */
-  private async getArticleSummary(title: string, lang: string): Promise<string | null> {
-    await this.rateLimiter.acquire()
-
-    const encodedTitle = encodeURIComponent(title)
-    const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodedTitle}`
-    
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': this.userAgent,
-        'Accept': 'application/json',
-      },
-    })
-
-    if (!response.ok) return null
-
-    const data = (await response.json()) as {
-      extract?: string
-      extract_html?: string
-    }
-
-    return data.extract || null
-  }
-
-  /**
-   * Nettoie le HTML pour obtenir du texte brut
-   */
-  private stripHtml(html: string): string {
-    return html
-      // Supprimer les balises script et style
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      // Convertir les balises de bloc en nouvelles lignes
-      .replace(/<\/?(p|div|br|h[1-6]|li|tr)[^>]*>/gi, '\n')
-      // Supprimer toutes les autres balises HTML
-      .replace(/<[^>]+>/g, '')
-      // Décoder les entités HTML courantes
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      // Nettoyer les espaces multiples
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/[ \t]+/g, ' ')
-      .trim()
   }
 
   /**

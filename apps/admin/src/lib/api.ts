@@ -151,10 +151,37 @@ export async function getOllamaStatus(): Promise<OllamaStatus> {
 }
 
 export async function generateAudioGuide(poiId: string, customPrompt?: string): Promise<AudioGuideResult> {
-  return apiFetch<AudioGuideResult>(`/api/admin/pois/${poiId}/generate-audio`, {
+  // Use direct API URL to avoid Next.js proxy timeout (Ollama can take 30-60s)
+  // In browser, we detect the API port from current location or use default 4000
+  const apiPort = typeof window !== 'undefined' 
+    ? (process.env.NEXT_PUBLIC_API_PORT || '4000')
+    : '4000'
+  const directApiUrl = typeof window !== 'undefined'
+    ? `http://${window.location.hostname}:${apiPort}`
+    : 'http://localhost:4000'
+  
+  const url = `${directApiUrl}/api/admin/pois/${poiId}/generate-audio`
+  
+  const headers: Record<string, string> = {
+    'X-Admin-Token': ADMIN_TOKEN,
+  }
+  
+  if (customPrompt) {
+    headers['Content-Type'] = 'application/json'
+  }
+  
+  const response = await fetch(url, {
     method: 'POST',
+    headers,
     body: customPrompt ? JSON.stringify({ customPrompt }) : undefined,
   })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }))
+    throw new Error(error.error || `API error: ${response.status}`)
+  }
+
+  return response.json()
 }
 
 export async function getPoiSegments(poiId: string): Promise<PoiSegments> {

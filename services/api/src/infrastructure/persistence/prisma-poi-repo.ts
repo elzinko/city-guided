@@ -11,6 +11,7 @@ export interface ExtendedPoi extends Poi {
   wikidataDescription?: string | null
   imageUrl?: string | null
   wikipediaUrl?: string | null
+  wikipediaContent?: string | null  // Contenu Wikipedia complet pour génération audio
   zoneId?: string
   importedAt?: Date
   updatedAt?: Date
@@ -61,6 +62,7 @@ function prismaToDomain(p: PrismaPoi): ExtendedPoi {
     wikidataDescription: p.wikidataDescription,
     imageUrl: p.imageUrl,
     wikipediaUrl: p.wikipediaUrl,
+    wikipediaContent: p.wikipediaContent,
     zoneId: p.zoneId,
     importedAt: p.importedAt,
     updatedAt: p.updatedAt,
@@ -197,6 +199,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
         wikidataDescription: poi.wikidataDescription,
         imageUrl: poi.imageUrl,
         wikipediaUrl: poi.wikipediaUrl,
+        wikipediaContent: poi.wikipediaContent,
         zoneId,
       },
       update: {
@@ -212,6 +215,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
         wikidataDescription: poi.wikidataDescription,
         imageUrl: poi.imageUrl,
         wikipediaUrl: poi.wikipediaUrl,
+        wikipediaContent: poi.wikipediaContent,
       },
     })
 
@@ -247,6 +251,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
                 wikidataDescription: poi.wikidataDescription,
                 imageUrl: poi.imageUrl,
                 wikipediaUrl: poi.wikipediaUrl,
+                wikipediaContent: poi.wikipediaContent,
               },
             })
             updated++
@@ -269,6 +274,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
                 wikidataDescription: poi.wikidataDescription,
                 imageUrl: poi.imageUrl,
                 wikipediaUrl: poi.wikipediaUrl,
+                wikipediaContent: poi.wikipediaContent,
                 zoneId,
               },
             })
@@ -292,6 +298,7 @@ export class PrismaPoiRepository implements ExtendedPoiRepository {
               wikidataDescription: poi.wikidataDescription,
               imageUrl: poi.imageUrl,
               wikipediaUrl: poi.wikipediaUrl,
+              wikipediaContent: poi.wikipediaContent,
               zoneId,
             },
           })

@@ -49,10 +49,13 @@ model Poi {
   otmRate          Int?     // Rating OpenTripMap (1-7)
   
   // Données Wikidata
-  wikidataId       String?
+  wikidataId          String?
   wikidataDescription String?
-  imageUrl         String?
-  wikipediaUrl     String?
+  imageUrl            String?
+  wikipediaUrl        String?
+  
+  // Contenu Wikipedia pour génération audio
+  wikipediaContent    String?  // Article Wikipedia complet (texte brut)
   
   // Relations
   zoneId           String

@@ -66,6 +66,7 @@ export class OverpassService {
 
   /**
    * Récupère les POIs touristiques dans un rayon autour d'un point
+   * Filtre uniquement les POIs avec un tag wikidata pour garantir des données enrichies
    */
   async getPoisByRadius(
     lat: number,
@@ -75,26 +76,27 @@ export class OverpassService {
     const radiusMeters = radiusKm * 1000
 
     // Construire la requête Overpass QL
+    // On ajoute ["wikidata"] pour ne récupérer que les POIs avec données Wikidata
     const query = `
       [out:json][timeout:60];
       (
-        // Tourism
-        node["tourism"~"museum|artwork|attraction|viewpoint|gallery"](around:${radiusMeters},${lat},${lng});
-        way["tourism"~"museum|artwork|attraction|viewpoint|gallery"](around:${radiusMeters},${lat},${lng});
-        relation["tourism"~"museum|artwork|attraction|viewpoint|gallery"](around:${radiusMeters},${lat},${lng});
+        // Tourism avec wikidata
+        node["tourism"~"museum|artwork|attraction|viewpoint|gallery"]["wikidata"](around:${radiusMeters},${lat},${lng});
+        way["tourism"~"museum|artwork|attraction|viewpoint|gallery"]["wikidata"](around:${radiusMeters},${lat},${lng});
+        relation["tourism"~"museum|artwork|attraction|viewpoint|gallery"]["wikidata"](around:${radiusMeters},${lat},${lng});
         
-        // Historic
-        node["historic"~"monument|memorial|castle|ruins|archaeological_site|church|cathedral|palace|fort|manor|tower"](around:${radiusMeters},${lat},${lng});
-        way["historic"~"monument|memorial|castle|ruins|archaeological_site|church|cathedral|palace|fort|manor|tower"](around:${radiusMeters},${lat},${lng});
-        relation["historic"~"monument|memorial|castle|ruins|archaeological_site|church|cathedral|palace|fort|manor|tower"](around:${radiusMeters},${lat},${lng});
+        // Historic avec wikidata
+        node["historic"~"monument|memorial|castle|ruins|archaeological_site|church|cathedral|palace|fort|manor|tower"]["wikidata"](around:${radiusMeters},${lat},${lng});
+        way["historic"~"monument|memorial|castle|ruins|archaeological_site|church|cathedral|palace|fort|manor|tower"]["wikidata"](around:${radiusMeters},${lat},${lng});
+        relation["historic"~"monument|memorial|castle|ruins|archaeological_site|church|cathedral|palace|fort|manor|tower"]["wikidata"](around:${radiusMeters},${lat},${lng});
         
-        // Amenity cultural
-        node["amenity"~"theatre|arts_centre|place_of_worship"]["name"](around:${radiusMeters},${lat},${lng});
-        way["amenity"~"theatre|arts_centre|place_of_worship"]["name"](around:${radiusMeters},${lat},${lng});
+        // Amenity cultural avec wikidata
+        node["amenity"~"theatre|arts_centre|place_of_worship"]["wikidata"](around:${radiusMeters},${lat},${lng});
+        way["amenity"~"theatre|arts_centre|place_of_worship"]["wikidata"](around:${radiusMeters},${lat},${lng});
         
-        // Notable buildings
-        node["building"~"church|cathedral|chapel|mosque|synagogue|temple"]["name"](around:${radiusMeters},${lat},${lng});
-        way["building"~"church|cathedral|chapel|mosque|synagogue|temple"]["name"](around:${radiusMeters},${lat},${lng});
+        // Notable buildings avec wikidata
+        node["building"~"church|cathedral|chapel|mosque|synagogue|temple"]["wikidata"](around:${radiusMeters},${lat},${lng});
+        way["building"~"church|cathedral|chapel|mosque|synagogue|temple"]["wikidata"](around:${radiusMeters},${lat},${lng});
       );
       out center tags;
     `
@@ -173,7 +175,7 @@ export class OverpassService {
       })
     }
 
-    console.log(`Overpass: found ${pois.length} POIs with names out of ${data.elements.length} elements`)
+    console.log(`Overpass: found ${pois.length} POIs with wikidata out of ${data.elements.length} elements`)
     
     return pois
   }

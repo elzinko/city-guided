@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify'
 import type { ExtendedPoiRepository, ZoneRepository, ExtendedPoi } from '../persistence/prisma-poi-repo'
 import { getOverpassService, type ImportedPoi } from '../external/overpass'
 import { getWikidataService } from '../external/wikidata'
+import { getWikipediaService } from '../external/wikipedia'
 
 // État des imports en cours (en mémoire pour simplifier)
 const importStatus = new Map<string, {
@@ -156,7 +157,7 @@ export function createAdminController({
         return
       }
 
-      // 2. Enrichir avec Wikidata (pour les POIs qui ont un wikidataId)
+      // 2. Enrichir avec Wikidata (descriptions courtes, images)
       status.status = 'enriching'
       const wikidataService = getWikidataService()
       const wikidataIds = osmPois
@@ -169,15 +170,26 @@ export function createAdminController({
         wikidataMap = await wikidataService.enrichPoisBatch(
           wikidataIds,
           (current, total) => {
-            status.progress = Math.floor((current / total) * 50)
+            status.progress = Math.floor((current / total) * 25)
           }
         )
       }
 
-      // 3. Sauvegarder en base
+      // 3. Enrichir avec Wikipedia (contenu complet pour audio)
+      const wikipediaService = getWikipediaService()
+      const wikipediaMap = await wikipediaService.enrichPoisBatch(
+        wikidataIds,
+        'fr', // Préférer le français
+        (current, total) => {
+          status.progress = 25 + Math.floor((current / total) * 50)
+        }
+      )
+
+      // 4. Sauvegarder en base
       status.status = 'saving'
       const poisToSave: Array<Omit<ExtendedPoi, 'id'>> = osmPois.map((poi: ImportedPoi) => {
         const wikidata = poi.wikidataId ? wikidataMap.get(poi.wikidataId) : null
+        const wikipedia = poi.wikidataId ? wikipediaMap.get(poi.wikidataId) : null
         
         return {
           name: poi.name,
@@ -193,7 +205,8 @@ export function createAdminController({
           wikidataId: poi.wikidataId,
           wikidataDescription: wikidata?.description,
           imageUrl: wikidata?.imageUrl,
-          wikipediaUrl: poi.wikipediaUrl || wikidata?.wikipediaUrl,
+          wikipediaUrl: wikipedia?.url || poi.wikipediaUrl || wikidata?.wikipediaUrl,
+          wikipediaContent: wikipedia?.content || null,
         }
       })
 

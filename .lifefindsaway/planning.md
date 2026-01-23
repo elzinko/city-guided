@@ -38,6 +38,9 @@ Ce fichier est la **source de vérité unique** pour :
 
 ### exploring
 
+- [ ] 20260123053501-epic-adaptive-audio-guide/20260123053502-contexte-deplacement
+- [ ] 20260123053501-epic-adaptive-audio-guide/20260123053503-fil-pois-predictif
+- [ ] 20260123053501-epic-adaptive-audio-guide/20260123053504-modalite-audio-adaptative
 - [ ] 20260120171923-docker-compose-ecs-unification
 - [ ] 20260117100000-epic-poi-data-pipeline/20260117100100-poi-admin-import
 - [ ] 20260117100000-epic-poi-data-pipeline/20260117100200-audio-guide-generation

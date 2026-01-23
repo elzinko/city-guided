@@ -32,16 +32,34 @@ Ce fichier est la **source de vérité unique** pour :
 
 ---
 
+## Bugs
+
+### open
+- [ ] 20260123152600-navigation-zoom-locked ⚠️ **Majeur** - Zoom locké + bouton recentrer manquant
+- [ ] 20260123152601-navigation-buttons-disappear ⚠️ **Majeur** - Boutons parcours disparaissent au clic
+- [ ] 20260123152602-navigation-poi-list-behavior ⚠️ **Majeur** - POI list disparait au clic (lié à Epic Playlist)
+- [ ] 20260123152603-navigation-button-icon 🎨 **Cosmétique** - Icône à changer (asset à fournir)
+
+### fixed
+
+---
+
 ## Features
 
 ### idea
+- [ ] 20260123152800-epic-navigation-playlist (Epic, **needs refinement** - UX à designer)
+- [ ] 20260123152900-epic-exploration-modes (Epic, **needs refinement** - modes urbex, gastro, etc.)
+- [ ] 20260123153000-epic-user-profiling (Epic, **needs refinement** - questionnaire + profils)
+- [ ] 20260123153100-epic-user-history-ml (Epic, **needs refinement** - 3 phases: historique → analytics → ML)
 
 ### exploring
 
 - [ ] 20260123053501-epic-adaptive-audio-guide/20260123053502-contexte-deplacement
 - [ ] 20260123053501-epic-adaptive-audio-guide/20260123053503-fil-pois-predictif
 - [ ] 20260123053501-epic-adaptive-audio-guide/20260123053504-modalite-audio-adaptative
-- [ ] 20260120171923-docker-compose-ecs-unification
+- [ ] 20260123152700-transport-mode-selector (piéton/voiture)
+- [ ] 20260123152701-dev-speed-divisors (/3, /4, /5 pour dev)
+- [ ] 20260123152702-navigation-map-tilt (carte plate/inclinée)
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232500-recherche-avancee
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232501-decouvertes-personnalisees
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232502-vue-decouvrir-categories
@@ -64,6 +82,7 @@ Ce fichier est la **source de vérité unique** pour :
 - [x] 20260117100000-epic-poi-data-pipeline/20260117100200-audio-guide-generation
 
 ### discarded
+- [ ] 20260120171923-docker-compose-ecs-unification
 
 ---
 
@@ -83,7 +102,13 @@ Ce fichier est la **source de vérité unique** pour :
 
 ### En exploration active
 - **Audio Guide Adaptatif** : Système temps réel (contexte, fil POIs, modalités) - Epic prioritaire
-- **Docker Compose / ECS Unification** : Simplification des workflows de déploiement
+- **Navigation UX** : Bugs zoom/boutons + features carte inclinée, mode transport
+
+### Epics à raffiner (idea)
+- **Navigation Playlist** : Fil d'Ariane + POIs futurs avec sélection - UX à designer
+- **Exploration Modes** : Urbex, culture, gastro, custom - Tagging POIs nécessaire
+- **User Profiling** : Questionnaire onboarding + profils - UX à designer
+- **User History + ML** : Historique → Analytics → Recommandations ML
 
 ### Documentation technique
 - `docs/technical/*.md` : Docs détaillées des features infra

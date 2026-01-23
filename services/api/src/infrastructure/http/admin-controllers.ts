@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import type { ExtendedPoiRepository, ZoneRepository, ExtendedPoi } from '../persistence/prisma-poi-repo'
-import { getOpenTripMapService, type ImportedPoi } from '../external/opentripmap'
+import { getOverpassService, type ImportedPoi } from '../external/overpass'
 import { getWikidataService } from '../external/wikidata'
 
 // État des imports en cours (en mémoire pour simplifier)
@@ -144,35 +144,39 @@ export function createAdminController({
     const status = importStatus.get(zoneId)!
     
     try {
-      // 1. Récupérer les POIs depuis OpenTripMap
+      // 1. Récupérer les POIs depuis Overpass (OpenStreetMap)
       status.status = 'fetching'
-      const otmService = getOpenTripMapService()
-      const otmPois = await otmService.getPoisByRadius(lat, lng, radiusKm)
-      status.total = otmPois.length
+      const overpassService = getOverpassService()
+      const osmPois = await overpassService.getPoisByRadius(lat, lng, radiusKm)
+      status.total = osmPois.length
 
-      if (otmPois.length === 0) {
+      if (osmPois.length === 0) {
         status.status = 'completed'
         status.completedAt = new Date()
         return
       }
 
-      // 2. Enrichir avec Wikidata
+      // 2. Enrichir avec Wikidata (pour les POIs qui ont un wikidataId)
       status.status = 'enriching'
       const wikidataService = getWikidataService()
-      const wikidataIds = otmPois
+      const wikidataIds = osmPois
         .filter(p => p.wikidataId)
         .map(p => p.wikidataId!)
       
-      const wikidataMap = await wikidataService.enrichPoisBatch(
-        wikidataIds,
-        (current, total) => {
-          status.progress = Math.floor((current / total) * 50)
-        }
-      )
+      let wikidataMap = new Map<string, { description: string | null; imageUrl: string | null; wikipediaUrl: string | null }>()
+      
+      if (wikidataIds.length > 0) {
+        wikidataMap = await wikidataService.enrichPoisBatch(
+          wikidataIds,
+          (current, total) => {
+            status.progress = Math.floor((current / total) * 50)
+          }
+        )
+      }
 
       // 3. Sauvegarder en base
       status.status = 'saving'
-      const poisToSave: Array<Omit<ExtendedPoi, 'id'>> = otmPois.map((poi: ImportedPoi) => {
+      const poisToSave: Array<Omit<ExtendedPoi, 'id'>> = osmPois.map((poi: ImportedPoi) => {
         const wikidata = poi.wikidataId ? wikidataMap.get(poi.wikidataId) : null
         
         return {
@@ -181,14 +185,15 @@ export function createAdminController({
           lng: poi.lng,
           radiusMeters: 50,
           category: poi.category,
-          shortDescription: poi.shortDescription || wikidata?.description || '',
-          otmId: poi.otmId,
-          otmKinds: poi.otmKinds,
-          otmRate: poi.otmRate,
+          shortDescription: wikidata?.description || '',
+          // Store OSM data instead of OTM
+          otmId: poi.osmId, // Reusing field for OSM ID
+          otmKinds: poi.osmTags, // Reusing field for OSM tags
+          otmRate: null, // OSM doesn't have ratings
           wikidataId: poi.wikidataId,
           wikidataDescription: wikidata?.description,
           imageUrl: wikidata?.imageUrl,
-          wikipediaUrl: wikidata?.wikipediaUrl,
+          wikipediaUrl: poi.wikipediaUrl || wikidata?.wikipediaUrl,
         }
       })
 

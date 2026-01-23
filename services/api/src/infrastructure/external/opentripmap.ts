@@ -162,7 +162,19 @@ export class OpenTripMapService {
       throw new Error(`OpenTripMap API error: ${response.status} ${response.statusText}`)
     }
 
-    const pois = (await response.json()) as OtmPoi[]
+    const data: unknown = await response.json()
+    
+    // OpenTripMap retourne {} ou {error} au lieu d'un tableau vide quand pas de résultats
+    if (!Array.isArray(data)) {
+      const maybeError = data as { error?: string }
+      if (maybeError.error) {
+        throw new Error(`OpenTripMap API error: ${maybeError.error}`)
+      }
+      console.log('OpenTripMap returned no results (empty object)')
+      return []
+    }
+    
+    const pois = data as OtmPoi[]
     
     // Filtrer les POIs sans nom ou trop mal notés
     const validPois = pois.filter(poi => 

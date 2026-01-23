@@ -48,10 +48,14 @@ interface ImportStatus {
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${path}`
   
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+  const headers: Record<string, string> = {
     'X-Admin-Token': ADMIN_TOKEN,
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
+  }
+
+  // Only add Content-Type for requests with body
+  if (options.body) {
+    headers['Content-Type'] = 'application/json'
   }
 
   const response = await fetch(url, {

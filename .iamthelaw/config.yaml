@@ -1,3 +1,5 @@
+# Iamthelaw configuration
+
 enabled:
   - clean-code
   - hexagonal
@@ -7,4 +9,3 @@ enabled:
   - ci-cd
   - testing
   - personal-preferences
-projectRulesPath: rules

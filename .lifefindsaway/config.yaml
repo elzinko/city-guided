@@ -1,0 +1,8 @@
+# Lifefindsaway configuration
+
+enabled:
+  - ideation-basics
+
+featuresPath: ideation/features
+bugsPath: ideation/bugs
+planningFile: ideation/planning.md

@@ -1,6 +1,4 @@
 # .cursorrules - Point d'entrée pour Cursor
 
-Point d'entrée spécifique pour Cursor IDE.
-
-- **DOIT** : Lire [iamthelaw/ENTRY.md](./iamthelaw/ENTRY.md) pour les règles de développement
-- **DOIT** : Lire [lifefindsaway/ENTRY.md](./lifefindsaway/ENTRY.md) pour l'idéation
+- **DOIT** : Lire [.iamthelaw/AGENTS.md](./.iamthelaw/AGENTS.md) pour les règles de développement
+- **DOIT** : Lire [.lifefindsaway/AGENTS.md](./.lifefindsaway/AGENTS.md) pour l'idéation

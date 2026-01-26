@@ -1,108 +1,73 @@
-# Agile Agents – Phase A (Exploration)
+# Lifefindsaway - Ideation Configuration
 
-Ce document définit les **agents cognitifs autorisés** à intervenir dans
-le répertoire `agile/` pendant la Phase A (Exploration).
+Configuration et données d'idéation pour ce projet.
 
-Il s’agit d’une **spécification conceptuelle**, indépendante de tout outil
-(Cursor, Claude, CrewAI, etc.).
+## Contexte
 
-Tout agent ou LLM intervenant sur `agile/` **DOIT** respecter ce document.
+- Lire [RESUME.md](../RESUME.md) pour le contexte projet
+- Consulter [ideation/planning.md](./ideation/planning.md) pour les statuts
 
----
+## Principes d'idéation
 
-## Principes généraux
+- Les documents peuvent être incomplets, imparfaits, évolutifs
+- L'objectif est d'explorer et surfacer les inconnues
+- Pas de validation formelle requise en phase exploration
 
-- Les agents **n’implémentent jamais de code**
+## Règles pour les agents
+
+### Principes généraux
+
+- Les agents **n'implémentent jamais de code**
 - Les agents **ne prennent aucune décision métier finale**
-- Les agents **n’inventent jamais d’informations**
+- Les agents **n'inventent jamais d'informations**
 - Toute hypothèse doit être explicitement marquée
-- La source de vérité méthodologique est `agile/README.md`
+- En cas de doute, poser une question plutôt qu'agir
 
----
+### Planner
 
-## Agent : Agile Planner
+Maintenir la cohérence du planning.
 
-### Rôle
-Maintenir la cohérence du planning en Phase A.
-
-### Responsabilités
-- Mettre à jour `agile/planning.md`
+- Lire et modifier `ideation/planning.md`
 - Déplacer des Features entre statuts
-- Ajuster l’ordre de priorité
+- Ajuster l'ordre de priorité
+- **Interdit** : Modifier des fichiers de Feature/Bug
 
-### Autorisé
-- Lire `agile/README.md`
-- Lire et modifier `agile/planning.md`
+### Feature Explorer
 
-### Interdits
-- Modifier des fichiers de Feature
-- Créer ou renommer des répertoires
-- Inventer de nouveaux statuts
+Explorer et formaliser une Feature.
 
----
-
-## Agent : Feature Explorer
-
-### Rôle
-Aider à explorer et formaliser une Feature en Phase A.
-
-### Responsabilités
-- Générer ou enrichir `feature.md`
+- Générer ou enrichir `ideation/features/*/feature.md`
 - Lister hypothèses, risques, questions ouvertes
+- Explorer au moins 2 approches alternatives avant de valider
+- **Interdit** : Modifier le planning
 
-### Autorisé
-- Lire `agile/README.md`
-- Lire `agile/templates/feature.md`
-- Modifier uniquement le contenu du dossier Feature ciblé
+### Epic Explorer
 
-### Interdits
-- Modifier `planning.md`
-- Changer le statut d’une Feature
-- Supprimer des informations existantes sans justification
+Explorer un périmètre large avant découpage.
 
----
-
-## Agent : Epic Explorer
-
-### Rôle
-Explorer un périmètre large avant découpage en Features.
-
-### Responsabilités
-- Rédiger ou enrichir un `epic.md`
+- Rédiger ou enrichir `ideation/features/*/epic.md`
 - Identifier Features candidates
+- **Interdit** : Prioriser ou transformer en engagement
 
-### Autorisé
-- Lire `agile/templates/epic.md`
-- Modifier uniquement les fichiers Epic concernés
+### Bug Reporter
 
-### Interdits
-- Prioriser
-- Modifier le planning
-- Transformer une Epic en engagement
+Documenter les bugs de manière structurée.
 
----
+- Créer et enrichir `ideation/bugs/*/bug.md`
+- **Interdit** : Implémenter des corrections
 
-## Agent : Agile Reviewer (optionnel)
+## Conventions
 
-### Rôle
-Détecter incohérences, flou ou contradictions.
+### Nommage avec timestamp
 
-### Responsabilités
-- Relire des documents Phase A
-- Pointer ambiguïtés
-- Signaler hypothèses implicites
+Format : `YYYYMMDDHHMMSS-slug`
+Exemple : `20260117143012-user-authentication`
 
-### Autorisé
-- Lecture seule sur `agile/`
+### Source de vérité
 
-### Interdits
-- Modifier des fichiers
-- Proposer des solutions techniques
+`ideation/planning.md` est la source unique pour :
+- Statut des features
+- Priorité relative
+- Ordre de traitement
 
----
-
-## Principe fondamental
-
-> Un agent n’agit jamais hors de son périmètre.
->  
-> En cas de doute, il pose une question plutôt que d’agir.
+Ne jamais dupliquer ces informations dans les fichiers feature.

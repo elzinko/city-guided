@@ -7,8 +7,10 @@ import {
   NewRouteButton,
   RouteForm,
   Notification,
+  ImportModal,
+  HelpPopup,
 } from '../../components/routes'
-import type { RoutePoint, NotificationType } from '../../components/routes'
+import type { RoutePoint, NotificationType, RecordedRoute } from '../../components/routes'
 
 // Types pour les trajets sauvegardés
 type SavedRoute = {
@@ -18,18 +20,8 @@ type SavedRoute = {
   points: RoutePoint[]
   createdAt: string
   updatedAt: string
-  isDefault?: boolean // Route système non modifiable
-  isImported?: boolean // Trajet importé (lecture seule)
-}
-
-// Type pour les enregistrements du Recorder
-type RecordedRoute = {
-  id: string
-  name: string
-  points: { lat: number; lng: number; timestamp: string; accuracy?: number }[]
-  startTime: string
-  endTime?: string
-  isRecording: boolean
+  isDefault?: boolean
+  isImported?: boolean
 }
 
 // Charger la carte côté client uniquement (Leaflet)
@@ -37,6 +29,7 @@ const RouteMap = dynamic(() => import('../../components/routes/RouteMap'), {
   ssr: false,
   loading: () => (
     <div
+      id="route-map-loading"
       style={{
         width: '100%',
         height: '100%',
@@ -58,7 +51,7 @@ const RouteMap = dynamic(() => import('../../components/routes/RouteMap'), {
 const ROUTES_STORAGE_KEY = 'cityguided_custom_routes'
 const RECORDINGS_STORAGE_KEY = 'cityguided_recorded_routes'
 
-// Routes par défaut (synchronisées avec ROUTE_OPTIONS dans index.tsx)
+// Routes par défaut
 const DEFAULT_ROUTES: SavedRoute[] = [
   {
     id: 'fontainebleau_loop',
@@ -89,7 +82,6 @@ const DEFAULT_ROUTES: SavedRoute[] = [
 
 /**
  * Page d'édition des trajets virtuels
- * Design mobile-first avec vue unifiée
  */
 export default function RoutesAdmin() {
   // État principal
@@ -105,62 +97,56 @@ export default function RoutesAdmin() {
   const [isSaving, setIsSaving] = useState(false)
   const [notification, setNotification] = useState<{ type: NotificationType; message: string } | null>(null)
   
-  // États pour l'import
+  // États modals
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showHelpPopup, setShowHelpPopup] = useState(false)
   const [recordings, setRecordings] = useState<RecordedRoute[]>([])
   const [importError, setImportError] = useState<string | null>(null)
-  const [showHelpPopup, setShowHelpPopup] = useState(false)
 
-  // Combiner routes par défaut et personnalisées
+  // Combiner routes
   const allRoutes = [...DEFAULT_ROUTES, ...customRoutes]
-  
-  // Mode lecture seule (trajet importé ou système)
   const isReadOnly = currentRoute?.isImported || currentRoute?.isDefault || false
 
-  // Charger les trajets depuis localStorage
+  // Charger les trajets
   useEffect(() => {
     try {
       const saved = localStorage.getItem(ROUTES_STORAGE_KEY)
-      if (saved) {
-        setCustomRoutes(JSON.parse(saved))
-      }
+      if (saved) setCustomRoutes(JSON.parse(saved))
     } catch (e) {
       console.error('Erreur chargement trajets:', e)
     }
   }, [])
 
-  // Charger les enregistrements du recorder
+  // Charger les enregistrements
   useEffect(() => {
     try {
       const saved = localStorage.getItem(RECORDINGS_STORAGE_KEY)
-      if (saved) {
-        setRecordings(JSON.parse(saved))
-      }
+      if (saved) setRecordings(JSON.parse(saved))
     } catch (e) {
       console.error('Erreur chargement enregistrements:', e)
     }
   }, [showImportModal])
 
-  // Sauvegarder les trajets dans localStorage
+  // Sauvegarder
   const saveRoutes = useCallback((newRoutes: SavedRoute[]) => {
     try {
       localStorage.setItem(ROUTES_STORAGE_KEY, JSON.stringify(newRoutes))
       setCustomRoutes(newRoutes)
     } catch (e) {
-      console.error('Erreur sauvegarde trajets:', e)
+      console.error('Erreur sauvegarde:', e)
     }
   }, [])
 
-  // Afficher une notification (fixée en bas)
+  // Notification
   const showNotificationMsg = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification(null), 3000)
   }
 
-  // Générer un ID unique
+  // Générer ID
   const generateId = () => `route_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  // Créer un nouveau trajet
+  // Actions routes
   const handleNewRoute = () => {
     setCurrentRoute(null)
     setPoints([])
@@ -170,19 +156,11 @@ export default function RoutesAdmin() {
     setShowRouteList(false)
   }
 
-  // Éditer un trajet existant
   const handleEditRoute = (route: SavedRoute) => {
     if (route.isDefault) {
-      // Dupliquer la route par défaut pour édition
       setCurrentRoute(null)
       setPoints([...route.points])
       setRouteName(`${route.name} (copie)`)
-      setRouteDescription(route.description || '')
-    } else if (route.isImported) {
-      // Trajet importé : mode visualisation seule
-      setCurrentRoute(route)
-      setPoints(route.points)
-      setRouteName(route.name)
       setRouteDescription(route.description || '')
     } else {
       setCurrentRoute(route)
@@ -194,35 +172,29 @@ export default function RoutesAdmin() {
     setShowRouteList(false)
   }
 
-  // Supprimer un trajet
   const handleDeleteRoute = (routeId: string) => {
     if (!confirm('Supprimer ce trajet ?')) return
     const newRoutes = customRoutes.filter((r) => r.id !== routeId)
     saveRoutes(newRoutes)
     showNotificationMsg('success', 'Trajet supprimé')
-    if (currentRoute?.id === routeId) {
-      handleNewRoute()
-    }
+    if (currentRoute?.id === routeId) handleNewRoute()
   }
 
-  // Sauvegarder le trajet actuel
   const handleSaveRoute = async () => {
     if (!routeName.trim()) {
-      showNotificationMsg('error', 'Nom du trajet requis')
+      showNotificationMsg('error', 'Nom requis')
       return
     }
     if (points.length < 2) {
-      showNotificationMsg('error', 'Minimum 2 points requis')
+      showNotificationMsg('error', 'Minimum 2 points')
       return
     }
 
     setIsSaving(true)
-
     try {
       const now = new Date().toISOString()
       
       if (currentRoute && !currentRoute.isDefault) {
-        // Mise à jour
         const updatedRoute: SavedRoute = {
           ...currentRoute,
           name: routeName,
@@ -235,7 +207,6 @@ export default function RoutesAdmin() {
         setCurrentRoute(updatedRoute)
         showNotificationMsg('success', 'Trajet mis à jour')
       } else {
-        // Création
         const newRoute: SavedRoute = {
           id: generateId(),
           name: routeName,
@@ -253,22 +224,18 @@ export default function RoutesAdmin() {
     }
   }
 
-  // Ajouter un point depuis la carte
+  // Points
   const handleAddPoint = useCallback((lat: number, lng: number) => {
     const pointId = `pt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    setPoints((prev) => [
-      ...prev,
-      { id: pointId, lat, lng, order: prev.length },
-    ])
+    setPoints((prev) => [...prev, { id: pointId, lat, lng, order: prev.length }])
     setSelectedPointId(pointId)
   }, [])
 
-  // Déplacer un point sur la carte
   const handleMovePoint = (pointId: string, lat: number, lng: number) => {
     setPoints(points.map((p) => (p.id === pointId ? { ...p, lat, lng } : p)))
   }
 
-  // Parser GPX
+  // Import GPX
   const parseGPX = (content: string): RoutePoint[] => {
     const parser = new DOMParser()
     const doc = parser.parseFromString(content, 'application/xml')
@@ -282,12 +249,7 @@ export default function RoutesAdmin() {
       const lat = parseFloat(pt.getAttribute('lat') || '')
       const lng = parseFloat(pt.getAttribute('lon') || '')
       if (!isNaN(lat) && !isNaN(lng)) {
-        points.push({
-          id: `pt_${Date.now()}_${index}`,
-          lat,
-          lng,
-          order: index,
-        })
+        points.push({ id: `pt_${Date.now()}_${index}`, lat, lng, order: index })
       }
     })
 
@@ -295,7 +257,6 @@ export default function RoutesAdmin() {
     return points
   }
 
-  // Importer depuis fichier GPX
   const handleFileImport = async (file: File) => {
     setImportError(null)
     try {
@@ -303,11 +264,10 @@ export default function RoutesAdmin() {
       const importedPoints = parseGPX(content)
       createImportedRoute(importedPoints, file.name.replace('.gpx', ''))
     } catch (err: any) {
-      setImportError(err.message || 'Erreur lors de l\'import')
+      setImportError(err.message || 'Erreur import')
     }
   }
 
-  // Importer depuis un enregistrement du recorder
   const handleRecorderImport = (recording: RecordedRoute) => {
     const importedPoints: RoutePoint[] = recording.points.map((p, index) => ({
       id: `pt_${Date.now()}_${index}`,
@@ -318,7 +278,6 @@ export default function RoutesAdmin() {
     createImportedRoute(importedPoints, recording.name)
   }
 
-  // Créer un trajet importé
   const createImportedRoute = (importedPoints: RoutePoint[], defaultName: string) => {
     const name = prompt('Nom du trajet :', defaultName)
     if (!name) {
@@ -337,27 +296,24 @@ export default function RoutesAdmin() {
       isImported: true,
     }
     
-    const newRoutes = [...customRoutes, newRoute]
-    saveRoutes(newRoutes)
-    
+    saveRoutes([...customRoutes, newRoute])
     setCurrentRoute(newRoute)
     setPoints(importedPoints)
     setRouteName(newRoute.name)
     setRouteDescription(newRoute.description || '')
     setShowRouteList(false)
     setShowImportModal(false)
-    
     showNotificationMsg('success', `${importedPoints.length} points importés`)
   }
 
-  // Exporter le trajet actuel en GPX
+  // Export GPX
   const handleExport = () => {
     if (points.length === 0) {
-      showNotificationMsg('error', 'Aucun point à exporter')
+      showNotificationMsg('error', 'Aucun point')
       return
     }
 
-    const name = routeName || 'trajet_sans_nom'
+    const name = routeName || 'trajet'
     const desc = routeDescription || ''
     const now = new Date().toISOString()
     
@@ -415,6 +371,7 @@ ${trackpoints}
       </Head>
 
       <div
+        id="routes-admin-page"
         style={{
           position: 'fixed',
           inset: 0,
@@ -426,6 +383,7 @@ ${trackpoints}
       >
         {/* Header */}
         <header
+          id="routes-admin-header"
           style={{
             background: '#ffffff',
             borderBottom: '1px solid #e2e8f0',
@@ -437,6 +395,7 @@ ${trackpoints}
           }}
         >
           <button
+            id="routes-admin-back-btn"
             onClick={showRouteList ? handleBackToHome : handleBackToList}
             style={{
               display: 'flex',
@@ -450,17 +409,18 @@ ${trackpoints}
               color: '#64748b',
               cursor: 'pointer',
             }}
+            title={showRouteList ? "Retour à l'accueil" : "Retour à la liste"}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
 
-          <div style={{ flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+          <div id="routes-admin-header-info" style={{ flex: 1 }}>
+            <h1 id="routes-admin-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
               {showRouteList ? 'Trajets virtuels' : currentRoute ? (isReadOnly ? 'Visualiser' : 'Modifier') : 'Nouveau trajet'}
             </h1>
-            <p style={{ margin: 0, fontSize: 11, color: '#64748b' }}>
+            <p id="routes-admin-subtitle" style={{ margin: 0, fontSize: 11, color: '#64748b' }}>
               {showRouteList 
                 ? `${allRoutes.length} trajet${allRoutes.length > 1 ? 's' : ''}`
                 : `${points.length} point${points.length > 1 ? 's' : ''}`
@@ -469,8 +429,9 @@ ${trackpoints}
           </div>
 
           {showRouteList && (
-            <button
-              onClick={() => (window.location.href = '/admin/routes/recorder')}
+            <a
+              id="routes-admin-recorder-link"
+              href="/admin/routes/recorder"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -480,24 +441,24 @@ ${trackpoints}
                 borderRadius: 8,
                 border: '2px solid #dc2626',
                 background: '#fef2f2',
-                cursor: 'pointer',
+                textDecoration: 'none',
               }}
               title="Recorder GPS"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#dc2626">
                 <circle cx="12" cy="12" r="8" />
               </svg>
-            </button>
+            </a>
           )}
         </header>
 
-        {/* Contenu principal */}
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Contenu */}
+        <main id="routes-admin-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {showRouteList ? (
             /* Vue liste */
-            <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+            <div id="routes-admin-list-view" style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
               <NewRouteButton onClick={handleNewRoute} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div id="routes-admin-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {allRoutes.map((route) => (
                   <RouteCard
                     key={route.id}
@@ -514,11 +475,14 @@ ${trackpoints}
               </div>
             </div>
           ) : (
-            /* Vue édition unifiée (mobile-first) */
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            /* Vue édition */
+            <div id="routes-admin-edit-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
               {/* Mini carte */}
-              <div style={{ height: 200, flexShrink: 0, padding: 12, paddingBottom: 0 }}>
-                <div style={{ height: '100%', borderRadius: 12, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+              <div id="routes-admin-map-section" style={{ height: 200, flexShrink: 0, padding: 12, paddingBottom: 0 }}>
+                <div
+                  id="routes-admin-map-container"
+                  style={{ height: '100%', borderRadius: 12, overflow: 'hidden', border: '1px solid #e2e8f0' }}
+                >
                   <RouteMap
                     points={points}
                     onPointAdd={isReadOnly ? undefined : handleAddPoint}
@@ -531,7 +495,7 @@ ${trackpoints}
               </div>
 
               {/* Formulaire */}
-              <div style={{ padding: 12, background: '#ffffff' }}>
+              <div id="routes-admin-form-section" style={{ padding: 12, background: '#ffffff' }}>
                 <RouteForm
                   name={routeName}
                   onNameChange={setRouteName}
@@ -545,17 +509,12 @@ ${trackpoints}
                 />
               </div>
 
-              {/* Zone d'import compacte (masquée en lecture seule) */}
+              {/* Import */}
               {!isReadOnly && (
-                <div style={{ padding: '0 12px 12px' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 8,
-                      alignItems: 'center',
-                    }}
-                  >
+                <div id="routes-admin-import-section" style={{ padding: '0 12px 12px' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button
+                      id="routes-admin-import-btn"
                       onClick={() => setShowImportModal(true)}
                       style={{
                         flex: 1,
@@ -581,8 +540,8 @@ ${trackpoints}
                       Importer GPX ou depuis Recorder
                     </button>
                     
-                    {/* Bouton aide */}
                     <button
+                      id="routes-admin-help-btn"
                       onClick={() => setShowHelpPopup(true)}
                       style={{
                         width: 36,
@@ -599,6 +558,7 @@ ${trackpoints}
                         justifyContent: 'center',
                       }}
                       title="Aide"
+                      aria-label="Aide"
                     >
                       ?
                     </button>
@@ -607,8 +567,8 @@ ${trackpoints}
               )}
 
               {/* Liste des points */}
-              <div style={{ padding: '0 12px 12px', flex: 1 }}>
-                <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: '#64748b' }}>
+              <div id="routes-admin-points-section" style={{ padding: '0 12px 12px', flex: 1 }}>
+                <h3 id="routes-admin-points-title" style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: '#64748b' }}>
                   Points ({points.length}) {isReadOnly && '- Lecture seule'}
                 </h3>
                 <RoutePointsList
@@ -622,291 +582,21 @@ ${trackpoints}
           )}
         </main>
 
-        {/* Modal d'import */}
-        {showImportModal && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 200,
-              padding: 16,
-            }}
-            onClick={() => setShowImportModal(false)}
-          >
-            <div
-              style={{
-                background: '#ffffff',
-                borderRadius: 16,
-                width: '100%',
-                maxWidth: 400,
-                maxHeight: '80vh',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header modal */}
-              <div style={{ padding: 16, borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, flex: 1 }}>Importer un trajet</h2>
-                <button
-                  onClick={() => setShowImportModal(false)}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    border: 'none',
-                    background: '#f1f5f9',
-                    color: '#64748b',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
+        {/* Modal Import */}
+        <ImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          recordings={recordings}
+          onFileImport={handleFileImport}
+          onRecorderImport={handleRecorderImport}
+          importError={importError}
+        />
 
-              {/* Contenu modal */}
-              <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
-                {/* Option 1: Fichier GPX */}
-                <div style={{ marginBottom: 16 }}>
-                  <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: '#64748b' }}>
-                    Depuis un fichier GPX
-                  </h3>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      padding: 16,
-                      borderRadius: 10,
-                      border: '2px dashed #e2e8f0',
-                      background: '#f8fafc',
-                      color: '#64748b',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    Choisir un fichier .gpx
-                    <input
-                      type="file"
-                      accept=".gpx"
-                      onChange={(e) => e.target.files?.[0] && handleFileImport(e.target.files[0])}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                </div>
-
-                {/* Erreur */}
-                {importError && (
-                  <div
-                    style={{
-                      marginBottom: 16,
-                      padding: 12,
-                      borderRadius: 8,
-                      background: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      color: '#dc2626',
-                      fontSize: 13,
-                    }}
-                  >
-                    {importError}
-                  </div>
-                )}
-
-                {/* Option 2: Depuis le Recorder */}
-                <div>
-                  <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: '#64748b' }}>
-                    Depuis le Recorder ({recordings.length})
-                  </h3>
-                  
-                  {recordings.length === 0 ? (
-                    <div
-                      style={{
-                        padding: 16,
-                        borderRadius: 10,
-                        background: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        textAlign: 'center',
-                        color: '#94a3b8',
-                        fontSize: 13,
-                      }}
-                    >
-                      Aucun enregistrement disponible
-                      <div style={{ marginTop: 8 }}>
-                        <button
-                          onClick={() => (window.location.href = '/admin/routes/recorder')}
-                          style={{
-                            padding: '8px 16px',
-                            borderRadius: 8,
-                            border: '1px solid #dc2626',
-                            background: '#fef2f2',
-                            color: '#dc2626',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                          }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="#dc2626">
-                            <circle cx="12" cy="12" r="8" />
-                          </svg>
-                          Ouvrir le Recorder
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {recordings.map((rec) => (
-                        <button
-                          key={rec.id}
-                          onClick={() => handleRecorderImport(rec)}
-                          style={{
-                            padding: 12,
-                            borderRadius: 10,
-                            border: '1px solid #e2e8f0',
-                            background: '#ffffff',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 10,
-                              background: '#dcfce7',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10" />
-                              <polyline points="12 6 12 12 16 14" />
-                            </svg>
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>
-                              {rec.name}
-                            </div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>
-                              {rec.points.length} points
-                            </div>
-                          </div>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
-                            <polyline points="9 18 15 12 9 6" />
-                          </svg>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Popup d'aide */}
-        {showHelpPopup && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 200,
-              padding: 16,
-            }}
-            onClick={() => setShowHelpPopup(false)}
-          >
-            <div
-              style={{
-                background: '#ffffff',
-                borderRadius: 16,
-                padding: 20,
-                width: '100%',
-                maxWidth: 320,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background: '#eff6ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#3b82f6',
-                    fontSize: 20,
-                    fontWeight: 700,
-                  }}
-                >
-                  ?
-                </div>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Aide</h2>
-              </div>
-              
-              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
-                <p style={{ margin: '0 0 12px' }}>
-                  <strong style={{ color: '#0f172a' }}>GPX</strong><br />
-                  Format GPS standard, exportable depuis la plupart des applications GPS 
-                  (Geo Tracker, GPX.studio, Strava...).
-                </p>
-                <p style={{ margin: '0 0 12px' }}>
-                  <strong style={{ color: '#0f172a' }}>Recorder</strong><br />
-                  Enregistrez vos parcours en temps réel avec le GPS de votre téléphone.
-                </p>
-                <p style={{ margin: 0 }}>
-                  <strong style={{ color: '#0f172a' }}>Carte</strong><br />
-                  Cliquez sur la carte pour ajouter des points. Glissez les marqueurs pour les déplacer.
-                </p>
-              </div>
-
-              <button
-                onClick={() => setShowHelpPopup(false)}
-                style={{
-                  marginTop: 16,
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: 'none',
-                  background: '#0f172a',
-                  color: '#ffffff',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Compris
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Popup Aide */}
+        <HelpPopup
+          isOpen={showHelpPopup}
+          onClose={() => setShowHelpPopup(false)}
+        />
 
         {/* Notification */}
         {notification && (

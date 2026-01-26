@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Fix HMR issues with file watching
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.watchOptions = {
+        poll: 1000, // Check for changes every second
+        aggregateTimeout: 300, // Delay before rebuilding
+        ignored: ['**/node_modules/**', '**/.git/**'],
+      }
+    }
+    return config
+  },
   async rewrites() {
     // If NEXT_PUBLIC_API_URL is set, don't use rewrites (client-side will use the env var)
     // Otherwise, use server-side rewrites to proxy API calls

@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../lifefindsaway"
+		},
+		{
+			"path": "../iamthelaw"
+		}
+	],
+	"settings": {
+		"cucumberautocomplete.steps": [
+			"apps/web-frontend/tests/e2e/steps/*.ts",
+			"apps/web-frontend/tests/e2e/support/*.ts"
+		],
+		"cucumberautocomplete.syncfeatures": "apps/web-frontend/tests/features/*.feature",
+		"cucumberautocomplete.strictGherkinCompletion": true
+	}
+}

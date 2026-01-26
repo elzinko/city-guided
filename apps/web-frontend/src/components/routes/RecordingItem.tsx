@@ -71,32 +71,32 @@ export function RecordingItem({
         gap: 12,
       }}
     >
-      {/* Icône GPX */}
+      {/* Icône de sélection */}
       <div
-        id={`recording-item-icon-${id}`}
+        id={`recording-item-selector-${id}`}
         style={{
           width: 40,
           height: 40,
           borderRadius: 10,
-          background: isSelected ? '#dcfce7' : '#f1f5f9',
+          background: isSelected ? '#22c55e' : '#f1f5f9',
+          border: isSelected ? '2px solid #16a34a' : '2px solid #e2e8f0',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
+          transition: 'all 0.15s ease',
         }}
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke={isSelected ? '#22c55e' : '#64748b'}
-          strokeWidth="2"
-        >
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
+        {isSelected ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+          </svg>
+        )}
       </div>
 
       {/* Infos */}

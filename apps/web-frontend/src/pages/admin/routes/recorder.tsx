@@ -34,9 +34,12 @@ const RecorderMap = dynamic(() => import('../../../components/routes/RecorderMap
         alignItems: 'center',
         justifyContent: 'center',
         background: '#f1f5f9',
+        borderRadius: 12,
+        color: '#94a3b8',
+        fontSize: 13,
       }}
     >
-      Chargement de la carte...
+      Chargement...
     </div>
   ),
 })
@@ -93,13 +96,13 @@ export default function RecorderPage() {
   // Démarrer l'enregistrement GPS
   const startRecording = useCallback(() => {
     if (!navigator.geolocation) {
-      setGpsError('La géolocalisation n\'est pas supportée par ce navigateur')
+      setGpsError('Géolocalisation non supportée')
       return
     }
 
     const newRoute: RecordedRoute = {
       id: generateId(),
-      name: `Enregistrement ${new Date().toLocaleDateString('fr-FR')} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+      name: `${new Date().toLocaleDateString('fr-FR')} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
       points: [],
       startTime: new Date().toISOString(),
       isRecording: true,
@@ -108,6 +111,7 @@ export default function RecorderPage() {
     setCurrentRoute(newRoute)
     setIsRecording(true)
     setGpsError(null)
+    setSelectedRoute(null)
 
     // Surveiller la position
     watchIdRef.current = navigator.geolocation.watchPosition(
@@ -130,19 +134,18 @@ export default function RecorderPage() {
         })
       },
       (error) => {
-        console.error('Erreur GPS:', error)
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            setGpsError('Permission GPS refusée')
+            setGpsError('Permission refusée')
             break
           case error.POSITION_UNAVAILABLE:
-            setGpsError('Position GPS indisponible')
+            setGpsError('Position indisponible')
             break
           case error.TIMEOUT:
-            setGpsError('Délai GPS dépassé')
+            setGpsError('Délai dépassé')
             break
           default:
-            setGpsError('Erreur GPS inconnue')
+            setGpsError('Erreur GPS')
         }
       },
       {
@@ -190,7 +193,7 @@ export default function RecorderPage() {
     if (selectedRoute?.id === routeId) {
       setSelectedRoute(null)
     }
-    showNotificationMsg('success', 'Enregistrement supprimé')
+    showNotificationMsg('success', 'Supprimé')
   }
 
   // Exporter en GPX avec horodatage réel
@@ -237,7 +240,7 @@ ${trackpoints}
     a.download = `${route.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.gpx`
     a.click()
     URL.revokeObjectURL(url)
-    showNotificationMsg('success', 'GPX exporté avec horodatage')
+    showNotificationMsg('success', 'GPX exporté')
   }
 
   // Formater la durée
@@ -248,8 +251,8 @@ ${trackpoints}
     const hours = Math.floor(diff / 3600)
     const minutes = Math.floor((diff % 3600) / 60)
     const seconds = diff % 60
-    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`
-    if (minutes > 0) return `${minutes}m ${seconds}s`
+    if (hours > 0) return `${hours}h${minutes}m`
+    if (minutes > 0) return `${minutes}m${seconds}s`
     return `${seconds}s`
   }
 
@@ -260,10 +263,18 @@ ${trackpoints}
     <>
       <Head>
         <title>Recorder GPS - CityGuided</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
 
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
-        {/* Header */}
+      <div
+        style={{
+          minHeight: '100vh',
+          background: '#f8fafc',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Header compact */}
         <header
           style={{
             padding: '12px 16px',
@@ -272,6 +283,9 @@ ${trackpoints}
             display: 'flex',
             alignItems: 'center',
             gap: 12,
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
           }}
         >
           {/* Bouton retour */}
@@ -289,7 +303,6 @@ ${trackpoints}
               color: '#64748b',
               cursor: 'pointer',
             }}
-            title="Retour aux trajets"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -297,256 +310,268 @@ ${trackpoints}
           </button>
 
           <div style={{ flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#0f172a' }}>
+            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
               Recorder GPS
             </h1>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>
-              Enregistrez vos parcours en temps réel
-            </p>
           </div>
 
-          {/* Indicateur précision GPS */}
+          {/* Badge GPS */}
           {isRecording && gpsAccuracy !== null && (
             <div
               style={{
-                padding: '6px 12px',
-                borderRadius: 8,
+                padding: '4px 8px',
+                borderRadius: 6,
                 background: gpsAccuracy < 10 ? '#dcfce7' : gpsAccuracy < 30 ? '#fef3c7' : '#fee2e2',
                 color: gpsAccuracy < 10 ? '#166534' : gpsAccuracy < 30 ? '#92400e' : '#991b1b',
-                fontSize: 12,
-                fontWeight: 500,
+                fontSize: 11,
+                fontWeight: 600,
               }}
             >
-              GPS: ±{Math.round(gpsAccuracy)}m
+              ±{Math.round(gpsAccuracy)}m
             </div>
           )}
         </header>
 
-        <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* Panneau latéral */}
-          <div
-            style={{
-              width: 320,
-              background: '#ffffff',
-              borderRight: '1px solid #e2e8f0',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Contrôles d'enregistrement */}
-            <div style={{ padding: 16, borderBottom: '1px solid #e2e8f0' }}>
-              {gpsError && (
+        {/* Contenu principal */}
+        <main style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          
+          {/* Bouton d'enregistrement principal */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            {isRecording ? (
+              <button
+                onClick={stopRecording}
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  border: '4px solid #dc2626',
+                  background: '#fef2f2',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 20px rgba(220, 38, 38, 0.3)',
+                }}
+                title="Arrêter"
+              >
+                {/* Carré stop */}
                 <div
                   style={{
-                    marginBottom: 12,
-                    padding: 12,
-                    borderRadius: 8,
-                    background: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    color: '#dc2626',
-                    fontSize: 13,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 4,
+                    background: '#dc2626',
                   }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  {gpsError}
-                </div>
-              )}
+                />
+              </button>
+            ) : (
+              <button
+                onClick={startRecording}
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  border: '4px solid #dc2626',
+                  background: '#dc2626',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 20px rgba(220, 38, 38, 0.3)',
+                }}
+                title="Enregistrer"
+              >
+                {/* Cercle intérieur */}
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: '#fef2f2',
+                  }}
+                />
+              </button>
+            )}
+          </div>
 
-              {isRecording ? (
-                <div>
+          {/* Infos enregistrement en cours */}
+          {isRecording && currentRoute && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: 12,
+                background: '#fef2f2',
+                borderRadius: 12,
+                border: '1px solid #fecaca',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#dc2626',
+                    animation: 'pulse 1s infinite',
+                  }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#dc2626' }}>Enregistrement</span>
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#0f172a' }}>
+                {currentRoute.points.length} pts
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                {formatDuration(currentRoute.startTime)}
+              </div>
+            </div>
+          )}
+
+          {/* Erreur GPS */}
+          {gpsError && (
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#dc2626',
+                fontSize: 13,
+                textAlign: 'center',
+              }}
+            >
+              {gpsError}
+            </div>
+          )}
+
+          {/* Mini carte */}
+          <div
+            style={{
+              height: 180,
+              borderRadius: 12,
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0',
+              background: '#f1f5f9',
+            }}
+          >
+            <RecorderMap points={displayPoints} isRecording={isRecording} />
+          </div>
+
+          {/* Liste des enregistrements */}
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#64748b' }}>
+              Enregistrements ({savedRoutes.length})
+            </h2>
+
+            {savedRoutes.length === 0 ? (
+              <div
+                style={{
+                  padding: 32,
+                  textAlign: 'center',
+                  color: '#94a3b8',
+                  fontSize: 13,
+                  background: '#ffffff',
+                  borderRadius: 12,
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                Aucun enregistrement
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {savedRoutes.map((route) => (
                   <div
+                    key={route.id}
+                    onClick={() => setSelectedRoute(route)}
                     style={{
-                      marginBottom: 12,
                       padding: 12,
-                      borderRadius: 8,
-                      background: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        color: '#dc2626',
-                        fontWeight: 600,
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          background: '#dc2626',
-                          animation: 'pulse 1s infinite',
-                        }}
-                      />
-                      Enregistrement en cours
-                    </div>
-                    <div style={{ marginTop: 8, fontSize: 24, fontWeight: 700, color: '#0f172a' }}>
-                      {currentRoute?.points.length || 0} pts
-                    </div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>
-                      Durée: {formatDuration(currentRoute?.startTime || new Date().toISOString())}
-                    </div>
-                  </div>
-                  <button
-                    onClick={stopRecording}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: '#dc2626',
-                      color: '#ffffff',
-                      fontSize: 14,
-                      fontWeight: 600,
+                      borderRadius: 12,
+                      background: selectedRoute?.id === route.id ? '#f0fdf4' : '#ffffff',
+                      border: selectedRoute?.id === route.id ? '2px solid #22c55e' : '1px solid #e2e8f0',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
+                      gap: 12,
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6" y="6" width="12" height="12" rx="2" />
-                    </svg>
-                    Arrêter l'enregistrement
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={startRecording}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: '#22c55e',
-                    color: '#ffffff',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="12" r="10" />
-                  </svg>
-                  Démarrer l'enregistrement
-                </button>
-              )}
-            </div>
-
-            {/* Liste des enregistrements */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: 12, fontWeight: 600, color: '#64748b' }}>
-                Enregistrements ({savedRoutes.length})
-              </h3>
-
-              {savedRoutes.length === 0 ? (
-                <div
-                  style={{
-                    padding: 24,
-                    textAlign: 'center',
-                    color: '#94a3b8',
-                    fontSize: 13,
-                  }}
-                >
-                  Aucun enregistrement
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {savedRoutes.map((route) => (
+                    {/* Icône GPX */}
                     <div
-                      key={route.id}
-                      onClick={() => setSelectedRoute(route)}
                       style={{
-                        padding: 12,
-                        borderRadius: 8,
-                        background: selectedRoute?.id === route.id ? '#f0fdf4' : '#f8fafc',
-                        border: selectedRoute?.id === route.id ? '2px solid #22c55e' : '1px solid #e2e8f0',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: selectedRoute?.id === route.id ? '#dcfce7' : '#f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={selectedRoute?.id === route.id ? '#22c55e' : '#64748b'} strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    </div>
+
+                    {/* Infos */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>
                         {route.name}
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>
-                        {route.points.length} points • {formatDuration(route.startTime, route.endTime)}
-                      </div>
-                      <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            exportToGPX(route)
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: '6px 10px',
-                            borderRadius: 6,
-                            border: '1px solid #e2e8f0',
-                            background: '#ffffff',
-                            color: '#3b82f6',
-                            fontSize: 11,
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 4,
-                          }}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                          GPX
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteRoute(route.id)
-                          }}
-                          style={{
-                            padding: '6px 10px',
-                            borderRadius: 6,
-                            border: '1px solid #fecaca',
-                            background: '#fef2f2',
-                            color: '#dc2626',
-                            fontSize: 11,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                          </svg>
-                        </button>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                        {route.points.length} pts • {formatDuration(route.startTime, route.endTime)}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Carte */}
-          <div style={{ flex: 1 }}>
-            <RecorderMap points={displayPoints} isRecording={isRecording} />
+                    {/* Boutons */}
+                    <div style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => exportToGPX(route)}
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 8,
+                          border: '1px solid #e2e8f0',
+                          background: '#ffffff',
+                          color: '#3b82f6',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        title="Exporter GPX"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => deleteRoute(route.id)}
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 8,
+                          border: '1px solid #fecaca',
+                          background: '#fef2f2',
+                          color: '#dc2626',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        title="Supprimer"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </main>
 
@@ -557,7 +582,7 @@ ${trackpoints}
         <style>{`
           @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.3; }
           }
         `}</style>
       </div>

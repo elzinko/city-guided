@@ -398,22 +398,19 @@ ${trackpoints}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '8px 12px',
+                justifyContent: 'center',
+                width: 36,
+                height: 36,
                 borderRadius: 8,
-                border: 'none',
-                background: '#dc2626',
-                color: '#ffffff',
-                fontSize: 12,
-                fontWeight: 600,
+                border: '2px solid #dc2626',
+                background: '#fef2f2',
                 cursor: 'pointer',
               }}
               title="Enregistrer un parcours GPS"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="12" r="10" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#dc2626">
+                <circle cx="12" cy="12" r="8" />
               </svg>
-              Recorder
             </button>
           )}
 

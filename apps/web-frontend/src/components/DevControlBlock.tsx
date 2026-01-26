@@ -452,6 +452,28 @@ export function DevControlBlock({
               <AudioIcon size={18} muted={audioPaused} />
             </button>
 
+            {/* Bouton Recorder GPS */}
+            <a
+              id="dev-recorder-link"
+              href="/admin/routes/recorder"
+              style={{
+                ...compactButtonStyle,
+                width: BUTTON_HEIGHT,
+                padding: 0,
+                border: '1px solid #dc2626',
+                background: '#fef2f2',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Enregistrer un parcours GPS"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#dc2626">
+                <circle cx="12" cy="12" r="8" />
+              </svg>
+            </a>
+
             {/* Zoom control avec boutons +/- */}
             <div id="dev-zoom-control" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <button

@@ -49,34 +49,8 @@ if [ ! -d "node_modules" ]; then
   fi
 fi
 
-echo "Building npm packages (.lifefindsaway and .iamthelaw)..."
-# Build lifefindsaway
-if [ -d ".lifefindsaway" ]; then
-  cd .lifefindsaway
-  pnpm install --ignore-workspace >/dev/null 2>&1
-  pnpm build
-  RC=$?
-  cd ..
-  if [ $RC -ne 0 ]; then
-    echo "❌ .lifefindsaway build failed (exit $RC). Aborting commit."
-    exit $RC
-  fi
-  echo "✅ .lifefindsaway built successfully"
-fi
-
-# Build iamthelaw
-if [ -d ".iamthelaw" ]; then
-  cd .iamthelaw
-  pnpm install --ignore-workspace >/dev/null 2>&1
-  pnpm build
-  RC=$?
-  cd ..
-  if [ $RC -ne 0 ]; then
-    echo "❌ .iamthelaw build failed (exit $RC). Aborting commit."
-    exit $RC
-  fi
-  echo "✅ .iamthelaw built successfully"
-fi
+# Note: .lifefindsaway and .iamthelaw are now data directories only.
+# The packages are installed as devDependencies from /bacasable/lifefindsaway and /bacasable/iamthelaw.
 
 echo "Running build (quick check)..."
 pnpm -w build

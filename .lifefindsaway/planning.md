@@ -47,10 +47,15 @@ Ce fichier est la **source de vérité unique** pour :
 ## Features
 
 ### idea
+
+#### City-Guided (product)
 - [ ] 20260123152800-epic-navigation-playlist (Epic, **needs refinement** - UX à designer)
 - [ ] 20260123152900-epic-exploration-modes (Epic, **needs refinement** - modes urbex, gastro, etc.)
 - [ ] 20260123153000-epic-user-profiling (Epic, **needs refinement** - questionnaire + profils)
 - [ ] 20260123153100-epic-user-history-ml (Epic, **needs refinement** - 3 phases: historique → analytics → ML)
+
+#### Lifefindsaway (tooling)
+- [ ] 20260123164007-github-issues-sync - Sync bugs ↔ GitHub Issues (non prioritaire)
 
 ### exploring
 

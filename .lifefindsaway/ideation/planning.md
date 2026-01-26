@@ -35,10 +35,17 @@ Ce fichier est la **source de vérité unique** pour :
 ## Bugs
 
 ### open
+
+#### Navigation (lié à Epic Navigation UX)
 - [ ] 20260123152600-navigation-zoom-locked ⚠️ **Majeur** - Zoom locké + bouton recentrer manquant
 - [ ] 20260123152601-navigation-buttons-disappear ⚠️ **Majeur** - Boutons parcours disparaissent au clic
 - [ ] 20260123152602-navigation-poi-list-behavior ⚠️ **Majeur** - POI list disparait au clic (lié à Epic Playlist)
 - [ ] 20260123152603-navigation-button-icon 🎨 **Cosmétique** - Icône à changer (asset à fournir)
+
+#### Routes Admin (Epic CRUD Trajets Virtuels)
+- [ ] 20260126100000-routes-admin-back-button ⚠️ **Majeur** - Dev-control-block disparaît au retour de /admin/routes
+- [ ] 20260126100001-routes-admin-map-cutoff ⚠️ **Majeur** - Carte coupée en mode édition (Leaflet invalidateSize)
+- [ ] 20260126100002-routes-admin-style-mismatch 🎨 **Mineur** - Rendu différent entre trajets système et custom
 
 ### fixed
 
@@ -48,54 +55,75 @@ Ce fichier est la **source de vérité unique** pour :
 
 ### idea
 
-#### City-Guided (product)
+#### Epic Personalized Experience (20260123150000) - **needs refinement**
+- [ ] 20260123150000-epic-personalized-experience/20260123153000-epic-user-profiling - Questionnaire + profils
+- [ ] 20260123150000-epic-personalized-experience/20260123152900-epic-exploration-modes - Modes urbex, gastro, etc.
+- [ ] 20260123150000-epic-personalized-experience/20260123153100-epic-user-history-ml - Historique → Analytics → ML
+
+#### Autres Epics
 - [ ] 20260123152800-epic-navigation-playlist (Epic, **needs refinement** - UX à designer)
-- [ ] 20260123152900-epic-exploration-modes (Epic, **needs refinement** - modes urbex, gastro, etc.)
-- [ ] 20260123153000-epic-user-profiling (Epic, **needs refinement** - questionnaire + profils)
-- [ ] 20260123153100-epic-user-history-ml (Epic, **needs refinement** - 3 phases: historique → analytics → ML)
 
 #### Lifefindsaway (tooling)
-- [ ] 20260123164007-github-issues-sync - Sync bugs ↔ GitHub Issues (non prioritaire)
+- ~~20260123164007-github-issues-sync~~ → Déplacé vers projet lifefindsaway
 
 ### exploring
 
+#### Epic Audio Guide Adaptatif
 - [ ] 20260123053501-epic-adaptive-audio-guide/20260123053502-contexte-deplacement
 - [ ] 20260123053501-epic-adaptive-audio-guide/20260123053503-fil-pois-predictif
 - [ ] 20260123053501-epic-adaptive-audio-guide/20260123053504-modalite-audio-adaptative
-- [ ] 20260123152700-transport-mode-selector (piéton/voiture)
-- [ ] 20260123152701-dev-speed-divisors (/3, /4, /5 pour dev)
-- [ ] 20260123152702-navigation-map-tilt (carte plate/inclinée)
+
+#### Epic Navigation UX (20260123151000)
+- [ ] 20260123151000-epic-navigation-ux/20260123152700-transport-mode-selector - Piéton/voiture
+- [ ] 20260123151000-epic-navigation-ux/20260123152701-dev-speed-divisors - /3, /4, /5 pour dev
+- [ ] 20260123151000-epic-navigation-ux/20260123152702-navigation-map-tilt - Carte plate/inclinée
+- [ ] 20260123151000-epic-navigation-ux/20260120232600-bouton-feedback-github - Feedback beta → GitHub Issues
+
+#### Epic Découverte & Recherche
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232500-recherche-avancee
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232501-decouvertes-personnalisees
 - [ ] 20260120232435-epic-decouverte-recherche/20260120232502-vue-decouvrir-categories
+
+#### Epic Engagement Utilisateur
 - [ ] 20260120232700-epic-engagement-utilisateur/20260120232701-enregistres
 - [ ] 20260120232700-epic-engagement-utilisateur/20260120232702-contribuer
 - [ ] 20260120232700-epic-engagement-utilisateur/20260120232703-notation-avis
 
 ### candidate
-- [ ] 20260120232800-epic-crud-trajets-virtuels (Epic, à découper en features)
 - [ ] 20260120232900-epic-refonte-technique-frontend (Epic technique, à découper)
-- [ ] 20260120232600-bouton-feedback-github
+
+### in_progress (implémentation active)
+
+#### Epic CRUD Trajets Virtuels (20260120232800)
+- [ ] 20260120232800-epic-crud-trajets-virtuels/20260126100300-routes-gpx-export - Export GPX (priorité haute)
+- [ ] 20260120232800-epic-crud-trajets-virtuels/20260126100100-routes-gpx-default-import - Import auto Fontainebleau
+- [ ] 20260120232800-epic-crud-trajets-virtuels/20260126100200-routes-gpx-recorder - Enregistreur de parcours (MVP)
 
 ### on_hold
 
 ### ready_for_crystallization
 
-- [x] 20260115100000-ecs-fargate-migration
-- [x] 20260116100000-ecs-scale-to-zero
+#### Epic ECS Infrastructure (20260115000000) ✅ TERMINÉ
+- [x] 20260115000000-epic-ecs-infrastructure/20260115100000-ecs-fargate-migration
+- [x] 20260115000000-epic-ecs-infrastructure/20260116100000-ecs-scale-to-zero
+- [x] 20260115000000-epic-ecs-infrastructure/20260119100000-ecs-deployment-improvements
+
+#### Epic POI Data Pipeline (20260117100000)
 - [x] 20260117100000-epic-poi-data-pipeline/20260117100100-poi-admin-import
 - [x] 20260117100000-epic-poi-data-pipeline/20260117100200-audio-guide-generation
 
 ### discarded
-- [ ] 20260120171923-docker-compose-ecs-unification
+- [ ] 20260115000000-epic-ecs-infrastructure/20260120171923-docker-compose-ecs-unification
 
 ---
 
 ## Notes globales
 
-### Infrastructure (✅ Implémentées)
-- **ECS Fargate** : Stack CDK complète déployée en production/staging
-- **Scale-to-zero** : Lambdas opérationnelles avec dashboard CloudWatch et webhook Caddy
+### Epic ECS Infrastructure (✅ TERMINÉ)
+Voir : `20260115000000-epic-ecs-infrastructure/epic.md`
+- **ECS Fargate Migration** : Stack CDK complète déployée en staging
+- **Scale-to-Zero** : Lambda warmkeeper + CloudWatch alarms + dashboard
+- **Deployment Improvements** : Zero-downtime, scripts cohérents, Container Insights
 - **OSRM** : Code conservé mais non déployé. Utile plus tard pour trajets utilisateur
 
 ### POI & Audio Guide (✅ Implémentées à ~80%)
@@ -107,13 +135,12 @@ Ce fichier est la **source de vérité unique** pour :
 
 ### En exploration active
 - **Audio Guide Adaptatif** : Système temps réel (contexte, fil POIs, modalités) - Epic prioritaire
-- **Navigation UX** : Bugs zoom/boutons + features carte inclinée, mode transport
+- **Navigation UX** : Bugs zoom/boutons + features carte inclinée, mode transport, feedback
 
-### Epics à raffiner (idea)
-- **Navigation Playlist** : Fil d'Ariane + POIs futurs avec sélection - UX à designer
-- **Exploration Modes** : Urbex, culture, gastro, custom - Tagging POIs nécessaire
-- **User Profiling** : Questionnaire onboarding + profils - UX à designer
-- **User History + ML** : Historique → Analytics → Recommandations ML
+### Epics regroupées (organisation)
+- **Personalized Experience** : User Profiling + Exploration Modes + User History ML
+- **Navigation UX** : Transport mode, speed divisors, map tilt, feedback button
+- **ECS Infrastructure** : Migration + Scale-to-zero + Deployments (terminé)
 
 ### Documentation technique
 - `docs/technical/*.md` : Docs détaillées des features infra

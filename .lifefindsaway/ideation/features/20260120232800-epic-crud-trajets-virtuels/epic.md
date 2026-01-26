@@ -61,14 +61,26 @@ En offrant un système CRUD complet pour les trajets virtuels :
 - Édition graphique avancée des trajets (drag-and-drop points) → MVP = import uniquement
 - Export de trajets modifiés
 
-## Features candidates (à découper en sous-features)
-Cette Epic nécessitera probablement plusieurs features, à découper lors du grooming :
-1. **Import GPX basique** (MVP)
-2. **Calcul vitesses via OSRM** (pour GPX non horodatés)
-3. **Simplification de trajets** (réduction nombre de points)
-4. **Interface admin CRUD**
-5. **Visualisation carte**
-6. **Enregistreur de parcours** (optionnel, à discuter)
+## Features découpées
+
+### Implémentées (partiellement)
+- ✅ **Interface admin CRUD** - `/admin/routes` existant mais avec bugs
+- ✅ **Import GPX basique** - RouteImporter fonctionnel
+- ✅ **Visualisation carte** - RouteMap fonctionnel mais bugs d'affichage
+
+### En cours / À faire
+1. **20260126100300-routes-gpx-export** - Export GPX (remplacer export JSON actuel)
+2. **20260126100100-routes-gpx-default-import** - Import auto de Boucle Fontainebleau au démarrage
+3. **20260126100200-routes-gpx-recorder** - Enregistreur de parcours GPS
+
+### Bugs bloquants associés
+- 🐛 20260126100000-routes-admin-back-button - Dev-control-block disparaît au retour
+- 🐛 20260126100001-routes-admin-map-cutoff - Carte coupée en mode édition
+- 🐛 20260126100002-routes-admin-style-mismatch - Rendu incohérent
+
+### Reportées
+- ⏸️ **Calcul vitesses via OSRM** - OSRM pas déployé, à revoir plus tard
+- ⏸️ **Simplification de trajets** - gpx.studio suffit pour l'instant
 
 ## Hypothèses explicites
 - Les fichiers GPX sont le format standard le plus utilisé (vs. KML, GeoJSON)

@@ -16,6 +16,7 @@ export type RouteCardProps = {
  * Cliquable sur toute la surface pour éditer
  */
 export function RouteCard({
+  id,
   name,
   description,
   pointsCount,
@@ -31,6 +32,7 @@ export function RouteCard({
 
   return (
     <div
+      id={`route-card-${id}`}
       onClick={onEdit}
       style={{
         padding: 12,
@@ -54,6 +56,7 @@ export function RouteCard({
     >
       {/* Icône */}
       <div
+        id={`route-card-icon-${id}`}
         style={{
           width: 40,
           height: 40,
@@ -67,7 +70,6 @@ export function RouteCard({
         }}
       >
         {isImported ? (
-          // Icône import (fichier)
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
@@ -83,11 +85,14 @@ export function RouteCard({
       </div>
 
       {/* Infos */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div id={`route-card-info-${id}`} style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>{name}</span>
+          <span id={`route-card-name-${id}`} style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>
+            {name}
+          </span>
           {isDefault && (
             <span
+              id={`route-card-badge-system-${id}`}
               style={{
                 fontSize: 9,
                 padding: '2px 6px',
@@ -102,6 +107,7 @@ export function RouteCard({
           )}
           {isImported && (
             <span
+              id={`route-card-badge-imported-${id}`}
               style={{
                 fontSize: 9,
                 padding: '2px 6px',
@@ -115,7 +121,7 @@ export function RouteCard({
             </span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+        <div id={`route-card-details-${id}`} style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
           {pointsCount} pts
           {description && ` • ${description}`}
         </div>
@@ -123,10 +129,12 @@ export function RouteCard({
 
       {/* Actions */}
       <div
+        id={`route-card-actions-${id}`}
         style={{ display: 'flex', gap: 6, flexShrink: 0 }}
-        onClick={(e) => e.stopPropagation()} // Empêcher le clic de propager au parent
+        onClick={(e) => e.stopPropagation()}
       >
         <button
+          id={`route-card-edit-btn-${id}`}
           onClick={onEdit}
           style={{
             width: 32,
@@ -144,16 +152,13 @@ export function RouteCard({
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             {isDefault ? (
-              // Icône copie
               <path d="M8 17H5a2 2 0 01-2-2V5a2 2 0 012-2h10a2 2 0 012 2v3M11 21h10a2 2 0 002-2V9a2 2 0 00-2-2H11a2 2 0 00-2 2v10a2 2 0 002 2z" />
             ) : isImported ? (
-              // Icône œil (visualiser)
               <>
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                 <circle cx="12" cy="12" r="3" />
               </>
             ) : (
-              // Icône édition
               <>
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -163,6 +168,7 @@ export function RouteCard({
         </button>
         {!isDefault && onDelete && (
           <button
+            id={`route-card-delete-btn-${id}`}
             onClick={onDelete}
             style={{
               width: 32,

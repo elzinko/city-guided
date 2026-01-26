@@ -9,7 +9,7 @@ export type RouteFormProps = {
   onExport: () => void
   isSaving: boolean
   canExport: boolean
-  isReadOnly?: boolean // Mode lecture seule (trajet importé)
+  isReadOnly?: boolean
 }
 
 /**
@@ -28,10 +28,11 @@ export function RouteForm({
   isReadOnly = false,
 }: RouteFormProps) {
   return (
-    <div>
+    <div id="route-form">
       {/* Badge lecture seule */}
       {isReadOnly && (
         <div
+          id="route-form-readonly-badge"
           style={{
             marginBottom: 12,
             padding: '8px 12px',
@@ -54,10 +55,12 @@ export function RouteForm({
       )}
 
       {/* Champs sur une ligne pour mobile */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+      <div id="route-form-fields" style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         {/* Champ Nom */}
-        <div style={{ flex: 2 }}>
+        <div id="route-form-name-field" style={{ flex: 2 }}>
           <label
+            id="route-form-name-label"
+            htmlFor="route-form-name-input"
             style={{
               display: 'block',
               fontSize: 11,
@@ -69,6 +72,7 @@ export function RouteForm({
             Nom {!isReadOnly && '*'}
           </label>
           <input
+            id="route-form-name-input"
             type="text"
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
@@ -88,8 +92,10 @@ export function RouteForm({
         </div>
 
         {/* Champ Description compact */}
-        <div style={{ flex: 3 }}>
+        <div id="route-form-description-field" style={{ flex: 3 }}>
           <label
+            id="route-form-description-label"
+            htmlFor="route-form-description-input"
             style={{
               display: 'block',
               fontSize: 11,
@@ -101,6 +107,7 @@ export function RouteForm({
             Description
           </label>
           <input
+            id="route-form-description-input"
             type="text"
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}
@@ -121,9 +128,10 @@ export function RouteForm({
       </div>
 
       {/* Boutons d'action */}
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div id="route-form-actions" style={{ display: 'flex', gap: 8 }}>
         {!isReadOnly && (
           <button
+            id="route-form-save-btn"
             onClick={onSave}
             disabled={isSaving}
             style={{
@@ -150,6 +158,7 @@ export function RouteForm({
           </button>
         )}
         <button
+          id="route-form-export-btn"
           onClick={onExport}
           disabled={!canExport}
           style={{

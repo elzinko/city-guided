@@ -14,6 +14,7 @@ export type NotificationProps = {
 export function Notification({ type, message }: NotificationProps) {
   return (
     <div
+      id={`notification-${type}`}
       style={{
         position: 'fixed',
         bottom: 20,

@@ -11,6 +11,7 @@ export type NewRouteButtonProps = {
 export function NewRouteButton({ onClick }: NewRouteButtonProps) {
   return (
     <button
+      id="new-route-btn"
       onClick={onClick}
       style={{
         width: '100%',

@@ -246,9 +246,10 @@ export function RoutePointsList({
 
           {/* Actions (masquées en lecture seule) */}
           {!isReadOnly && (
-            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+            <div id={`route-point-actions-${point.id}`} style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
               {/* Bouton monter */}
               <button
+                id={`route-point-move-up-${point.id}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   handleMoveUp(index)
@@ -275,6 +276,7 @@ export function RoutePointsList({
 
               {/* Bouton descendre */}
               <button
+                id={`route-point-move-down-${point.id}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   handleMoveDown(index)
@@ -301,6 +303,7 @@ export function RoutePointsList({
 
               {/* Bouton supprimer */}
               <button
+                id={`route-point-delete-${point.id}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   handleDelete(point.id)

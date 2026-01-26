@@ -1,8 +1,16 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import Head from 'next/head'
-import { useRouter } from 'next/router'
-import { RoutePointsList, RouteImporter, RouteMap } from '../../components/routes'
-import type { RoutePoint } from '../../components/routes'
+import {
+  RoutePointsList,
+  RouteImporter,
+  RouteMap,
+  RouteCard,
+  NewRouteButton,
+  MobileViewToggle,
+  RouteForm,
+  Notification,
+} from '../../components/routes'
+import type { RoutePoint, NotificationType } from '../../components/routes'
 
 // Types pour les trajets sauvegardés
 type SavedRoute = {
@@ -52,8 +60,6 @@ const DEFAULT_ROUTES: SavedRoute[] = [
  * Design aligné avec le système existant
  */
 export default function RoutesAdmin() {
-  const router = useRouter()
-  
   // État principal
   const [customRoutes, setCustomRoutes] = useState<SavedRoute[]>([])
   const [currentRoute, setCurrentRoute] = useState<SavedRoute | null>(null)
@@ -65,7 +71,7 @@ export default function RoutesAdmin() {
   const [routeDescription, setRouteDescription] = useState('')
   const [showRouteList, setShowRouteList] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [notification, setNotification] = useState<{ type: NotificationType; message: string } | null>(null)
   const [showMap, setShowMap] = useState(false) // Pour mobile: toggle carte/formulaire
 
   // Combiner routes par défaut et personnalisées
@@ -210,34 +216,71 @@ export default function RoutesAdmin() {
     showNotificationMsg('success', `${importedPoints.length} points importés`)
   }
 
-  // Exporter le trajet actuel en JSON
+  // Exporter le trajet actuel en GPX (compatible GPX.studio, Geo Tracker, etc.)
   const handleExport = () => {
     if (points.length === 0) {
       showNotificationMsg('error', 'Aucun point à exporter')
       return
     }
 
-    const exportData = {
-      name: routeName || 'trajet_sans_nom',
-      description: routeDescription,
-      points: points.map((p) => ({ lat: p.lat, lng: p.lng, name: p.name })),
-      exportedAt: new Date().toISOString(),
-    }
+    const name = routeName || 'trajet_sans_nom'
+    const desc = routeDescription || ''
+    const now = new Date().toISOString()
+    
+    // Générer les trackpoints avec horodatage simulé (1 point par seconde)
+    const trackpoints = points.map((p, index) => {
+      const time = new Date(Date.now() + index * 1000).toISOString()
+      return `      <trkpt lat="${p.lat.toFixed(6)}" lon="${p.lng.toFixed(6)}">
+        <time>${time}</time>
+      </trkpt>`
+    }).join('\n')
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    // Format GPX 1.1 standard
+    const gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="CityGuided"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>${escapeXml(name)}</name>
+    <desc>${escapeXml(desc)}</desc>
+    <time>${now}</time>
+  </metadata>
+  <trk>
+    <name>${escapeXml(name)}</name>
+    <desc>${escapeXml(desc)}</desc>
+    <trkseg>
+${trackpoints}
+    </trkseg>
+  </trk>
+</gpx>`
+
+    const blob = new Blob([gpxContent], { type: 'application/gpx+xml' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${routeName || 'trajet'}.json`
+    a.download = `${name.replace(/[^a-zA-Z0-9-_]/g, '_')}.gpx`
     a.click()
     URL.revokeObjectURL(url)
-    showNotificationMsg('success', 'Trajet exporté')
+    showNotificationMsg('success', 'Trajet exporté en GPX')
+  }
+
+  // Échapper les caractères spéciaux XML
+  const escapeXml = (str: string) => {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;')
   }
 
   // Retour à l'accueil avec état préservé
   const handleBackToHome = () => {
-    // Préserver l'état du panneau dev en ajoutant un paramètre
-    router.push('/?devPanel=open')
+    // Utiliser window.location.href pour forcer un rechargement complet
+    // Cela garantit que getInitialProps de _app.tsx soit appelé
+    // et que showDevOptions soit correctement évalué
+    window.location.href = '/?devPanel=open'
   }
 
   // Retour à la liste
@@ -278,7 +321,7 @@ export default function RoutesAdmin() {
           }}
         >
           <button
-            onClick={handleBackToHome}
+            onClick={showRouteList ? handleBackToHome : handleBackToList}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -291,7 +334,7 @@ export default function RoutesAdmin() {
               color: '#64748b',
               cursor: 'pointer',
             }}
-            title="Retour à l'accueil"
+            title={showRouteList ? "Retour à l'accueil" : "Retour à la liste"}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -310,29 +353,6 @@ export default function RoutesAdmin() {
             </p>
           </div>
 
-          {!showRouteList && (
-            <button
-              onClick={handleBackToList}
-              style={{
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                background: '#ffffff',
-                color: '#64748b',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-              Liste
-            </button>
-          )}
         </header>
 
         {/* Contenu principal */}
@@ -341,145 +361,21 @@ export default function RoutesAdmin() {
             /* Vue liste des trajets */
             <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
               {/* Bouton nouveau trajet */}
-              <button
-                onClick={handleNewRoute}
-                style={{
-                  width: '100%',
-                  padding: 14,
-                  borderRadius: 10,
-                  border: '2px dashed #22c55e',
-                  background: '#f0fdf4',
-                  color: '#166534',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  marginBottom: 12,
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Nouveau trajet
-              </button>
+              <NewRouteButton onClick={handleNewRoute} />
 
               {/* Liste des trajets */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {allRoutes.map((route) => (
-                  <div
+                  <RouteCard
                     key={route.id}
-                    style={{
-                      padding: 12,
-                      borderRadius: 10,
-                      background: '#ffffff',
-                      border: route.isDefault ? '1px solid #22c55e' : '1px solid #e2e8f0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                    }}
-                  >
-                    {/* Icône */}
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 10,
-                        background: route.isDefault ? '#dcfce7' : '#f8fafc',
-                        border: route.isDefault ? '1px solid #22c55e' : '1px solid #e2e8f0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={route.isDefault ? '#22c55e' : '#64748b'} strokeWidth="2">
-                        <circle cx="12" cy="12" r="3" />
-                        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                      </svg>
-                    </div>
-
-                    {/* Infos */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>{route.name}</span>
-                        {route.isDefault && (
-                          <span style={{
-                            fontSize: 9,
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            background: '#dcfce7',
-                            color: '#166534',
-                            fontWeight: 700,
-                          }}>
-                            SYSTÈME
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                        {route.points.length} pts
-                        {route.description && ` • ${route.description}`}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <button
-                        onClick={() => handleEditRoute(route)}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 8,
-                          border: '1px solid #e2e8f0',
-                          background: '#ffffff',
-                          color: '#3b82f6',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                        title={route.isDefault ? 'Dupliquer pour éditer' : 'Modifier'}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          {route.isDefault ? (
-                            // Icône copie
-                            <path d="M8 17H5a2 2 0 01-2-2V5a2 2 0 012-2h10a2 2 0 012 2v3M11 21h10a2 2 0 002-2V9a2 2 0 00-2-2H11a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          ) : (
-                            // Icône édition
-                            <>
-                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </>
-                          )}
-                        </svg>
-                      </button>
-                      {!route.isDefault && (
-                        <button
-                          onClick={() => handleDeleteRoute(route.id)}
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 8,
-                            border: '1px solid #fecaca',
-                            background: '#fef2f2',
-                            color: '#dc2626',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          title="Supprimer"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                    id={route.id}
+                    name={route.name}
+                    description={route.description}
+                    pointsCount={route.points.length}
+                    isDefault={route.isDefault}
+                    onEdit={() => handleEditRoute(route)}
+                    onDelete={!route.isDefault ? () => handleDeleteRoute(route.id) : undefined}
+                  />
                 ))}
               </div>
             </div>
@@ -487,47 +383,12 @@ export default function RoutesAdmin() {
             /* Vue édition - Mobile: Toggle entre formulaire et carte */
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {/* Toggle mobile carte/formulaire */}
-              <div
-                style={{
-                  display: 'flex',
-                  background: '#ffffff',
-                  borderBottom: '1px solid #e2e8f0',
-                  padding: '6px 12px',
-                }}
-              >
-                <button
-                  onClick={() => setShowMap(false)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: !showMap ? '#0f172a' : 'transparent',
-                    color: !showMap ? '#ffffff' : '#64748b',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Formulaire
-                </button>
-                <button
-                  onClick={() => setShowMap(true)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: showMap ? '#0f172a' : 'transparent',
-                    color: showMap ? '#ffffff' : '#64748b',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Carte ({points.length})
-                </button>
-              </div>
+              <MobileViewToggle
+                showMap={showMap}
+                onShowFormulaire={() => setShowMap(false)}
+                onShowMap={() => setShowMap(true)}
+                pointsCount={points.length}
+              />
 
               {/* Contenu édition */}
               <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -544,98 +405,16 @@ export default function RoutesAdmin() {
                   }}
                 >
                   {/* Formulaire */}
-                  <div style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
-                        Nom *
-                      </label>
-                      <input
-                        type="text"
-                        value={routeName}
-                        onChange={(e) => setRouteName(e.target.value)}
-                        placeholder="Ex: Boucle centre-ville"
-                        style={{
-                          width: '100%',
-                          padding: '10px 12px',
-                          borderRadius: 8,
-                          border: '1px solid #e2e8f0',
-                          fontSize: 14,
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                    </div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
-                        Description
-                      </label>
-                      <textarea
-                        value={routeDescription}
-                        onChange={(e) => setRouteDescription(e.target.value)}
-                        placeholder="Description..."
-                        rows={2}
-                        style={{
-                          width: '100%',
-                          padding: '10px 12px',
-                          borderRadius: 8,
-                          border: '1px solid #e2e8f0',
-                          fontSize: 14,
-                          resize: 'none',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                    </div>
-
-                    {/* Boutons d'action */}
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={handleSaveRoute}
-                        disabled={isSaving}
-                        style={{
-                          flex: 1,
-                          padding: '10px 14px',
-                          borderRadius: 8,
-                          border: 'none',
-                          background: '#22c55e',
-                          color: '#ffffff',
-                          fontSize: 13,
-                          fontWeight: 600,
-                          cursor: isSaving ? 'not-allowed' : 'pointer',
-                          opacity: isSaving ? 0.7 : 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 6,
-                        }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        {isSaving ? 'Enregistrement...' : 'Enregistrer'}
-                      </button>
-                      <button
-                        onClick={handleExport}
-                        disabled={points.length === 0}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: 8,
-                          border: '1px solid #e2e8f0',
-                          background: '#ffffff',
-                          color: points.length === 0 ? '#cbd5e1' : '#64748b',
-                          cursor: points.length === 0 ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                        title="Exporter JSON"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                          <polyline points="7 10 12 15 17 10" />
-                          <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
+                  <RouteForm
+                    name={routeName}
+                    onNameChange={setRouteName}
+                    description={routeDescription}
+                    onDescriptionChange={setRouteDescription}
+                    onSave={handleSaveRoute}
+                    onExport={handleExport}
+                    isSaving={isSaving}
+                    canExport={points.length > 0}
+                  />
 
                   {/* Import */}
                   <div style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
@@ -675,6 +454,7 @@ export default function RoutesAdmin() {
                     onPointMove={handleMovePoint}
                     selectedPointId={selectedPointId}
                     onPointSelect={(id) => setSelectedPointId(id)}
+                    visible={showMap}
                   />
                 </div>
               </div>
@@ -684,38 +464,7 @@ export default function RoutesAdmin() {
 
         {/* Notification - Bandeau fixe en bas */}
         {notification && (
-          <div
-            style={{
-              position: 'fixed',
-              bottom: 20,
-              left: 12,
-              right: 12,
-              padding: '12px 16px',
-              borderRadius: 10,
-              background: notification.type === 'success' ? '#166534' : '#dc2626',
-              color: '#ffffff',
-              fontSize: 13,
-              fontWeight: 500,
-              zIndex: 9999,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            {notification.type === 'success' ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            )}
-            {notification.message}
-          </div>
+          <Notification type={notification.type} message={notification.message} />
         )}
       </div>
     </>

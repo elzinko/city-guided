@@ -48,6 +48,7 @@ type RouteOption = {
   description?: string
   loadFn: () => Promise<any[]> | any[]
   pointsCount?: number
+  isDefault?: boolean // Indique si c'est un trajet système ou custom
 }
 
 const DEFAULT_ROUTE_OPTIONS: RouteOption[] = [
@@ -57,6 +58,7 @@ const DEFAULT_ROUTE_OPTIONS: RouteOption[] = [
     description: 'Route par défaut autour du château',
     loadFn: () => Promise.resolve(DEFAULT_DRIVE_PATH),
     pointsCount: DEFAULT_DRIVE_PATH.length,
+    isDefault: true, // Trajet système
   },
 ]
 
@@ -162,6 +164,8 @@ export default function Home() {
           description: route.description,
           pointsCount: route.points?.length || 0,
           loadFn: () => Promise.resolve(route.points || []),
+          // isDefault: false par défaut - les routes custom sont distinguées visuellement (bleu)
+          // des routes système (vert) sur la carte
         }))
         setCustomRouteOptions(routeOptions)
       }
@@ -1076,8 +1080,21 @@ export default function Home() {
       // Afficher le trajet dès que virtualRouteActive est activé (fonctionnalité dev)
       if (simPath.length > 1 && virtualRouteActive) {
         const latlngs = simPath.map((p: any) => [p.lat, p.lng])
+        // Récupérer la route sélectionnée pour connaître son type
+        const selectedRoute = ROUTE_OPTIONS.find((r) => r.id === selectedRouteId)
+        const isDefaultRoute = selectedRoute?.isDefault || false
+        
         // Style différent si en simulation active vs juste prévisualisation
-        const routeColor = isSimulating ? '#ef4444' : '#3b82f6' // Rouge si actif, bleu si prévisualisation
+        // ET distinction entre trajet système (vert) et custom (bleu)
+        let routeColor: string
+        if (isSimulating) {
+          routeColor = '#ef4444' // Rouge si simulation active
+        } else if (isDefaultRoute) {
+          routeColor = '#22c55e' // Vert pour les trajets système
+        } else {
+          routeColor = '#3b82f6' // Bleu pour les trajets custom
+        }
+        
         const routeWeight = isSimulating ? 5 : 4
         const routeOpacity = isSimulating ? 0.85 : 0.6
         const poly = L.polyline(latlngs, { 

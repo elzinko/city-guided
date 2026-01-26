@@ -9,6 +9,7 @@ type RouteMapProps = {
   onPointSelect?: (pointId: string | null) => void
   center?: { lat: number; lng: number }
   zoom?: number
+  visible?: boolean // Permet de détecter quand la carte devient visible
 }
 
 /**
@@ -24,6 +25,7 @@ export function RouteMap({
   onPointSelect,
   center = { lat: 48.402, lng: 2.699 }, // Default: Fontainebleau
   zoom = 14,
+  visible = true,
 }: RouteMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
@@ -74,6 +76,19 @@ export function RouteMap({
       }
     }
   }, [])
+
+  // Recalculer les dimensions de la carte quand elle devient visible
+  // Fix pour le bug de carte coupée lors du toggle formulaire/carte
+  useEffect(() => {
+    if (visible && mapReady && mapRef.current) {
+      // Délai pour attendre la fin de la transition CSS (200ms + buffer)
+      const timeoutId = setTimeout(() => {
+        mapRef.current?.invalidateSize()
+      }, 250)
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [visible, mapReady])
 
   // Mettre à jour les marqueurs et la polyline quand les points changent
   useEffect(() => {

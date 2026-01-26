@@ -14,6 +14,7 @@ export type RouteFormProps = {
 
 /**
  * Formulaire d'édition d'un trajet (nom, description, boutons)
+ * Design compact pour mobile-first
  */
 export function RouteForm({
   name,
@@ -27,7 +28,7 @@ export function RouteForm({
   isReadOnly = false,
 }: RouteFormProps) {
   return (
-    <div style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
+    <div>
       {/* Badge lecture seule */}
       {isReadOnly && (
         <div
@@ -52,69 +53,71 @@ export function RouteForm({
         </div>
       )}
 
-      {/* Champ Nom */}
-      <div style={{ marginBottom: 10 }}>
-        <label
-          style={{
-            display: 'block',
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#64748b',
-            marginBottom: 4,
-          }}
-        >
-          Nom {!isReadOnly && '*'}
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder="Ex: Boucle centre-ville"
-          disabled={isReadOnly}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            borderRadius: 8,
-            border: '1px solid #e2e8f0',
-            fontSize: 14,
-            boxSizing: 'border-box',
-            background: isReadOnly ? '#f8fafc' : '#ffffff',
-            color: isReadOnly ? '#64748b' : '#0f172a',
-          }}
-        />
-      </div>
+      {/* Champs sur une ligne pour mobile */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {/* Champ Nom */}
+        <div style={{ flex: 2 }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#64748b',
+              marginBottom: 4,
+            }}
+          >
+            Nom {!isReadOnly && '*'}
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder="Ex: Boucle centre-ville"
+            disabled={isReadOnly}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0',
+              fontSize: 14,
+              boxSizing: 'border-box',
+              background: isReadOnly ? '#f8fafc' : '#ffffff',
+              color: isReadOnly ? '#64748b' : '#0f172a',
+            }}
+          />
+        </div>
 
-      {/* Champ Description */}
-      <div style={{ marginBottom: 10 }}>
-        <label
-          style={{
-            display: 'block',
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#64748b',
-            marginBottom: 4,
-          }}
-        >
-          Description
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          placeholder="Description..."
-          rows={2}
-          disabled={isReadOnly}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            borderRadius: 8,
-            border: '1px solid #e2e8f0',
-            fontSize: 14,
-            resize: 'none',
-            boxSizing: 'border-box',
-            background: isReadOnly ? '#f8fafc' : '#ffffff',
-            color: isReadOnly ? '#64748b' : '#0f172a',
-          }}
-        />
+        {/* Champ Description compact */}
+        <div style={{ flex: 3 }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#64748b',
+              marginBottom: 4,
+            }}
+          >
+            Description
+          </label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            placeholder="Description..."
+            disabled={isReadOnly}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0',
+              fontSize: 14,
+              boxSizing: 'border-box',
+              background: isReadOnly ? '#f8fafc' : '#ffffff',
+              color: isReadOnly ? '#64748b' : '#0f172a',
+            }}
+          />
+        </div>
       </div>
 
       {/* Boutons d'action */}
@@ -138,13 +141,12 @@ export function RouteForm({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              transition: 'opacity 0.15s ease',
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+            {isSaving ? 'Sauvegarde...' : 'Enregistrer'}
           </button>
         )}
         <button
@@ -161,8 +163,7 @@ export function RouteForm({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: isReadOnly ? 8 : 0,
-            transition: 'color 0.15s ease',
+            gap: 8,
           }}
           title="Exporter GPX"
         >
@@ -171,7 +172,7 @@ export function RouteForm({
             <polyline points="7 10 12 15 17 10" />
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
-          {isReadOnly && <span style={{ fontSize: 13 }}>Exporter GPX</span>}
+          <span style={{ fontSize: 13 }}>GPX</span>
         </button>
       </div>
     </div>

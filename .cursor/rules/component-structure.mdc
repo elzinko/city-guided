@@ -1,0 +1,110 @@
+# Structure des Composants React
+
+## Principe
+
+Chaque bloc d'interface qui peut être un composant React **doit** être extrait en composant séparé avec les attributs d'identification appropriés.
+
+## Règles obligatoires
+
+### 1. Extraction en composants
+
+Tout élément `<div>` ou conteneur avec une logique propre ou un style spécifique doit être un composant React.
+
+```tsx
+// ❌ BAD - Div inline avec logique
+<div style={{ ... }} onClick={handleClick}>
+  <button>...</button>
+  <select>...</select>
+</div>
+
+// ✅ GOOD - Composant extrait
+<RouteSelector 
+  onRouteSelect={handleRouteSelect}
+  routes={routes}
+/>
+```
+
+### 2. Attributs d'identification obligatoires
+
+Chaque composant ou élément interactif doit avoir :
+- `id` : Identifiant unique pour le styling/debugging
+- `data-testid` : Identifiant pour les tests E2E
+
+```tsx
+// ✅ Exemple correct
+<button
+  id="dev-play-pause-button"
+  data-testid="dev-play-pause-button"
+  onClick={onPlayPause}
+>
+  Play
+</button>
+```
+
+### 3. Convention de nommage des IDs
+
+Format : `{context}-{element}-{action?}`
+
+Exemples :
+- `dev-control-block` - Bloc de contrôle développeur
+- `dev-play-pause-button` - Bouton play/pause du dev block
+- `route-map-container` - Container de la carte route
+- `routes-admin-page` - Page admin des routes
+
+### 4. Hiérarchie des composants
+
+```
+Page (id="xxx-page")
+├── Header (composant)
+├── Main content
+│   ├── Section (composant avec id)
+│   │   ├── Sub-component
+│   │   └── Sub-component
+│   └── Section (composant avec id)
+└── Footer (composant)
+```
+
+## Checklist pour review
+
+- [ ] Chaque conteneur avec logique est un composant ?
+- [ ] Chaque composant a un `id` ?
+- [ ] Chaque élément interactif a un `data-testid` ?
+- [ ] Les IDs suivent la convention de nommage ?
+- [ ] Pas de `<div>` avec du inline styling complexe non extractible ?
+
+## Exemples de refactoring
+
+### Avant (routes.tsx)
+```tsx
+<div style={{ display: 'flex', ... }}>
+  <button onClick={handleNewRoute} style={{ ... }}>
+    Nouveau trajet
+  </button>
+</div>
+```
+
+### Après
+```tsx
+// Composant extrait : NewRouteButton.tsx
+export function NewRouteButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      id="routes-new-button"
+      data-testid="routes-new-button"
+      onClick={onClick}
+      className={styles.newRouteButton}
+    >
+      Nouveau trajet
+    </button>
+  )
+}
+
+// Utilisation
+<NewRouteButton onClick={handleNewRoute} />
+```
+
+## Exceptions
+
+- Les wrappers purement stylistiques peuvent rester inline si très simples
+- Les `Fragment` (`<>...</>`) n'ont pas besoin d'ID
+- Les composants de layout génériques (Container, Flex, Grid) peuvent être génériques

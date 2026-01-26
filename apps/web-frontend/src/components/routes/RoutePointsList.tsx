@@ -10,7 +10,7 @@ export type RoutePoint = {
 
 type RoutePointsListProps = {
   points: RoutePoint[]
-  onPointsChange: (points: RoutePoint[]) => void
+  onPointsChange?: (points: RoutePoint[]) => void // Optionnel pour mode lecture seule
   onPointSelect?: (point: RoutePoint) => void
   selectedPointId?: string | null
 }
@@ -18,6 +18,7 @@ type RoutePointsListProps = {
 /**
  * Liste des points d'un trajet avec drag & drop pour réorganiser
  * Composant modulaire pour future migration vers backoffice
+ * Si onPointsChange est undefined, le composant est en lecture seule
  */
 export function RoutePointsList({
   points,
@@ -25,6 +26,7 @@ export function RoutePointsList({
   onPointSelect,
   selectedPointId,
 }: RoutePointsListProps) {
+  const isReadOnly = !onPointsChange
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const draggedItemRef = useRef<RoutePoint | null>(null)
@@ -61,7 +63,7 @@ export function RoutePointsList({
   // Gestion du drop
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault()
-    if (draggedIndex === null || draggedIndex === dropIndex) {
+    if (isReadOnly || draggedIndex === null || draggedIndex === dropIndex) {
       setDraggedIndex(null)
       setDragOverIndex(null)
       return
@@ -77,7 +79,7 @@ export function RoutePointsList({
       order: idx,
     }))
 
-    onPointsChange(reorderedPoints)
+    onPointsChange?.(reorderedPoints)
     setDraggedIndex(null)
     setDragOverIndex(null)
   }
@@ -90,28 +92,29 @@ export function RoutePointsList({
 
   // Supprimer un point
   const handleDelete = (pointId: string) => {
+    if (isReadOnly) return
     const newPoints = points
       .filter((p) => p.id !== pointId)
       .map((p, idx) => ({ ...p, order: idx }))
-    onPointsChange(newPoints)
+    onPointsChange?.(newPoints)
   }
 
   // Déplacer vers le haut
   const handleMoveUp = (index: number) => {
-    if (index === 0) return
+    if (isReadOnly || index === 0) return
     const newPoints = [...points]
     ;[newPoints[index - 1], newPoints[index]] = [newPoints[index], newPoints[index - 1]]
     const reorderedPoints = newPoints.map((p, idx) => ({ ...p, order: idx }))
-    onPointsChange(reorderedPoints)
+    onPointsChange?.(reorderedPoints)
   }
 
   // Déplacer vers le bas
   const handleMoveDown = (index: number) => {
-    if (index === points.length - 1) return
+    if (isReadOnly || index === points.length - 1) return
     const newPoints = [...points]
     ;[newPoints[index], newPoints[index + 1]] = [newPoints[index + 1], newPoints[index]]
     const reorderedPoints = newPoints.map((p, idx) => ({ ...p, order: idx }))
-    onPointsChange(reorderedPoints)
+    onPointsChange?.(reorderedPoints)
   }
 
   if (points.length === 0) {
@@ -163,7 +166,7 @@ export function RoutePointsList({
       >
         <span style={{ width: 32 }}>#</span>
         <span style={{ flex: 1 }}>Coordonnées</span>
-        <span style={{ width: 100, textAlign: 'center' }}>Actions</span>
+        {!isReadOnly && <span style={{ width: 100, textAlign: 'center' }}>Actions</span>}
       </div>
 
       {/* Liste des points */}
@@ -171,19 +174,19 @@ export function RoutePointsList({
         <div
           key={point.id}
           id={`route-point-${point.id}`}
-          draggable
-          onDragStart={(e) => handleDragStart(e, index)}
-          onDragOver={(e) => handleDragOver(e, index)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, index)}
-          onDragEnd={handleDragEnd}
+          draggable={!isReadOnly}
+          onDragStart={!isReadOnly ? (e) => handleDragStart(e, index) : undefined}
+          onDragOver={!isReadOnly ? (e) => handleDragOver(e, index) : undefined}
+          onDragLeave={!isReadOnly ? handleDragLeave : undefined}
+          onDrop={!isReadOnly ? (e) => handleDrop(e, index) : undefined}
+          onDragEnd={!isReadOnly ? handleDragEnd : undefined}
           onClick={() => onPointSelect?.(point)}
           style={{
             display: 'flex',
             alignItems: 'center',
             padding: '8px 12px',
             borderRadius: 8,
-            cursor: 'grab',
+            cursor: isReadOnly ? 'pointer' : 'grab',
             background:
               dragOverIndex === index
                 ? '#dbeafe'
@@ -241,85 +244,87 @@ export function RoutePointsList({
             )}
           </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-            {/* Bouton monter */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleMoveUp(index)
-              }}
-              disabled={index === 0}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: 'none',
-                background: index === 0 ? '#f1f5f9' : '#ffffff',
-                color: index === 0 ? '#cbd5e1' : '#64748b',
-                cursor: index === 0 ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              title="Monter"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M18 15l-6-6-6 6" />
-              </svg>
-            </button>
+          {/* Actions (masquées en lecture seule) */}
+          {!isReadOnly && (
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+              {/* Bouton monter */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleMoveUp(index)
+                }}
+                disabled={index === 0}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  border: 'none',
+                  background: index === 0 ? '#f1f5f9' : '#ffffff',
+                  color: index === 0 ? '#cbd5e1' : '#64748b',
+                  cursor: index === 0 ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Monter"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 15l-6-6-6 6" />
+                </svg>
+              </button>
 
-            {/* Bouton descendre */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleMoveDown(index)
-              }}
-              disabled={index === points.length - 1}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: 'none',
-                background: index === points.length - 1 ? '#f1f5f9' : '#ffffff',
-                color: index === points.length - 1 ? '#cbd5e1' : '#64748b',
-                cursor: index === points.length - 1 ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              title="Descendre"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
+              {/* Bouton descendre */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleMoveDown(index)
+                }}
+                disabled={index === points.length - 1}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  border: 'none',
+                  background: index === points.length - 1 ? '#f1f5f9' : '#ffffff',
+                  color: index === points.length - 1 ? '#cbd5e1' : '#64748b',
+                  cursor: index === points.length - 1 ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Descendre"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
 
-            {/* Bouton supprimer */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleDelete(point.id)
-              }}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: 'none',
-                background: '#fef2f2',
-                color: '#dc2626',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              title="Supprimer"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-            </button>
-          </div>
+              {/* Bouton supprimer */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDelete(point.id)
+                }}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  border: 'none',
+                  background: '#fef2f2',
+                  color: '#dc2626',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Supprimer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       ))}
 
@@ -331,21 +336,31 @@ export function RoutePointsList({
           alignItems: 'center',
           padding: '12px',
           marginTop: 8,
-          background: '#f8fafc',
+          background: isReadOnly ? '#fef3c7' : '#f8fafc',
           borderRadius: 8,
           fontSize: 12,
-          color: '#64748b',
+          color: isReadOnly ? '#92400e' : '#64748b',
         }}
       >
         <span>
           <strong>{points.length}</strong> point{points.length > 1 ? 's' : ''} au total
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-          </svg>
-          Glissez pour réorganiser
-        </span>
+        {isReadOnly ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            Lecture seule
+          </span>
+        ) : (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+            </svg>
+            Glissez pour réorganiser
+          </span>
+        )}
       </div>
     </div>
   )

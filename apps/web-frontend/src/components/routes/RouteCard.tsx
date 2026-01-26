@@ -6,6 +6,7 @@ export type RouteCardProps = {
   description?: string
   pointsCount: number
   isDefault?: boolean
+  isImported?: boolean
   onEdit: () => void
   onDelete?: () => void
 }
@@ -19,9 +20,15 @@ export function RouteCard({
   description,
   pointsCount,
   isDefault = false,
+  isImported = false,
   onEdit,
   onDelete,
 }: RouteCardProps) {
+  // Couleurs selon le type
+  const borderColor = isDefault ? '#22c55e' : isImported ? '#f59e0b' : '#e2e8f0'
+  const iconBg = isDefault ? '#dcfce7' : isImported ? '#fef3c7' : '#f8fafc'
+  const iconColor = isDefault ? '#22c55e' : isImported ? '#f59e0b' : '#64748b'
+
   return (
     <div
       onClick={onEdit}
@@ -29,7 +36,7 @@ export function RouteCard({
         padding: 12,
         borderRadius: 10,
         background: '#ffffff',
-        border: isDefault ? '1px solid #22c55e' : '1px solid #e2e8f0',
+        border: `1px solid ${borderColor}`,
         display: 'flex',
         alignItems: 'center',
         gap: 10,
@@ -51,30 +58,33 @@ export function RouteCard({
           width: 40,
           height: 40,
           borderRadius: 10,
-          background: isDefault ? '#dcfce7' : '#f8fafc',
-          border: isDefault ? '1px solid #22c55e' : '1px solid #e2e8f0',
+          background: iconBg,
+          border: `1px solid ${borderColor}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
         }}
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke={isDefault ? '#22c55e' : '#64748b'}
-          strokeWidth="2"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-        </svg>
+        {isImported ? (
+          // Icône import (fichier)
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+          </svg>
+        )}
       </div>
 
       {/* Infos */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>{name}</span>
           {isDefault && (
             <span
@@ -88,6 +98,20 @@ export function RouteCard({
               }}
             >
               SYSTÈME
+            </span>
+          )}
+          {isImported && (
+            <span
+              style={{
+                fontSize: 9,
+                padding: '2px 6px',
+                borderRadius: 4,
+                background: '#fef3c7',
+                color: '#92400e',
+                fontWeight: 700,
+              }}
+            >
+              IMPORTÉ
             </span>
           )}
         </div>
@@ -110,18 +134,24 @@ export function RouteCard({
             borderRadius: 8,
             border: '1px solid #e2e8f0',
             background: '#ffffff',
-            color: '#3b82f6',
+            color: isImported ? '#f59e0b' : '#3b82f6',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          title={isDefault ? 'Dupliquer pour éditer' : 'Modifier'}
+          title={isDefault ? 'Dupliquer pour éditer' : isImported ? 'Visualiser' : 'Modifier'}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             {isDefault ? (
               // Icône copie
               <path d="M8 17H5a2 2 0 01-2-2V5a2 2 0 012-2h10a2 2 0 012 2v3M11 21h10a2 2 0 002-2V9a2 2 0 00-2-2H11a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            ) : isImported ? (
+              // Icône œil (visualiser)
+              <>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </>
             ) : (
               // Icône édition
               <>

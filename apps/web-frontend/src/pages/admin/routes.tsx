@@ -21,6 +21,7 @@ type SavedRoute = {
   createdAt: string
   updatedAt: string
   isDefault?: boolean // Route système non modifiable
+  isImported?: boolean // Trajet importé (lecture seule)
 }
 
 // Clé localStorage pour persister les trajets
@@ -76,6 +77,9 @@ export default function RoutesAdmin() {
 
   // Combiner routes par défaut et personnalisées
   const allRoutes = [...DEFAULT_ROUTES, ...customRoutes]
+  
+  // Mode lecture seule (trajet importé ou système)
+  const isReadOnly = currentRoute?.isImported || currentRoute?.isDefault || false
 
   // Charger les trajets depuis localStorage
   useEffect(() => {
@@ -125,6 +129,12 @@ export default function RoutesAdmin() {
       setCurrentRoute(null)
       setPoints([...route.points])
       setRouteName(`${route.name} (copie)`)
+      setRouteDescription(route.description || '')
+    } else if (route.isImported) {
+      // Trajet importé : mode visualisation seule
+      setCurrentRoute(route)
+      setPoints(route.points)
+      setRouteName(route.name)
       setRouteDescription(route.description || '')
     } else {
       setCurrentRoute(route)
@@ -210,10 +220,40 @@ export default function RoutesAdmin() {
     setPoints(points.map((p) => (p.id === pointId ? { ...p, lat, lng } : p)))
   }
 
-  // Importer des points
+  // Importer des points (crée un trajet en lecture seule)
   const handleImport = (importedPoints: RoutePoint[]) => {
+    // Demander un nom pour le trajet importé
+    const defaultName = `Import ${new Date().toLocaleDateString('fr-FR')} ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+    const name = prompt('Nom du trajet importé :', defaultName)
+    
+    if (!name) {
+      showNotificationMsg('error', 'Import annulé')
+      return
+    }
+    
+    // Créer et sauvegarder le trajet importé (lecture seule)
+    const now = new Date().toISOString()
+    const newRoute: SavedRoute = {
+      id: generateId(),
+      name: name.trim(),
+      description: `Trajet importé le ${new Date().toLocaleDateString('fr-FR')}`,
+      points: importedPoints,
+      createdAt: now,
+      updatedAt: now,
+      isImported: true, // Marquer comme importé (lecture seule)
+    }
+    
+    const newRoutes = [...customRoutes, newRoute]
+    saveRoutes(newRoutes)
+    
+    // Ouvrir le trajet en mode visualisation
+    setCurrentRoute(newRoute)
     setPoints(importedPoints)
-    showNotificationMsg('success', `${importedPoints.length} points importés`)
+    setRouteName(newRoute.name)
+    setRouteDescription(newRoute.description || '')
+    setShowRouteList(false)
+    
+    showNotificationMsg('success', `${importedPoints.length} points importés (lecture seule)`)
   }
 
   // Exporter le trajet actuel en GPX (compatible GPX.studio, Geo Tracker, etc.)
@@ -227,15 +267,13 @@ export default function RoutesAdmin() {
     const desc = routeDescription || ''
     const now = new Date().toISOString()
     
-    // Générer les trackpoints avec horodatage simulé (1 point par seconde)
-    const trackpoints = points.map((p, index) => {
-      const time = new Date(Date.now() + index * 1000).toISOString()
-      return `      <trkpt lat="${p.lat.toFixed(6)}" lon="${p.lng.toFixed(6)}">
-        <time>${time}</time>
-      </trkpt>`
+    // Générer les trackpoints sans horodatage (compatible GPX 1.1)
+    // Les trajets créés manuellement n'ont pas de timestamps réalistes
+    const trackpoints = points.map((p) => {
+      return `      <trkpt lat="${p.lat.toFixed(6)}" lon="${p.lng.toFixed(6)}" />`
     }).join('\n')
 
-    // Format GPX 1.1 standard
+    // Format GPX 1.1 standard (sans timestamps dans les trackpoints)
     const gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="CityGuided"
      xmlns="http://www.topografix.com/GPX/1/1"
@@ -343,7 +381,7 @@ ${trackpoints}
 
           <div style={{ flex: 1 }}>
             <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
-              {showRouteList ? 'Trajets virtuels' : currentRoute ? 'Modifier' : 'Nouveau trajet'}
+              {showRouteList ? 'Trajets virtuels' : currentRoute ? (isReadOnly ? 'Visualiser' : 'Modifier') : 'Nouveau trajet'}
             </h1>
             <p style={{ margin: 0, fontSize: 11, color: '#64748b' }}>
               {showRouteList 
@@ -352,6 +390,32 @@ ${trackpoints}
               }
             </p>
           </div>
+
+          {/* Bouton Recorder GPS (affiché uniquement en mode liste) */}
+          {showRouteList && (
+            <button
+              onClick={() => (window.location.href = '/admin/routes/recorder')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 12px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#dc2626',
+                color: '#ffffff',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              title="Enregistrer un parcours GPS"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="10" />
+              </svg>
+              Recorder
+            </button>
+          )}
 
         </header>
 
@@ -373,6 +437,7 @@ ${trackpoints}
                     description={route.description}
                     pointsCount={route.points.length}
                     isDefault={route.isDefault}
+                    isImported={route.isImported}
                     onEdit={() => handleEditRoute(route)}
                     onDelete={!route.isDefault ? () => handleDeleteRoute(route.id) : undefined}
                   />
@@ -414,24 +479,27 @@ ${trackpoints}
                     onExport={handleExport}
                     isSaving={isSaving}
                     canExport={points.length > 0}
+                    isReadOnly={isReadOnly}
                   />
 
-                  {/* Import */}
-                  <div style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
-                    <h3 style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 600, color: '#64748b' }}>
-                      Importer
-                    </h3>
-                    <RouteImporter onImport={handleImport} />
-                  </div>
+                  {/* Import (masqué en mode lecture seule) */}
+                  {!isReadOnly && (
+                    <div style={{ padding: 12, borderBottom: '1px solid #e2e8f0' }}>
+                      <h3 style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 600, color: '#64748b' }}>
+                        Importer
+                      </h3>
+                      <RouteImporter onImport={handleImport} />
+                    </div>
+                  )}
 
-                  {/* Liste des points */}
+                  {/* Liste des points (en lecture seule pour les trajets importés) */}
                   <div style={{ padding: 12, flex: 1, overflow: 'auto' }}>
                     <h3 style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 600, color: '#64748b' }}>
-                      Points ({points.length})
+                      Points ({points.length}) {isReadOnly && '- Lecture seule'}
                     </h3>
                     <RoutePointsList
                       points={points}
-                      onPointsChange={setPoints}
+                      onPointsChange={isReadOnly ? undefined : setPoints}
                       onPointSelect={(p) => setSelectedPointId(p.id)}
                       selectedPointId={selectedPointId}
                     />
@@ -450,8 +518,8 @@ ${trackpoints}
                 >
                   <RouteMap
                     points={points}
-                    onPointAdd={handleAddPoint}
-                    onPointMove={handleMovePoint}
+                    onPointAdd={isReadOnly ? undefined : handleAddPoint}
+                    onPointMove={isReadOnly ? undefined : handleMovePoint}
                     selectedPointId={selectedPointId}
                     onPointSelect={(id) => setSelectedPointId(id)}
                     visible={showMap}

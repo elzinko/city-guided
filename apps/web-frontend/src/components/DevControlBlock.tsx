@@ -91,9 +91,9 @@ const compactSelectStyle: React.CSSProperties = {
   WebkitTransform: 'translateZ(0)',
 }
 
-// Icône Zone POI (cercle autour d'un marqueur)
+// Icône Zone POI (cercle autour d'un marqueur) - Vert quand actif
 function ZonePoiIcon({ size = 18, active = false }: { size?: number; active?: boolean }) {
-  const color = active ? '#ef4444' : '#94a3b8'
+  const color = active ? '#22c55e' : '#94a3b8'
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       {/* Cercle de zone */}
@@ -127,11 +127,11 @@ function AudioIcon({ size = 18, muted = false }: { size?: number; muted?: boolea
   )
 }
 
-// Icône Position GPS
+// Icône Position GPS - Vert
 function PositionIcon({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#ef4444" stroke="#dc2626" />
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#22c55e" stroke="#16a34a" />
       <circle cx="12" cy="9" r="2.5" fill="white" />
     </svg>
   )
@@ -415,7 +415,7 @@ export function DevControlBlock({
             {/* Séparateur */}
             <div style={{ width: 1, height: BUTTON_HEIGHT - 8, background: '#e2e8f0' }} />
 
-            {/* Toggle Zones POI */}
+            {/* Toggle Zones POI - Vert quand actif */}
             <button
               id="dev-god-mode-toggle"
               onClick={() => setGodMode(!godMode)}
@@ -423,122 +423,13 @@ export function DevControlBlock({
                 ...compactButtonStyle,
                 width: BUTTON_HEIGHT,
                 padding: 0,
-                border: godMode ? '1px solid #ef4444' : '1px solid #cbd5e1',
-                background: godMode ? '#fef2f2' : '#ffffff',
+                border: godMode ? '1px solid #22c55e' : '1px solid #cbd5e1',
+                background: godMode ? '#dcfce7' : '#ffffff',
               }}
               title={godMode ? 'Masquer les zones POI' : 'Afficher les zones POI'}
             >
               <ZonePoiIcon size={20} active={godMode} />
             </button>
-
-            {/* Audio toggle */}
-            <button
-              id="dev-audio-toggle"
-              onClick={() => {
-                const newPaused = !audioPaused
-                setAudioPaused(newPaused)
-                if (newPaused && pauseSpeech) pauseSpeech()
-                else if (!newPaused && resumeSpeech) resumeSpeech()
-              }}
-              style={{
-                ...compactButtonStyle,
-                width: BUTTON_HEIGHT,
-                padding: 0,
-                border: audioPaused ? '1px solid #cbd5e1' : '1px solid #22c55e',
-                background: audioPaused ? '#ffffff' : '#dcfce7',
-              }}
-              title={audioPaused ? 'Activer l\'audio' : 'Couper l\'audio'}
-            >
-              <AudioIcon size={18} muted={audioPaused} />
-            </button>
-
-            {/* Bouton Recorder GPS */}
-            <a
-              id="dev-recorder-link"
-              href="/admin/routes/recorder"
-              style={{
-                ...compactButtonStyle,
-                width: BUTTON_HEIGHT,
-                padding: 0,
-                border: '1px solid #dc2626',
-                background: '#fef2f2',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              title="Enregistrer un parcours GPS"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#dc2626">
-                <circle cx="12" cy="12" r="8" />
-              </svg>
-            </a>
-
-            {/* Zoom control avec boutons +/- */}
-            <div id="dev-zoom-control" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <button
-                onClick={() => {
-                  const newZoom = Math.max(10, zoomLevel - 1)
-                  setZoomLevel(newZoom)
-                  try {
-                    const map = (window as any)._le_map
-                    if (map && map.setZoom) map.setZoom(newZoom)
-                  } catch { /* ignore */ }
-                }}
-                style={{
-                  ...compactButtonStyle,
-                  width: 28,
-                  padding: 0,
-                  borderRadius: '8px 0 0 8px',
-                  borderRight: 'none',
-                }}
-                title="Zoom arrière"
-              >
-                −
-              </button>
-              <div
-                style={{
-                  height: BUTTON_HEIGHT,
-                  padding: '0 8px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderLeft: 'none',
-                  borderRight: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: '#64748b',
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="M21 21l-4.35-4.35" />
-                </svg>
-                {zoomLevel}
-              </div>
-              <button
-                onClick={() => {
-                  const newZoom = Math.min(19, zoomLevel + 1)
-                  setZoomLevel(newZoom)
-                  try {
-                    const map = (window as any)._le_map
-                    if (map && map.setZoom) map.setZoom(newZoom)
-                  } catch { /* ignore */ }
-                }}
-                style={{
-                  ...compactButtonStyle,
-                  width: 28,
-                  padding: 0,
-                  borderRadius: '0 8px 8px 0',
-                  borderLeft: 'none',
-                }}
-                title="Zoom avant"
-              >
-                +
-              </button>
-            </div>
 
             {/* Radius control avec boutons +/- */}
             <div id="dev-radius-control" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -607,6 +498,115 @@ export function DevControlBlock({
                 +
               </button>
             </div>
+
+            {/* Zoom control avec boutons +/- */}
+            <div id="dev-zoom-control" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <button
+                onClick={() => {
+                  const newZoom = Math.max(10, zoomLevel - 1)
+                  setZoomLevel(newZoom)
+                  try {
+                    const map = (window as any)._le_map
+                    if (map && map.setZoom) map.setZoom(newZoom)
+                  } catch { /* ignore */ }
+                }}
+                style={{
+                  ...compactButtonStyle,
+                  width: 28,
+                  padding: 0,
+                  borderRadius: '8px 0 0 8px',
+                  borderRight: 'none',
+                }}
+                title="Zoom arrière"
+              >
+                −
+              </button>
+              <div
+                style={{
+                  height: BUTTON_HEIGHT,
+                  padding: '0 8px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#64748b',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+                {zoomLevel}
+              </div>
+              <button
+                onClick={() => {
+                  const newZoom = Math.min(19, zoomLevel + 1)
+                  setZoomLevel(newZoom)
+                  try {
+                    const map = (window as any)._le_map
+                    if (map && map.setZoom) map.setZoom(newZoom)
+                  } catch { /* ignore */ }
+                }}
+                style={{
+                  ...compactButtonStyle,
+                  width: 28,
+                  padding: 0,
+                  borderRadius: '0 8px 8px 0',
+                  borderLeft: 'none',
+                }}
+                title="Zoom avant"
+              >
+                +
+              </button>
+            </div>
+
+            {/* Audio toggle */}
+            <button
+              id="dev-audio-toggle"
+              onClick={() => {
+                const newPaused = !audioPaused
+                setAudioPaused(newPaused)
+                if (newPaused && pauseSpeech) pauseSpeech()
+                else if (!newPaused && resumeSpeech) resumeSpeech()
+              }}
+              style={{
+                ...compactButtonStyle,
+                width: BUTTON_HEIGHT,
+                padding: 0,
+                border: audioPaused ? '1px solid #cbd5e1' : '1px solid #22c55e',
+                background: audioPaused ? '#ffffff' : '#dcfce7',
+              }}
+              title={audioPaused ? 'Activer l\'audio' : 'Couper l\'audio'}
+            >
+              <AudioIcon size={18} muted={audioPaused} />
+            </button>
+
+            {/* Bouton Recorder GPS */}
+            <a
+              id="dev-recorder-link"
+              href="/admin/routes/recorder"
+              style={{
+                ...compactButtonStyle,
+                width: BUTTON_HEIGHT,
+                padding: 0,
+                border: '1px solid #dc2626',
+                background: '#fef2f2',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Enregistrer un parcours GPS"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#dc2626">
+                <circle cx="12" cy="12" r="8" />
+              </svg>
+            </a>
 
             {/* Spacer */}
             <div style={{ flex: 1 }} />

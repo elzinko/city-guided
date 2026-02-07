@@ -345,34 +345,13 @@ async function main() {
   // Parse arguments
   const args = process.argv.slice(2);
   let env: string = 'staging'; // Now accepts any string, not just predefined environments
-  let mode: InfraMode = 'ecs'; // Default to ECS (current infrastructure)
+  const mode: InfraMode = 'ecs'; // ECS only (legacy EC2 mode removed)
   let action: 'provision' | 'destroy' = 'provision'; // New action parameter
 
   // Parse action (provision/destroy)
   if (args[0] === 'destroy') {
     action = 'destroy';
     args.shift();
-  }
-
-  // Parse --mode flag (supports both --mode ecs and --mode=ecs)
-  const modeIndex = args.findIndex(arg => arg.startsWith('--mode'));
-  if (modeIndex !== -1) {
-    const modeArg = args[modeIndex];
-    let modeValue: string | undefined;
-    
-    // Check if it's --mode=value format
-    if (modeArg.includes('=')) {
-      modeValue = modeArg.split('=')[1];
-      args.splice(modeIndex, 1); // Remove --mode=value
-    } else if (modeIndex + 1 < args.length) {
-      // Check if it's --mode value format
-      modeValue = args[modeIndex + 1];
-      args.splice(modeIndex, 2); // Remove --mode and its value
-    }
-    
-    if (modeValue && (modeValue === 'ec2' || modeValue === 'ecs')) {
-      mode = modeValue as InfraMode;
-    }
   }
 
   // Parse environment (remaining first argument)
@@ -384,7 +363,7 @@ async function main() {
   if (action === 'destroy' && !args[0]) {
     console.error(chalk.red(`\n❌ Environment name required for destroy`));
     console.error(chalk.cyan(`\nUsage:`));
-    console.error(chalk.white(`   pnpm destroy <environment> [--mode ec2|ecs]`));
+    console.error(chalk.white(`   pnpm destroy <environment>`));
     process.exit(1);
   }
 
@@ -392,14 +371,11 @@ async function main() {
   if (action === 'provision' && !env) {
     console.error(chalk.red(`\n❌ Environment name required`));
     console.error(chalk.cyan(`\nUsage:`));
-    console.error(chalk.white(`   pnpm provision <environment> [--mode ec2|ecs]`));
-    console.error(chalk.white(`   pnpm provision <environment> [--mode=ec2|ecs]`));
-    console.error(chalk.white(`   pnpm destroy <environment> [--mode ec2|ecs]`));
+    console.error(chalk.white(`   pnpm provision <environment>`));
+    console.error(chalk.white(`   pnpm destroy <environment>`));
     console.error(chalk.white(`\nExamples:`));
-    console.error(chalk.white(`   pnpm provision staging              # ECS (default)`));
-    console.error(chalk.white(`   pnpm provision staging --mode ecs`));
-    console.error(chalk.white(`   pnpm provision staging --mode=ecs`));
-    console.error(chalk.white(`   pnpm destroy staging --mode ecs`));
+    console.error(chalk.white(`   pnpm provision staging`));
+    console.error(chalk.white(`   pnpm destroy staging`));
     process.exit(1);
   }
 

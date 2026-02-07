@@ -1,13 +1,14 @@
 #!/usr/bin/env tsx
 /**
- * Unified Deployment Script
- * 
- * Deploys application to the specified environment.
- * Automatically detects the infrastructure mode (EC2 or ECS) and deploys accordingly.
- * 
+ * ECS Deployment Script
+ *
+ * Deploys application to ECS Fargate (task definition + service update).
+ *
  * Usage:
  *   pnpm deploy staging --tag abc1234
  *   pnpm deploy prod --tag v1.2.3
+ *
+ * For Docker Compose (local / other host): pnpm run docker:deploy
  */
 
 import { execSync } from 'node:child_process';
@@ -15,7 +16,6 @@ import chalk from 'chalk';
 import {
   AWS_CONFIG,
   getSsmPath,
-  getInfraMode,
   getAwsConsoleUrls,
   type EnvironmentName,
 } from '../../provisioning/aws/constants.js';
@@ -34,115 +34,6 @@ function exec(command: string): void {
   } catch {
     throw new Error(`Command failed: ${command}`);
   }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// EC2 DEPLOYER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-async function deployToEC2(env: EnvironmentName, imageTag: string): Promise<void> {
-  console.log(chalk.blue('\n🚀 Deploying to EC2 via SSM...\n'));
-
-  const ssmPath = getSsmPath(env);
-
-  // Get instance ID from SSM
-  const instanceId = execSilent(
-    `aws ssm get-parameter --name "${ssmPath}/SECRET_EC2_INSTANCE_ID" --with-decryption --query "Parameter.Value" --output text --region ${AWS_CONFIG.region}`
-  );
-
-  console.log(chalk.white(`   Instance: ${instanceId}`));
-  console.log(chalk.white(`   Image tag: ${imageTag}`));
-
-  // Send deployment command via SSM
-  const commandId = execSilent(`
-    aws ssm send-command \\
-      --instance-ids "${instanceId}" \\
-      --document-name "AWS-RunShellScript" \\
-      --parameters 'commands=[
-        "set -e",
-        "cd /home/ec2-user",
-        "",
-        "# Clone or update repository",
-        "if [ -d city-guided/.git ]; then",
-        "  echo 'Updating repository...'",
-        "  cd city-guided",
-        "  git fetch origin main",
-        "  git reset --hard origin/main",
-        "else",
-        "  echo 'Cloning repository...'",
-        "  git clone https://github.com/elzinko/city-guided.git",
-        "  cd city-guided",
-        "fi",
-        "",
-        "# Deploy using pre-built images from GHCR",
-        "cd infra/deployment",
-        "chmod +x scripts/deploy.sh",
-        "IMAGE_TAG=${imageTag} ./scripts/deploy.sh ${env}"
-      ]' \\
-      --timeout-seconds 600 \\
-      --query 'Command.CommandId' \\
-      --output text \\
-      --region ${AWS_CONFIG.region}
-  `);
-
-  console.log(chalk.gray(`   Command ID: ${commandId}`));
-  console.log(chalk.yellow('\n⏳ Waiting for deployment to complete...\n'));
-
-  // Poll for command status
-  let status = 'Pending';
-  let attempts = 0;
-  const maxAttempts = 60;
-
-  while (attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-
-    status = execSilent(`
-      aws ssm get-command-invocation \\
-        --command-id "${commandId}" \\
-        --instance-id "${instanceId}" \\
-        --query 'Status' \\
-        --output text \\
-        --region ${AWS_CONFIG.region} 2>/dev/null || echo "Pending"
-    `);
-
-    console.log(chalk.gray(`   Status: ${status} (attempt ${attempts + 1}/${maxAttempts})`));
-
-    if (status === 'Success') {
-      console.log(chalk.green('\n✅ Deployment successful!\n'));
-      break;
-    } else if (status === 'Failed' || status === 'Cancelled') {
-      // Get error output
-      const errorOutput = execSilent(`
-        aws ssm get-command-invocation \\
-          --command-id "${commandId}" \\
-          --instance-id "${instanceId}" \\
-          --query 'StandardErrorContent' \\
-          --output text \\
-          --region ${AWS_CONFIG.region}
-      `);
-      throw new Error(`Deployment failed with status: ${status}\n${errorOutput}`);
-    }
-
-    attempts++;
-  }
-
-  if (status !== 'Success') {
-    throw new Error(`Deployment timeout - final status: ${status}`);
-  }
-
-  // Show deployment output
-  const output = execSilent(`
-    aws ssm get-command-invocation \\
-      --command-id "${commandId}" \\
-      --instance-id "${instanceId}" \\
-      --query 'StandardOutputContent' \\
-      --output text \\
-      --region ${AWS_CONFIG.region}
-  `);
-
-  console.log(chalk.cyan('\n📋 Deployment output (last 50 lines):'));
-  const lines = output.split('\n');
-  console.log(lines.slice(-50).join('\n'));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -425,30 +316,21 @@ async function main() {
     process.exit(1);
   }
 
-  // Get infrastructure mode
-  const mode = getInfraMode(env);
-
   console.log(chalk.bold.cyan('\n╔════════════════════════════════════════════════════════╗'));
-  console.log(chalk.bold.cyan(`║  🚀 Deploying: ${env.toUpperCase().padEnd(12)} Mode: ${mode.toUpperCase().padEnd(5)}   ║`));
+  console.log(chalk.bold.cyan(`║  🚀 Deploying to ECS: ${env.toUpperCase().padEnd(10)}                    ║`));
   console.log(chalk.bold.cyan('╚════════════════════════════════════════════════════════╝'));
 
   console.log(chalk.cyan('\n📋 Configuration:'));
   console.log(chalk.white(`   Environment:  ${env}`));
-  console.log(chalk.white(`   Mode:         ${mode}`));
-  console.log(chalk.white(`   Image tag:    ${imageTag}`));
-  console.log(chalk.white(`   Region:       ${AWS_CONFIG.region}`));
+  console.log(chalk.white(`   Image tag:   ${imageTag}`));
+  console.log(chalk.white(`   Region:      ${AWS_CONFIG.region}`));
 
   try {
-    // Run appropriate deployer based on mode
-    if (mode === 'ec2') {
-      await deployToEC2(env, imageTag);
-    } else {
-      await deployToECS(env, imageTag);
-    }
+    await deployToECS(env, imageTag);
 
     // Show AWS Console links
     console.log(chalk.cyan('\n🔗 AWS Console Links:'));
-    const urls = getAwsConsoleUrls(env, mode);
+    const urls = getAwsConsoleUrls(env);
     for (const [name, url] of Object.entries(urls)) {
       console.log(chalk.white(`   • ${name}:`));
       console.log(chalk.gray(`     ${url}`));

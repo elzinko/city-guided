@@ -30,6 +30,7 @@ export default tseslint.config(
       '**/dist/**',
       '**/build/**',
       '**/*.config.js',
+      '**/*.config.mjs',
       '**/*.config.ts',
       '**/cdk.out/**',
       '**/.next/**',

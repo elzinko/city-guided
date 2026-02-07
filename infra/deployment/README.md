@@ -20,7 +20,8 @@ infra/deployment/
 │   ├── logs.sh                         # Consultation logs
 │   ├── status.sh                       # État des services
 │   ├── build.sh                        # Build images
-│   ├── deploy.sh                       # Déploiement (ECS)
+│   ├── deploy.sh                       # Déploiement Docker Compose (local / host)
+│   ├── deploy.ts                       # Déploiement ECS (AWS, pnpm deploy)
 │   └── clean.sh                        # Nettoyage complet
 └── reverse-proxy/
     ├── Caddyfile.local                 # Config Caddy local

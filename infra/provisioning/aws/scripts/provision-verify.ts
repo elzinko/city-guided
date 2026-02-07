@@ -2,8 +2,7 @@
 /**
  * Infrastructure Verification Script
  * 
- * Verifies the deployment status of an environment.
- * Automatically detects the infrastructure mode (EC2 or ECS) and runs appropriate checks.
+ * Verifies the deployment status of an environment (ECS).
  * 
  * Usage:
  *   pnpm verify staging
@@ -14,7 +13,6 @@ import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 import {
   AWS_CONFIG,
-  getEnvironmentConfig,
   getInfraMode,
   getSsmPath,
   getAwsConsoleUrls,
@@ -27,88 +25,6 @@ function execSilent(command: string): string {
   } catch (error: any) {
     throw new Error(`Command failed: ${command}\n${error.message}`);
   }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// EC2 VERIFIER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-async function verifyEC2(env: EnvironmentName): Promise<void> {
-  console.log(chalk.blue('\n🔍 Verifying EC2 infrastructure...\n'));
-
-  const awsConfig = getEnvironmentConfig(env);
-  const ssmPath = getSsmPath(env);
-
-  // 1. Check SSM parameters
-  console.log(chalk.cyan('📦 SSM Parameters'));
-  try {
-    const params = execSilent(
-      `aws ssm get-parameters-by-path --path "${ssmPath}" --region ${AWS_CONFIG.region} --query 'Parameters[*].Name' --output json`
-    );
-    const paramCount = JSON.parse(params).length;
-    console.log(chalk.green(`   ✓ ${paramCount} parameters found in ${ssmPath}`));
-  } catch (error: any) {
-    console.log(chalk.red(`   ✗ Failed to read SSM parameters: ${error.message}`));
-    throw error;
-  }
-
-  // 2. Check EC2 instance
-  console.log(chalk.cyan('\n🖥️  EC2 Instance'));
-  try {
-    const instanceId = execSilent(
-      `aws ssm get-parameter --name "${ssmPath}/SECRET_EC2_INSTANCE_ID" --with-decryption --query "Parameter.Value" --output text --region ${AWS_CONFIG.region}`
-    );
-    
-    const instanceState = execSilent(
-      `aws ec2 describe-instances --instance-ids ${instanceId} --query "Reservations[0].Instances[0].State.Name" --output text --region ${AWS_CONFIG.region}`
-    );
-    
-    if (instanceState === 'running') {
-      console.log(chalk.green(`   ✓ Instance ${instanceId} is ${instanceState}`));
-    } else {
-      console.log(chalk.yellow(`   ⚠ Instance ${instanceId} is ${instanceState}`));
-    }
-  } catch (error: any) {
-    console.log(chalk.red(`   ✗ Failed to check EC2 instance: ${error.message}`));
-    throw error;
-  }
-
-  // 3. Check CloudFormation stack
-  console.log(chalk.cyan('\n☁️  CloudFormation Stack'));
-  try {
-    const stackStatus = execSilent(
-      `aws cloudformation describe-stacks --stack-name ${awsConfig.STACK_NAME} --query "Stacks[0].StackStatus" --output text --region ${AWS_CONFIG.region}`
-    );
-    
-    if (stackStatus.includes('COMPLETE')) {
-      console.log(chalk.green(`   ✓ Stack ${awsConfig.STACK_NAME}: ${stackStatus}`));
-    } else {
-      console.log(chalk.yellow(`   ⚠ Stack ${awsConfig.STACK_NAME}: ${stackStatus}`));
-    }
-  } catch (error: any) {
-    console.log(chalk.red(`   ✗ Stack not found or error: ${error.message}`));
-    throw error;
-  }
-
-  // 4. Check application health
-  console.log(chalk.cyan('\n🏥 Application Health'));
-  try {
-    const publicIp = execSilent(
-      `aws ssm get-parameter --name "${ssmPath}/SECRET_EC2_PUBLIC_IP" --with-decryption --query "Parameter.Value" --output text --region ${AWS_CONFIG.region}`
-    );
-    
-    // Try to ping the health endpoint
-    try {
-      execSilent(`curl -sf --connect-timeout 5 "http://${publicIp}/api/health" > /dev/null`);
-      console.log(chalk.green(`   ✓ API health check OK (http://${publicIp}/api/health)`));
-    } catch {
-      console.log(chalk.yellow(`   ⚠ API health check failed or not responding`));
-    }
-  } catch (error: any) {
-    console.log(chalk.yellow(`   ⚠ Could not verify application health: ${error.message}`));
-  }
-
-  console.log(chalk.green('\n✅ EC2 verification complete\n'));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -240,16 +156,11 @@ async function main() {
   console.log(chalk.white(`   SSM Path:     ${getSsmPath(env)}/*`));
 
   try {
-    // Run appropriate verifier based on mode
-    if (mode === 'ec2') {
-      await verifyEC2(env);
-    } else {
-      await verifyECS(env);
-    }
+    await verifyECS(env);
 
     // Show AWS Console links
     console.log(chalk.cyan('🔗 AWS Console Links:'));
-    const urls = getAwsConsoleUrls(env, mode);
+    const urls = getAwsConsoleUrls(env);
     for (const [name, url] of Object.entries(urls)) {
       console.log(chalk.white(`   • ${name}:`));
       console.log(chalk.gray(`     ${url}`));

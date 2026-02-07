@@ -23,11 +23,7 @@ import {
   GetLogEventsCommand,
   OrderBy,
 } from '@aws-sdk/client-cloudwatch-logs';
-import {
-  AWS_CONFIG,
-  getInfraMode,
-  type EnvironmentName,
-} from '../constants.js';
+import { AWS_CONFIG } from '../constants.js';
 
 const rl = createInterface({ input, output });
 
@@ -196,15 +192,6 @@ async function main() {
 
   console.log(chalk.cyan(`Region:  ${AWS_CONFIG.region}`));
   console.log(chalk.cyan(`Service: ${service === 'all' ? 'all' : service}\n`));
-
-  // Check infrastructure mode
-  const env: EnvironmentName = 'staging'; // Default to staging for ECS
-  const mode = getInfraMode(env);
-
-  if (mode !== 'ecs') {
-    console.log(chalk.yellow(`⚠️  Infrastructure mode is ${mode}, but logs script is designed for ECS`));
-    console.log(chalk.yellow(`   Log groups may not exist for EC2 deployments\n`));
-  }
 
   // Stream mode
   if (follow) {

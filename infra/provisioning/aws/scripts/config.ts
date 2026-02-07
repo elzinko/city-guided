@@ -19,8 +19,6 @@ import chalk from 'chalk';
 import {
   AWS_CONFIG,
   ENVIRONMENTS,
-  getEnvironmentConfig,
-  getInfraMode,
   isSecret,
   getSsmPath,
   getEnvFilePath,
@@ -173,90 +171,6 @@ async function updateSsmParameters(env: EnvironmentName, envVars: Record<string,
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// EC2 SERVICE RESTART
-// ═══════════════════════════════════════════════════════════════════════════════
-
-async function restartDockerServices(env: EnvironmentName): Promise<void> {
-  const awsConfig = getEnvironmentConfig(env);
-
-  console.log(chalk.blue(`\n🔄 Restarting Docker services on EC2...`));
-
-  // Get instance ID from CloudFormation stack
-  const instanceId = execSilent(
-    `aws cloudformation describe-stacks --stack-name ${awsConfig.STACK_NAME} --region ${AWS_CONFIG.region} --query 'Stacks[0].Outputs[?OutputKey==\`InstanceId\`].OutputValue' --output text`
-  );
-
-  if (!instanceId || instanceId === 'None') {
-    console.log(chalk.yellow('⚠️  No EC2 instance found - skipping service restart'));
-    return;
-  }
-
-  console.log(chalk.gray(`   Instance: ${instanceId}`));
-
-  const envFile = `.env.${env}`;
-  const commands = [
-    'set -e',
-    'echo "Restarting Docker services..."',
-    'cd /home/ec2-user/city-guided/infra/docker',
-    `docker compose --env-file ${envFile} down --remove-orphans || true`,
-    `docker compose --env-file ${envFile} up -d --remove-orphans`,
-    'echo "Services restarted successfully"'
-  ];
-
-  try {
-    // Send restart command via SSM
-    const commandJson = JSON.stringify(commands);
-    const commandId = execSilent(
-      `aws ssm send-command \
-        --instance-ids "${instanceId}" \
-        --document-name "AWS-RunShellScript" \
-        --parameters '{"commands":${commandJson}}' \
-        --region ${AWS_CONFIG.region} \
-        --query 'Command.CommandId' \
-        --output text`
-    );
-
-    console.log(chalk.gray(`   Command sent: ${commandId}`));
-    console.log(chalk.green('✓ Service restart initiated'));
-
-    // Wait for completion
-    console.log(chalk.gray('   Waiting for completion...'));
-
-    let status = '';
-    let attempts = 0;
-    const maxAttempts = 30; // 2.5 minutes
-
-    while (status !== 'Success' && status !== 'Failed' && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      attempts++;
-
-      try {
-        status = execSilent(
-          `aws ssm get-command-invocation \
-            --command-id "${commandId}" \
-            --instance-id "${instanceId}" \
-            --region ${AWS_CONFIG.region} \
-            --query 'Status' \
-            --output text`
-        );
-      } catch {
-        // Command might not be ready yet
-        continue;
-      }
-    }
-
-    if (status === 'Success') {
-      console.log(chalk.green('✓ Services restarted successfully'));
-    } else {
-      console.log(chalk.yellow(`⚠️  Command status: ${status} (check manually)`));
-    }
-
-  } catch (error: any) {
-    console.error(chalk.red(`❌ Failed to restart services: ${error.message}`));
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // COMMAND: GET
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -322,15 +236,9 @@ async function cmdPush(env: EnvironmentName): Promise<void> {
   // Update SSM parameters
   const paramCount = await updateSsmParameters(env, envVars);
 
-  // Restart services (only for EC2, not needed for ECS)
   // ECS will pick up new environment variables on next deployment
-  const mode = getInfraMode(env);
-  if (mode === 'ec2') {
-    await restartDockerServices(env);
-  } else {
-    console.log(chalk.blue('\n💡 ECS mode: Environment variables will be applied on next deployment'));
-    console.log(chalk.gray('   Run: pnpm deploy staging --tag <tag> to deploy with new config'));
-  }
+  console.log(chalk.blue('\n💡 Environment variables will be applied on next deployment'));
+  console.log(chalk.gray('   Run: pnpm deploy staging --tag <tag> to deploy with new config'));
 
   console.log(chalk.cyan('\n✨ Configuration update complete!'));
   console.log(chalk.white(`Updated ${paramCount} parameters`));

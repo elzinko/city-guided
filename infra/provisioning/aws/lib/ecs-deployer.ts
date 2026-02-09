@@ -306,30 +306,29 @@ export class ECSDeployer implements Deployer {
       // No lambdas or error - continue
     }
 
-    // Clean up ECS Cluster (if orphaned)
+    // Clean up ECS Cluster (if orphaned - ACTIVE or INACTIVE after stack deletion)
     try {
       const clusterResult = execSilent(
         `aws ecs describe-clusters --clusters city-guided-cluster --region eu-west-3 --output json 2>/dev/null || echo '{"clusters":[]}'`
       );
       const clusters = JSON.parse(clusterResult);
       for (const cluster of clusters.clusters || []) {
-        if (cluster.status === 'ACTIVE') {
-          console.log(chalk.yellow(`   ⚠️  Found orphaned ECS Cluster: ${cluster.clusterName}`));
-          // First, delete any services
-          try {
-            execSilent(`aws ecs update-service --cluster city-guided-cluster --service city-guided-service --desired-count 0 --region eu-west-3 2>/dev/null || true`);
-            execSilent(`aws ecs delete-service --cluster city-guided-cluster --service city-guided-service --force --region eu-west-3 2>/dev/null || true`);
-            console.log(chalk.green(`   ✓ Deleted ECS Service: city-guided-service`));
-          } catch {
-            // Service might not exist
-          }
-          // Then delete cluster
-          try {
-            execSilent(`aws ecs delete-cluster --cluster city-guided-cluster --region eu-west-3 2>/dev/null || true`);
-            console.log(chalk.green(`   ✓ Deleted ECS Cluster: city-guided-cluster`));
-          } catch {
-            // Cluster deletion failed
-          }
+        // Delete orphaned cluster whether ACTIVE or INACTIVE (both can remain after cdk destroy)
+        console.log(chalk.yellow(`   ⚠️  Found orphaned ECS Cluster: ${cluster.clusterName} (${cluster.status})`));
+        // First, delete any services
+        try {
+          execSilent(`aws ecs update-service --cluster city-guided-cluster --service city-guided-service --desired-count 0 --region eu-west-3 2>/dev/null || true`);
+          execSilent(`aws ecs delete-service --cluster city-guided-cluster --service city-guided-service --force --region eu-west-3 2>/dev/null || true`);
+          console.log(chalk.green(`   ✓ Deleted ECS Service: city-guided-service`));
+        } catch {
+          // Service might not exist
+        }
+        // Then delete cluster
+        try {
+          execSilent(`aws ecs delete-cluster --cluster city-guided-cluster --region eu-west-3 2>/dev/null || true`);
+          console.log(chalk.green(`   ✓ Deleted ECS Cluster: city-guided-cluster`));
+        } catch {
+          // Cluster deletion failed
         }
       }
     } catch {

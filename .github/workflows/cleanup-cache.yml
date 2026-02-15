@@ -1,0 +1,18 @@
+# Nettoie les caches Actions chaque semaine pour éviter de saturer le quota (10 GB).
+# Inspiré de muti
+name: Cleanup cache
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Dimanche 3h UTC
+  workflow_dispatch:     # Déclenchable manuellement
+
+jobs:
+  cleanup:
+    name: Delete all caches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete caches
+        run: gh cache delete --all --succeed-on-no-caches --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

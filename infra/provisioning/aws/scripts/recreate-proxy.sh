@@ -63,7 +63,7 @@ NEW_IP=$(aws ec2 describe-addresses \
 
 if [ "$NEW_IP" = "None" ] || [ -z "$NEW_IP" ]; then
   echo "⚠️  Could not retrieve new Elastic IP"
-  echo "   Run: pnpm duckdns:ip $ENVIRONMENT"
+  echo "   Run: pnpm infra:duckdns:ip $ENVIRONMENT"
 else
   echo "✓ New Elastic IP: $NEW_IP"
 fi
@@ -72,7 +72,7 @@ echo ""
 echo "🔧 Next steps:"
 echo ""
 echo "1. Update DuckDNS with the new IP:"
-echo "   pnpm duckdns:update $ENVIRONMENT"
+echo "   pnpm infra:duckdns:update $ENVIRONMENT"
 echo ""
 echo "2. Wait 1-2 minutes for DNS propagation"
 echo ""

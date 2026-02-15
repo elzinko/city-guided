@@ -164,6 +164,12 @@ case "$SERVICE" in
         else
             echo "⏭️  Skipping OSRM wait (SKIP_OSRM_DATA_LOAD=true)"
         fi
+        # CI: attendre api et web d'abord (ports directs), puis Caddy
+        # Évite de blâmer Caddy si les upstreams ne sont pas prêts
+        if [ "$ENVIRONMENT" = "ci" ] && [ "${SKIP_OSRM_DATA_LOAD:-false}" = "true" ]; then
+            wait_for_api
+            wait_for_web
+        fi
         wait_for_caddy  # Caddy proxies both web and API
         ;;
     *)

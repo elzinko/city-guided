@@ -1,9 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# Caddyfile - CI Environment
+# Caddyfile - CI Environment (sans OSRM)
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# CI: HTTP only, for E2E tests
-# Access: http://localhost
+# Utilisé quand SKIP_OSRM_DATA_LOAD=true (pas de container OSRM)
+# Évite que Caddy échoue au démarrage en résolvant un hostname inexistant.
 #
 # Environment variables:
 #   API_PORT (default: 4000)
@@ -15,12 +15,6 @@
     # API routes
     handle /api/* {
         reverse_proxy api:{$API_PORT:4000}
-    }
-    
-    # OSRM proxy (when OSRM is enabled - use Caddyfile.ci-no-osrm when SKIP_OSRM_DATA_LOAD=true)
-    handle /osrm/* {
-        uri strip_prefix /osrm
-        reverse_proxy osrm:5000
     }
     
     # Frontend (default)
@@ -35,4 +29,3 @@
         level ERROR
     }
 }
-

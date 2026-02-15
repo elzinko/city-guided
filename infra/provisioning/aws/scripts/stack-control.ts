@@ -96,7 +96,7 @@ async function cmdStart(env: EnvironmentName): Promise<void> {
   const status = await getServiceStatus();
   if (!status) {
     console.error(chalk.red('❌ ECS service not found'));
-    console.log(chalk.yellow('   Run: pnpm infra:provision staging'));
+    console.log(chalk.yellow('   Run: pnpm infra:provision:aws staging'));
     process.exit(1);
   }
 
@@ -131,7 +131,7 @@ async function cmdStop(env: EnvironmentName): Promise<void> {
   const status = await getServiceStatus();
   if (!status) {
     console.error(chalk.red('❌ ECS service not found'));
-    console.log(chalk.yellow('   Run: pnpm infra:provision staging'));
+    console.log(chalk.yellow('   Run: pnpm infra:provision:aws staging'));
     process.exit(1);
   }
 
@@ -165,7 +165,7 @@ async function cmdRestart(env: EnvironmentName): Promise<void> {
   const status = await getServiceStatus();
   if (!status) {
     console.error(chalk.red('❌ ECS service not found'));
-    console.log(chalk.yellow('   Run: pnpm infra:provision staging'));
+    console.log(chalk.yellow('   Run: pnpm infra:provision:aws staging'));
     process.exit(1);
   }
 

@@ -14,6 +14,8 @@ dist/
 !.env.example
 !.env.template
 !.env.ci
+!.env.render.example
+!.env.aws.example
 
 # pnpm store
 .pnpm-store/

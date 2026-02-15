@@ -32,7 +32,7 @@ const ecsStack = new CityGuidedEcsStack(app, 'CityGuidedEcsStack', {
 // 1. Set environment variables in SSM or .env.staging:
 //    - SECRET_DUCKDNS_TOKEN: Your DuckDNS token
 //    - SITE_DOMAIN: Your DuckDNS domain (e.g., cityguided.duckdns.org)
-// 2. Deploy: pnpm infra:provision staging
+// 2. Deploy: pnpm infra:provision:aws staging
 // 3. Update DuckDNS with the Elastic IP from the stack output
 if (targetEnv === 'staging') {
   const duckdnsToken = process.env.SECRET_DUCKDNS_TOKEN || '';

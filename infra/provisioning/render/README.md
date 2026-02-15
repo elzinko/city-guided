@@ -52,7 +52,7 @@ Node 22 est utilisé (fichier `.node-version` à la racine).
   → Les 3 services + la base sont créés, premier déploiement automatique.
 
 - **Ensuite (déployer la recette)**  
-  **Tu n’as rien à lancer en local.** Tu **push** ta branche (ex. `feature/vercel-deployment` ou `staging`) sur GitHub. Render détecte le push et lance build + déploiement sur les services liés à cette branche. Si l’auto-deploy est désactivé, tu peux lancer un déploiement manuel depuis le Dashboard (Manual Deploy).  
+  **Tu n’as rien à lancer en local.** Tu **push** ta branche (ex. `feature/staging` ou `staging`) sur GitHub. Render détecte le push et lance build + déploiement sur les services liés à cette branche. Si l’auto-deploy est désactivé, tu peux lancer un déploiement manuel depuis le Dashboard (Manual Deploy).  
   Le script `infra:provision:render` ne sert plus après la création de la stack (il ne pousse pas le code ni ne déclenche un deploy).
 
 ## Scripts npm (racine du repo)

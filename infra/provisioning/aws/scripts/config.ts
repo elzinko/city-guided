@@ -12,7 +12,6 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import chalk from 'chalk';
@@ -24,6 +23,7 @@ import {
   getEnvFilePath,
   type EnvironmentName,
 } from '../constants.js';
+import { loadMergedEnv } from './env-loader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -45,34 +45,7 @@ function execSilent(command: string): string {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ENV FILE LOADER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function loadEnvFile(env: EnvironmentName): Record<string, string> {
-  const envFilePath = join(projectRoot, getEnvFilePath(env));
-
-  if (!existsSync(envFilePath)) {
-    throw new Error(`Environment file not found: ${envFilePath}`);
-  }
-
-  const content = readFileSync(envFilePath, 'utf8');
-  const envVars: Record<string, string> = {};
-
-  // Parse .env file (simple implementation)
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-
-    const [key, ...valueParts] = trimmed.split('=');
-    if (key && valueParts.length > 0) {
-      const value = valueParts.join('=').replace(/^["']|["']$/g, ''); // Remove quotes
-      envVars[key.trim()] = value;
-    }
-  }
-
-  return envVars;
-}
+// Env loading: loadMergedEnv from env-loader.js (applicatif + .env.aws.<env>)
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AWS SSM PARAMETER STORE
@@ -228,8 +201,8 @@ async function cmdPush(env: EnvironmentName): Promise<void> {
   console.log(chalk.blue(`📤 Source: ${envFilePath}`));
   console.log(chalk.blue(`📥 Target: ${ssmPath}/*\n`));
 
-  // Load environment variables
-  const envVars = loadEnvFile(env);
+  // Load environment variables (applicatif + provider AWS merged)
+  const envVars = loadMergedEnv(env);
   console.log(chalk.white(`Environment: ${env}`));
   console.log(chalk.white(`Variables: ${Object.keys(envVars).length}\n`));
 
@@ -262,10 +235,10 @@ function cmdDiff(env: EnvironmentName): void {
   console.log(chalk.white(`   Local:  ${envFilePath}`));
   console.log(chalk.white(`   Remote: ${ssmPath}/*\n`));
 
-  // Load local .env file
+  // Load local .env (applicatif + provider AWS merged)
   let localVars: Record<string, string>;
   try {
-    localVars = loadEnvFile(env);
+    localVars = loadMergedEnv(env);
   } catch {
     console.error(chalk.red(`❌ Environment file not found: ${envFilePath}`));
     process.exit(1);

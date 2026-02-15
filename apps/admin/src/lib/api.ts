@@ -151,16 +151,14 @@ export async function getOllamaStatus(): Promise<OllamaStatus> {
 }
 
 export async function generateAudioGuide(poiId: string, customPrompt?: string): Promise<AudioGuideResult> {
-  // Use direct API URL to avoid Next.js proxy timeout (Ollama can take 30-60s)
-  // In browser, we detect the API port from current location or use default 4000
-  const apiPort = typeof window !== 'undefined' 
-    ? (process.env.NEXT_PUBLIC_API_PORT || '4000')
-    : '4000'
-  const directApiUrl = typeof window !== 'undefined'
-    ? `http://${window.location.hostname}:${apiPort}`
-    : 'http://localhost:4000'
-  
-  const url = `${directApiUrl}/api/admin/pois/${poiId}/generate-audio`
+  // When deployed (e.g. Render), use NEXT_PUBLIC_API_URL so the browser calls the real API.
+  // In local dev without NEXT_PUBLIC_API_URL, use hostname:port to avoid Next.js proxy timeout (Ollama can take 30-60s).
+  const base =
+    API_BASE ||
+    (typeof window !== 'undefined'
+      ? `http://${window.location.hostname}:${process.env.NEXT_PUBLIC_API_PORT || '4000'}`
+      : 'http://localhost:4000')
+  const url = `${base.replace(/\/$/, '')}/api/admin/pois/${poiId}/generate-audio`
   
   const headers: Record<string, string> = {
     'X-Admin-Token': ADMIN_TOKEN,

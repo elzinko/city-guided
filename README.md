@@ -22,7 +22,7 @@ Structure minimale : `apps/`, `services/`, `packages/`, `infra/`
 
 3. **Tests** : `pnpm test`
 
-4. **Infra Provisioning** : `pnpm infra:provision staging`
+4. **Infra Provisioning** : `pnpm infra:provision:aws staging`
 
 5. **Infra status** : `pnpm infra:status`
 

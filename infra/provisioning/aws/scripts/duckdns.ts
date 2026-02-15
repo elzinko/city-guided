@@ -5,21 +5,14 @@
  * Utility to manage DuckDNS configuration for the staging environment.
  * 
  * Usage:
- *   pnpm duckdns:update staging           # Update DuckDNS with current Elastic IP
- *   pnpm duckdns:check staging            # Check current DuckDNS IP
- *   pnpm duckdns:ip staging               # Get Elastic IP from AWS
+ *   pnpm infra:duckdns:update staging      # Update DuckDNS with current Elastic IP
+ *   pnpm infra:duckdns:check staging      # Check current DuckDNS IP
+ *   pnpm infra:duckdns:ip staging         # Get Elastic IP from AWS
  */
 
 import { execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 import chalk from 'chalk';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const projectRoot = join(__dirname, '..', '..', '..', '..');
+import { loadMergedEnv } from './env-loader.js';
 
 function execSilent(command: string): string {
   try {
@@ -27,30 +20,6 @@ function execSilent(command: string): string {
   } catch (error: any) {
     throw new Error(`Command failed: ${command}\n${error.message}`);
   }
-}
-
-function loadEnvFile(env: string): Record<string, string> {
-  const envFilePath = join(projectRoot, `infra/config/.env.${env}`);
-  
-  if (!existsSync(envFilePath)) {
-    console.error(chalk.red(`\n❌ Environment file not found: ${envFilePath}`));
-    process.exit(1);
-  }
-
-  const variables: Record<string, string> = {};
-  const content = readFileSync(envFilePath, 'utf-8');
-  
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      const [key, ...valueParts] = trimmed.split('=');
-      if (key && valueParts.length > 0) {
-        variables[key.trim()] = valueParts.join('=').trim();
-      }
-    }
-  }
-
-  return variables;
 }
 
 async function getElasticIp(): Promise<string | null> {
@@ -136,8 +105,8 @@ async function main() {
   console.log(chalk.bold.cyan(`║         🦆 DuckDNS Management - ${env.toUpperCase().padEnd(8)}          ║`));
   console.log(chalk.bold.cyan('╚════════════════════════════════════════════════════════╝\n'));
 
-  // Load environment variables
-  const envVars = loadEnvFile(env);
+  // Load environment variables (applicatif + provider AWS merged)
+  const envVars = loadMergedEnv(env as 'staging' | 'prod');
   const duckdnsToken = envVars.SECRET_DUCKDNS_TOKEN || '';
   const duckdnsDomain = envVars.SITE_DOMAIN || '';
 
@@ -156,7 +125,7 @@ async function main() {
         console.log(chalk.green(`✓ Elastic IP: ${elasticIp}`));
       } else {
         console.log(chalk.yellow('⚠️  No Elastic IP found'));
-        console.log(chalk.dim('   Run: pnpm infra:provision staging'));
+        console.log(chalk.dim('   Run: pnpm infra:provision:aws staging'));
       }
       break;
     }
@@ -174,7 +143,7 @@ async function main() {
         const awsIp = await getElasticIp();
         if (awsIp && awsIp !== currentIp) {
           console.log(chalk.yellow(`⚠️  AWS Elastic IP: ${awsIp}`));
-          console.log(chalk.yellow('   IPs do not match! Run: pnpm duckdns:update staging'));
+          console.log(chalk.yellow('   IPs do not match! Run: pnpm infra:duckdns:update staging'));
         } else if (awsIp) {
           console.log(chalk.green(`✓ Matches AWS Elastic IP`));
         }
@@ -195,7 +164,7 @@ async function main() {
       
       if (!ipToUpdate) {
         console.error(chalk.red('❌ No Elastic IP found'));
-        console.log(chalk.dim('   Run: pnpm infra:provision staging'));
+        console.log(chalk.dim('   Run: pnpm infra:provision:aws staging'));
         process.exit(1);
       }
 
@@ -216,9 +185,9 @@ async function main() {
     case 'help':
     default:
       console.log(chalk.cyan('Available commands:\n'));
-      console.log(chalk.white('  pnpm duckdns:ip staging       ') + chalk.dim('Get Elastic IP from AWS'));
-      console.log(chalk.white('  pnpm duckdns:check staging    ') + chalk.dim('Check current DuckDNS IP'));
-      console.log(chalk.white('  pnpm duckdns:update staging   ') + chalk.dim('Update DuckDNS with Elastic IP'));
+      console.log(chalk.white('  pnpm infra:duckdns:ip staging    ') + chalk.dim('Get Elastic IP from AWS'));
+      console.log(chalk.white('  pnpm infra:duckdns:check staging ') + chalk.dim('Check current DuckDNS IP'));
+      console.log(chalk.white('  pnpm infra:duckdns:update staging') + chalk.dim('Update DuckDNS with Elastic IP'));
       console.log();
       break;
   }

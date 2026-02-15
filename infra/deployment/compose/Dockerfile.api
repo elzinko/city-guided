@@ -60,12 +60,16 @@ COPY --chown=apiuser:nodejs pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY --chown=apiuser:nodejs services/api/package.json ./services/api/
 COPY --chown=apiuser:nodejs packages/*/package.json ./packages/*/
 
-# Install production dependencies only (skip all lifecycle scripts including husky)
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter services-api...
+# Install deps including devDependencies for @city-guided/database (needed for prisma generate)
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter services-api...
 
 # Copy built application and package assets (JSON files, etc.)
 COPY --from=builder --chown=apiuser:nodejs /app/services/api/dist ./services/api/dist
 COPY --from=builder --chown=apiuser:nodejs /app/packages ./packages
+
+# Generate Prisma client (required at runtime; @prisma/client needs schema-specific generated code)
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @city-guided/database && \
+    pnpm --filter @city-guided/database exec prisma generate
 
 USER apiuser
 

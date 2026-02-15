@@ -54,7 +54,7 @@ maintenance infrastructure, avec un scale-up rapide en cas de besoin.
 - [x] Containers API + Web + Caddy
 - [x] ALB avec health checks
 - [x] Auto-scaling configuré
-- [x] Provisioning via `pnpm infra:provision staging --mode=ecs`
+- [x] Provisioning via `pnpm infra:provision:aws staging --mode=ecs`
 - [ ] Tests E2E validés sur ECS
 - [ ] Documentation complète
 

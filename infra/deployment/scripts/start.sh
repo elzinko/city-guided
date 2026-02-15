@@ -84,6 +84,12 @@ echo "[DEBUG] Environment file loaded successfully"
 export COMPOSE_PROJECT_NAME="${PROJECT_NAME:-city-guided}-${ENVIRONMENT}"
 echo "[DEBUG] COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME"
 
+# CI sans OSRM : utiliser Caddyfile sans bloc /osrm (évite résolution hostname inexistant)
+if [ "$ENVIRONMENT" = "ci" ] && [ "${SKIP_OSRM_DATA_LOAD:-false}" = "true" ]; then
+    export CADDYFILE_NAME="Caddyfile.ci-no-osrm"
+    echo "[DEBUG] CADDYFILE_NAME=$CADDYFILE_NAME (SKIP_OSRM_DATA_LOAD=true)"
+fi
+
 # ───────────────────────────────────────────────────────────────────────────────
 # Stop existing containers first (to avoid port conflicts)
 # ───────────────────────────────────────────────────────────────────────────────

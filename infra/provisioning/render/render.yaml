@@ -1,0 +1,73 @@
+# Render Blueprint - City-Guided (free tier)
+# Deploy: connect this repo to Render and apply the Blueprint.
+# See infra/provisioning/render/README.md for steps.
+#
+# Architecture: 1 Postgres + 3 Web Services (API, web-frontend, admin).
+# Build/start use pnpm from repo root (same as local: pnpm --filter <package> build|start).
+
+databases:
+  - name: city-guided-db
+    plan: free
+    region: frankfurt  # Même région que l'API pour connexion interne (private network)
+    databaseName: cityguided
+
+services:
+  # ---------------------------------------------------------------------------
+  # API (Fastify + Prisma)
+  # ---------------------------------------------------------------------------
+  - type: web
+    runtime: node
+    name: city-guided-api
+    plan: free
+    region: frankfurt
+    buildCommand: corepack enable && corepack prepare pnpm@10.28.0 --activate && pnpm install --frozen-lockfile && pnpm run build --filter services-api
+    # preDeployCommand non supporté en free tier → db:push au démarrage avec retry (DB peut ne pas être prête au 1er deploy)
+    startCommand: (for i in 1 2 3 4 5 6 7 8 9 10; do pnpm --filter @city-guided/database db:push && exit 0; echo "DB not ready, retry $i/10 in 5s..."; sleep 5; done; exit 1) && pnpm --filter services-api start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: city-guided-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: SECRET_OPENTRIPMAP_API_KEY
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # Web frontend (Next.js)
+  # ---------------------------------------------------------------------------
+  - type: web
+    runtime: node
+    name: city-guided-web
+    plan: free
+    region: frankfurt
+    buildCommand: corepack enable && corepack prepare pnpm@10.28.0 --activate && pnpm install --frozen-lockfile && pnpm run build --filter apps-web-frontend
+    startCommand: cd apps/web-frontend && pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: SHOW_DEV_OPTIONS
+        value: "false"
+
+  # ---------------------------------------------------------------------------
+  # Admin (Next.js)
+  # ---------------------------------------------------------------------------
+  - type: web
+    runtime: node
+    name: city-guided-admin
+    plan: free
+    region: frankfurt
+    buildCommand: corepack enable && corepack prepare pnpm@10.28.0 --activate && pnpm install --frozen-lockfile && pnpm run build --filter apps-admin
+    startCommand: cd apps/admin && pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_ADMIN_TOKEN
+        sync: false

@@ -116,10 +116,18 @@ export function getSsmPath(env: EnvironmentName): string {
 }
 
 /**
- * Get path to .env file for an environment
+ * Get path to .env file for an environment (applicatif)
  */
 export function getEnvFilePath(env: EnvironmentName): string {
   return `infra/config/.env.${env}`;
+}
+
+/**
+ * Get path to .env.aws file for an environment (provider AWS)
+ * Optional: si absent, le provisioning utilise uniquement .env.<env>
+ */
+export function getAwsEnvFilePath(env: EnvironmentName): string {
+  return `infra/config/.env.aws.${env}`;
 }
 
 /**

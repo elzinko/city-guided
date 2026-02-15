@@ -18,7 +18,7 @@
 
 import { execSync } from 'node:child_process';
 // exec is defined but not used - kept for potential future use
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -31,9 +31,11 @@ import {
   isSecret,
   getSsmPath,
   getEnvFilePath,
+  getAwsEnvFilePath,
   getAwsConsoleUrls,
   type EnvironmentName,
 } from '../constants.js';
+import { loadMergedEnv } from './env-loader.js';
 import { createDeployer, type InfraMode } from '../lib/deployer-factory.js';
 import type { InfraOutputs } from '../lib/deployer.js';
 
@@ -64,35 +66,7 @@ async function ask(prompt: string): Promise<string> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ENV FILE LOADER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function loadEnvFile(env: EnvironmentName): Record<string, string> {
-  const envFilePath = join(projectRoot, getEnvFilePath(env));
-  
-  if (!existsSync(envFilePath)) {
-    console.error(chalk.red(`\n❌ Environment file not found: ${envFilePath}`));
-    console.error(chalk.yellow(`   Create it from template: cp infra/config/.env.template ${getEnvFilePath(env)}`));
-    process.exit(1);
-  }
-
-  const variables: Record<string, string> = {};
-  const content = readFileSync(envFilePath, 'utf-8');
-  
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      const [key, ...valueParts] = trimmed.split('=');
-      if (key && valueParts.length > 0) {
-        variables[key.trim()] = valueParts.join('=').trim();
-      }
-    }
-  }
-
-  console.log(chalk.green(`✓ Loaded ${Object.keys(variables).length} variables from ${getEnvFilePath(env)}`));
-  return variables;
-}
+// Env loading: loadMergedEnv from env-loader.js (applicatif + .env.aws.<env>)
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELPERS
@@ -400,13 +374,19 @@ async function main() {
   console.log(chalk.bold.cyan(`║  ${actionIcon} ${actionTitle}: ${env.toUpperCase().padEnd(12)} Mode: ${mode.toUpperCase().padEnd(5)}    ║`));
   console.log(chalk.bold.cyan('╚════════════════════════════════════════════════════════╝\n'));
 
-  // Load environment variables from .env file (source of truth)
-  const envVars = loadEnvFile(env as EnvironmentName);
+  // Load environment variables: applicatif + provider AWS (merged)
+  const envVars = loadMergedEnv(env as EnvironmentName);
+  const awsPath = join(projectRoot, getAwsEnvFilePath(env as EnvironmentName));
+  const sources = existsSync(awsPath)
+    ? `${getEnvFilePath(env as EnvironmentName)} + ${getAwsEnvFilePath(env as EnvironmentName)}`
+    : getEnvFilePath(env as EnvironmentName);
+
+  console.log(chalk.green(`✓ Loaded ${Object.keys(envVars).length} variables from ${sources}`));
 
   console.log(chalk.cyan('\n📋 Configuration:'));
   console.log(chalk.white(`   Environment:  ${env}`));
   console.log(chalk.white(`   Mode:         ${mode}`));
-  console.log(chalk.white(`   Source:       ${getEnvFilePath(env as EnvironmentName)}`));
+  console.log(chalk.white(`   Source:       ${sources}`));
   console.log(chalk.white(`   Region:       ${AWS_CONFIG.region}`));
   console.log(chalk.white(`   Domain:       ${envVars.SITE_DOMAIN || 'not set'}`));
   console.log(chalk.white(`   Stack:        CityGuidedEcsStack`));
@@ -494,7 +474,7 @@ async function main() {
       console.log(chalk.white('   1. Check ECS service status:'));
       console.log(chalk.white(`      pnpm infra:status`));
       console.log(chalk.white('   2. Check DuckDNS configuration:'));
-      console.log(chalk.white(`      pnpm duckdns:check staging`));
+      console.log(chalk.white(`      pnpm infra:duckdns:check staging`));
       console.log(chalk.white('   3. Deploy application:'));
       console.log(chalk.white(`      pnpm app:deploy staging`));
 

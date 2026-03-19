@@ -52,13 +52,14 @@ echo "2. Connecte le repo GitHub (branche à déployer : ex. feature/staging ou 
 echo "3. Chemin du Blueprint : infra/provisioning/render/render.yaml"
 echo "4. Après création des services, renseigne les variables (sync: false) dans le"
 echo "   Dashboard pour chaque service. Référence : $ENV_EXAMPLE"
+echo "   Important : city-guided-api requiert DATABASE_URL (Neon) + ADMIN_TOKEN."
 echo ""
 if [ -f "$ENV_EXAMPLE" ]; then
   echo "   Copie : cp infra/config/.env.render.example infra/config/.env.render"
   echo "   Puis remplis infra/config/.env.render et reporte les valeurs dans le Dashboard."
 fi
 echo ""
-echo "5. Premier déploiement : l'API exécutera db:push (preDeployCommand)."
+echo "5. Premier déploiement : l'API exécutera db:push au démarrage."
 echo ""
 echo "───────────────────────────────────────────────────────────────────────────────"
 echo "  Doc complète : infra/provisioning/render/README.md"

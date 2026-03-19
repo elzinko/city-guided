@@ -1,6 +1,6 @@
 # Déploiement Render (free tier)
 
-Déploiement **tout-en-un** sur Render : 1 Postgres + 3 Web Services (API, web-frontend, admin). Aucune modification de l’ECS ni des docker-compose existants.
+Déploiement sur Render de 3 Web Services (API, web-frontend, admin) avec **Postgres externe** (Neon recommandé). Aucune modification de l’ECS ni des docker-compose existants.
 
 ## Prérequis
 
@@ -28,7 +28,7 @@ Node 22 est utilisé (fichier `.node-version` à la racine).
 
 3. **Variables à renseigner (sync: false)**  
    Après création des services, dans le Dashboard pour chaque service :
-   - **city-guided-api** : `ADMIN_TOKEN`, `SECRET_OPENTRIPMAP_API_KEY`.
+   - **city-guided-api** : `DATABASE_URL` (Neon), `ADMIN_TOKEN`, `SECRET_OPENTRIPMAP_API_KEY`.
    - **city-guided-web** : `NEXT_PUBLIC_API_URL` = `https://city-guided-api.onrender.com` (adapter si le nom du service ou l’URL Render diffère).
    - **city-guided-admin** : `NEXT_PUBLIC_API_URL` (même URL que l’API), `NEXT_PUBLIC_ADMIN_TOKEN` (même valeur que `ADMIN_TOKEN` de l’API).
 
@@ -64,7 +64,10 @@ Node 22 est utilisé (fichier `.node-version` à la racine).
 
 ### "Can't reach database server" (API)
 
-Si la base est en **Oregon** et l'API en **Frankfurt**, la connexion interne échoue. **Solution** : supprimer la base `city-guided-db` dans le Dashboard, puis **Sync** le Blueprint. Une nouvelle base sera créée en Frankfurt.
+Vérifie d’abord :
+- `DATABASE_URL` bien définie sur `city-guided-api`
+- présence de `sslmode=require` dans l’URL Neon
+- région Neon proche de l’API (eu-central-1 recommandé si API en Frankfurt)
 
 ### "Could not find a production build" (Web/Admin)
 
@@ -82,7 +85,7 @@ Le `startCommand` utilise `cd apps/<app> && pnpm start` pour s'exécuter depuis 
 
 - 750 h/mois d’instance au total pour le workspace.
 - Services web : arrêt après ~15 min sans trafic, cold start au réveil.
-- Postgres free : 90 jours, 1 Go (voir [Render Free](https://render.com/docs/free)).
+- Les limites de base de données dépendent du provider externe choisi (ex: Neon free).
 
 ## ECS / docker-compose
 

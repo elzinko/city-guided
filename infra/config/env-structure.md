@@ -11,7 +11,7 @@
 | **URLs publiques (app)** | NEXT_PUBLIC_API_URL, NEXT_PUBLIC_OSRM_URL | NEXT_PUBLIC_API_URL (par service), pas d’OSRM |
 | **Docker / images** | API_IMAGE, WEB_IMAGE, RESTART_POLICY, *DOCKERFILE | — (build natif Render) |
 | **App (partagé)** | LOG_LEVEL, CORS_ORIGIN, SHOW_DEV_OPTIONS, APP_* | SHOW_DEV_OPTIONS (dans render.yaml en dur) |
-| **Database** | POSTGRES_*, DATABASE_URL (compose) | DATABASE_URL fourni par le Blueprint (fromDatabase) |
+| **Database** | POSTGRES_*, DATABASE_URL (compose) | DATABASE_URL renseignée dans le Dashboard (ex: Neon) |
 | **Admin** | ADMIN_TOKEN, ADMIN_PORT | ADMIN_TOKEN, NEXT_PUBLIC_ADMIN_TOKEN |
 | **Secrets externes** | SECRET_OPENTRIPMAP_API_KEY | SECRET_OPENTRIPMAP_API_KEY |
 | **Provider** | SECRET_DUCKDNS_TOKEN | — |

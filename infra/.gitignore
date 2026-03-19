@@ -9,6 +9,7 @@ docker-compose.override.yml
 .env.*
 !.env.example
 !.env.template
+!.env.render.example
 !.env.secrets.example
 
 # Editor/OS

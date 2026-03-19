@@ -2,14 +2,8 @@
 # Deploy: connect this repo to Render and apply the Blueprint.
 # See infra/provisioning/render/README.md for steps.
 #
-# Architecture: 1 Postgres + 3 Web Services (API, web-frontend, admin).
+# Architecture: 3 Web Services (API, web-frontend, admin) + external Postgres (Neon).
 # Build/start use pnpm from repo root (same as local: pnpm --filter <package> build|start).
-
-databases:
-  - name: city-guided-db
-    plan: free
-    region: frankfurt  # Même région que l'API pour connexion interne (private network)
-    databaseName: cityguided
 
 services:
   # ---------------------------------------------------------------------------
@@ -26,9 +20,7 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: city-guided-db
-          property: connectionString
+        sync: false
       - key: NODE_ENV
         value: production
       - key: ADMIN_TOKEN

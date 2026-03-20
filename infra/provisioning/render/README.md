@@ -29,7 +29,7 @@ Node 22 est utilisé (fichier `.node-version` à la racine).
 3. **Variables à renseigner (sync: false)**  
    Après création des services, dans le Dashboard pour chaque service :
    - **city-guided-api** : `DATABASE_URL` (Neon), `ADMIN_TOKEN`, `SECRET_OPENTRIPMAP_API_KEY`.
-   - **city-guided-web** : `NEXT_PUBLIC_API_URL` = `https://city-guided-api.onrender.com` (adapter si le nom du service ou l’URL Render diffère).
+   - **city-guided-web** : `NEXT_PUBLIC_API_URL` = `https://city-guided-api.onrender.com` (sans `/api` à la fin ; le code accepte aussi `.../api` et le normalise).
    - **city-guided-admin** : `NEXT_PUBLIC_API_URL` (même URL que l’API), `NEXT_PUBLIC_ADMIN_TOKEN` (même valeur que `ADMIN_TOKEN` de l’API).
 
 4. **Premier déploiement**  

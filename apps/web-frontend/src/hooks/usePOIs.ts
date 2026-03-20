@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { normalizePublicApiBase } from '../utils/publicApiBase'
 import { useMapStore, useUiStore } from '../stores'
 import { distanceMeters } from '../utils/distance'
 
@@ -40,7 +41,7 @@ export function usePOIs() {
     }
 
     setLoadingPois(true)
-    const base = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
+    const base = normalizePublicApiBase(process.env.NEXT_PUBLIC_API_URL)
     const params = new URLSearchParams({
       radius: 'all',
       lat: String(basePos.lat),

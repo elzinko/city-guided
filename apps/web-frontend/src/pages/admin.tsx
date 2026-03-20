@@ -1,5 +1,6 @@
 import type { GetServerSideProps } from 'next'
 import React, { useEffect, useState, useRef } from 'react'
+import { normalizePublicApiBase } from '../utils/publicApiBase'
 
 type Poi = {
   id?: string
@@ -24,7 +25,7 @@ type AdminPageProps = {
   buildInfo: BuildInfo
 }
 
-const API = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '') || ''
+const API = normalizePublicApiBase(process.env.NEXT_PUBLIC_API_URL)
 const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'dev-secret'
 
 const CATEGORIES = [

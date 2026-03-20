@@ -1,6 +1,8 @@
 // API client pour l'admin
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+import { normalizePublicApiBase } from './publicApiBase'
+
+const API_BASE = normalizePublicApiBase(process.env.NEXT_PUBLIC_API_URL)
 const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'dev-secret'
 
 interface Zone {

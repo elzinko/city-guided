@@ -13,6 +13,7 @@ import { StoryPanelContainer } from '../components/StoryPanelContainer'
 import { MapContainer } from '../components/MapContainer'
 import { AppContainer } from '../components/AppContainer'
 import { distanceMeters, calculateBearing, filterPoisForNavigation } from '../utils/distance'
+import { normalizePublicApiBase } from '../utils/publicApiBase'
 import {
   DEFAULT_CENTER_RADIUS_METERS,
   GPS_HIDE_THRESHOLD_PERCENT,
@@ -466,7 +467,7 @@ export default function Home() {
     }
     
     setLoadingPois(true)
-    const base = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
+    const base = normalizePublicApiBase(process.env.NEXT_PUBLIC_API_URL)
     const params = new URLSearchParams({ radius: 'all', lat: String(basePos.lat), lng: String(basePos.lng) })
     if (query) params.set('q', query)
     const url = base ? `${base}/api/pois?${params.toString()}` : `/api/pois?${params.toString()}`

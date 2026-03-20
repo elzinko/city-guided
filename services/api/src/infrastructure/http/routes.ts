@@ -14,6 +14,15 @@ export function createRoutes({ poiRepo, zoneRepo }: RoutesDeps): any[] {
   const routes = [
     {
       method: 'GET',
+      url: '/',
+      handler: async () => ({
+        ok: true,
+        service: 'city-guided-api',
+        health: '/api/health',
+      }),
+    },
+    {
+      method: 'GET',
       url: '/api/pois',
       handler: controller.getNearbyPois,
     },

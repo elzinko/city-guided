@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",
-    "aws-cdk-lib": "^2.172.0",
+    "aws-cdk-lib": "^2.246.0",
     "constructs": "^10.4.2",
     "dotenv": "^16.4.7",
     "@aws-sdk/client-ecs": "^3.0.0",

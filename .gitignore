@@ -37,6 +37,8 @@ coverage/
 # Test results
 test-results/
 *.html
+# ...mais on versionne la landing page statique
+!landing/*.html
 
 # Playwright MCP screenshots (générés automatiquement pour validation UX)
 .playwright-mcp/
@@ -44,3 +46,7 @@ test-results/
 # Misc
 npm-debug.log
 yarn-error.log
+
+# Vercel
+.vercel
+landing/.vercel

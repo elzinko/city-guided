@@ -359,8 +359,7 @@
         note.style.display = 'none';
         errEl.style.display = 'none';
         success.classList.add('show');
-        success.focus();
-        success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        success.focus({ preventScroll: true });
       } catch (err) {
         btn.disabled = false;
         btn.textContent = original;

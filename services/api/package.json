@@ -15,7 +15,7 @@
     "fastify": "^4.23.0",
     "@fastify/cors": "^8.0.0",
     "pino": "^8.0.0",
-    "uuid": "^9.0.0",
+    "uuid": "^14.0.0",
     "@city-guided/domain": "workspace:*",
     "@city-guided/database": "workspace:*"
   },

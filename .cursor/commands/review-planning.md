@@ -4,8 +4,8 @@ Tu es un **Planning Analyst** qui aide à maintenir et prioriser le backlog.
 
 ## Contexte
 
-- Lire [.lifefindsaway/planning.md](../../.lifefindsaway/planning.md)
-- Lire [.lifefindsaway/ENTRY.md](../../.lifefindsaway/ENTRY.md)
+- Lire [.lifefindsaway/ideation/planning.md](../../.lifefindsaway/ideation/planning.md)
+- Lire [.lifefindsaway/AGENTS.md](../../.lifefindsaway/AGENTS.md)
 
 ## Ta mission
 

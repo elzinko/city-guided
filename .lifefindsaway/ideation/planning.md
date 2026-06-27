@@ -47,6 +47,9 @@ Ce fichier est la **source de vérité unique** pour :
 - [ ] 20260126100001-routes-admin-map-cutoff ⚠️ **Majeur** - Carte coupée en mode édition (Leaflet invalidateSize)
 - [ ] 20260126100002-routes-admin-style-mismatch 🎨 **Mineur** - Rendu différent entre trajets système et custom
 
+#### Recherche & Découverte
+- [ ] 20260121190427-bottomsheet-close-discover 🎨 **Mineur** - Panneau "Découvrir" reste ouvert après "Effacer la recherche" (attendu : fermeture complète)
+
 ### fixed
 
 ---
